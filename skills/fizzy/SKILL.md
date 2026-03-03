@@ -256,7 +256,9 @@ All commands support:
 
 | Flag | Description |
 |------|-------------|
+| `--token TOKEN` | API access token |
 | `--account SLUG` | Account slug (for multi-account users) |
+| `--api-url URL` | API base URL (default: https://app.fizzy.do) |
 | `--pretty` | Pretty-print JSON output |
 | `--verbose` | Show request/response details |
 
@@ -477,7 +479,7 @@ fizzy migrate board BOARD_ID --from personal --to team-account \
 ```bash
 fizzy card list [flags]
   --board ID                           # Filter by board
-  --column ID                          # Filter by column ID or pseudo: not-yet, maybe, done
+  --column ID                          # Filter by column ID or pseudo: not-now, maybe, done
   --assignee ID                        # Filter by assignee user ID
   --tag ID                             # Filter by tag ID
   --indexed-by LANE                    # Filter: all, closed, not_now, stalled, postponing_soon, golden
@@ -531,7 +533,7 @@ fizzy card untriage CARD_NUMBER        # Remove from column, back to triage
 #### Actions
 
 ```bash
-fizzy card column CARD_NUMBER --column ID     # Move to column (use column ID or: maybe, not-yet, done)
+fizzy card column CARD_NUMBER --column ID     # Move to column (use column ID or: maybe, not-now, done)
 fizzy card move CARD_NUMBER --to BOARD_ID     # Move card to a different board
 fizzy card assign CARD_NUMBER --user ID       # Toggle user assignment
 fizzy card self-assign CARD_NUMBER            # Toggle current user's assignment
@@ -555,7 +557,7 @@ fizzy card attachments download CARD_NUMBER [INDEX] [--include-comments]  # Down
 
 ### Columns
 
-Boards have pseudo columns by default: `not-yet`, `maybe`, `done`
+Boards have pseudo columns by default: `not-now`, `maybe`, `done`
 
 ```bash
 fizzy column list --board ID

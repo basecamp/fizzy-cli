@@ -21,7 +21,7 @@ else
     cat << 'EOF'
 <hook-output>
 Fizzy plugin: fizzy CLI not found.
-Install: https://github.com/basecamp/fizzy-cli#quick-start
+Install: https://github.com/robzolkos/fizzy-cli#quick-start
 </hook-output>
 EOF
     exit 0
@@ -50,7 +50,7 @@ fi
 context="Fizzy context loaded:"
 
 if [[ -n "$cli_version" ]]; then
-  context+="\n  CLI: v${cli_version}"
+  context+="\n  CLI: ${cli_version}"
 fi
 
 if [[ -n "$account" ]]; then

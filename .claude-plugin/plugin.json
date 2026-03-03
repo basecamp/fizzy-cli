@@ -6,7 +6,7 @@
     "name": "37signals",
     "email": "support@37signals.com"
   },
-  "homepage": "https://github.com/basecamp/fizzy-cli",
-  "repository": "https://github.com/basecamp/fizzy-cli",
+  "homepage": "https://github.com/robzolkos/fizzy-cli",
+  "repository": "https://github.com/robzolkos/fizzy-cli",
   "license": "MIT"
 }
