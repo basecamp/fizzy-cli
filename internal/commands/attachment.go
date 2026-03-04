@@ -65,7 +65,7 @@ Use --include-comments to also include attachments from comments on the card.`,
 					commentAttachments := extractCommentAttachments(comments)
 					// Re-index and append
 					for _, ca := range commentAttachments {
-						ca.Attachment.Index = len(attachments) + 1
+						ca.Index = len(attachments) + 1
 						attachments = append(attachments, ca.Attachment)
 					}
 				}
@@ -119,7 +119,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 				if comments, ok := commentsResp.Data.([]interface{}); ok {
 					commentAttachments := extractCommentAttachments(comments)
 					for _, ca := range commentAttachments {
-						ca.Attachment.Index = len(attachments) + 1
+						ca.Index = len(attachments) + 1
 						attachments = append(attachments, ca.Attachment)
 					}
 				}
@@ -148,7 +148,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 		}
 
 		// Download the files
-		var results []map[string]interface{}
+		results := make([]map[string]interface{}, 0, len(toDownload))
 		for i, attachment := range toDownload {
 			outputPath := buildOutputPath(attachmentDownloadOutput, attachment.Filename, i+1, len(toDownload))
 

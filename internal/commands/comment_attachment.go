@@ -123,7 +123,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 		}
 
 		// Download the files
-		var results []map[string]interface{}
+		results := make([]map[string]interface{}, 0, len(toDownload))
 		for i, attachment := range toDownload {
 			outputPath := buildOutputPath(commentAttachmentsDownloadOutput, attachment.Filename, i+1, len(toDownload))
 

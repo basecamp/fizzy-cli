@@ -181,7 +181,7 @@ var boardCreateCmd = &cobra.Command{
 				return
 			}
 			// If follow fails, just return success with location
-			printSuccessWithLocation(nil, resp.Location)
+			printSuccessWithLocation(resp.Location)
 			return
 		}
 

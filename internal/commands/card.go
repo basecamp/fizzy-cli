@@ -277,11 +277,11 @@ var cardCreateCmd = &cobra.Command{
 
 		// Handle description
 		if cardCreateDescriptionFile != "" {
-			content, err := os.ReadFile(cardCreateDescriptionFile)
-			if err != nil {
-				exitWithError(err)
+			descContent, descErr := os.ReadFile(cardCreateDescriptionFile)
+			if descErr != nil {
+				exitWithError(descErr)
 			}
-			cardParams["description"] = markdownToHTML(string(content))
+			cardParams["description"] = markdownToHTML(string(descContent))
 		} else if cardCreateDescription != "" {
 			cardParams["description"] = markdownToHTML(cardCreateDescription)
 		}
@@ -340,7 +340,7 @@ var cardCreateCmd = &cobra.Command{
 				os.Exit(0)
 				return
 			}
-			printSuccessWithLocation(nil, resp.Location)
+			printSuccessWithLocation(resp.Location)
 			return
 		}
 

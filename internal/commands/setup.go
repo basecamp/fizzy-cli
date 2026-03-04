@@ -86,7 +86,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 	apiURL := config.DefaultAPIURL
 	if hostingType == "selfhosted" {
-		err := huh.NewInput().
+		err = huh.NewInput().
 			Title("Enter your Fizzy URL").
 			Placeholder("https://fizzy.example.com").
 			Value(&apiURL).
@@ -112,7 +112,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 	var accounts []Account
 
 	for {
-		err := huh.NewInput().
+		err = huh.NewInput().
 			Title("Enter your API token").
 			Description("Visit My Profile → Personal Access Tokens").
 			Placeholder("fizzy_...").
@@ -138,7 +138,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 			fmt.Println("✗")
 
 			var retry bool
-			huh.NewConfirm().
+			_ = huh.NewConfirm().
 				Title("Invalid token. Would you like to try again?").
 				Value(&retry).
 				Run()
@@ -169,7 +169,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 			accountOptions[i] = huh.NewOption(fmt.Sprintf("%s (%s)", acc.Name, acc.Slug), acc.Slug)
 		}
 
-		err := huh.NewSelect[string]().
+		err = huh.NewSelect[string]().
 			Title("Select your account").
 			Options(accountOptions...).
 			Value(&selectedAccountSlug).
@@ -202,7 +202,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 			boardOptions[i+1] = huh.NewOption(board.Name, board.ID)
 		}
 
-		err := huh.NewSelect[string]().
+		err = huh.NewSelect[string]().
 			Title("Select default board (optional)").
 			Options(boardOptions...).
 			Value(&selectedBoardID).

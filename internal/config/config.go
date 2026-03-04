@@ -112,7 +112,7 @@ func Load() *Config {
 	// Load from global config file first
 	for _, path := range globalConfigPaths() {
 		if data, err := os.ReadFile(path); err == nil {
-			yaml.Unmarshal(data, cfg)
+			_ = yaml.Unmarshal(data, cfg)
 			break
 		}
 	}

@@ -1,0 +1,8 @@
+title = "fizzy-cli gitleaks config"
+
+[allowlist]
+description = "Allowlisted files and patterns"
+paths = [
+  '''e2e/.*''',
+  '''.*_test\.go''',
+]

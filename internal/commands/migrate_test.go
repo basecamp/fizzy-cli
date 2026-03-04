@@ -258,10 +258,7 @@ func TestMigrateInlineAttachments(t *testing.T) {
 		mock := NewMockClient()
 		html := "<p>Hello world</p>"
 
-		result, count, err := migrateInlineAttachments(mock, mock, html)
-		if err != nil {
-			t.Errorf("unexpected error: %v", err)
-		}
+		result, count := migrateInlineAttachments(mock, mock, html)
 		if count != 0 {
 			t.Errorf("expected 0 attachments, got %d", count)
 		}

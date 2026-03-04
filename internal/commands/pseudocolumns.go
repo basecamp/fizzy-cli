@@ -16,10 +16,6 @@ var (
 	pseudoColumnDone  = pseudoColumn{ID: "done", Name: "Done", Kind: "closed"}
 )
 
-func pseudoColumnsInBoardOrder() []pseudoColumn {
-	return []pseudoColumn{pseudoColumnNotNow, pseudoColumnMaybe, pseudoColumnDone}
-}
-
 func pseudoColumnObject(c pseudoColumn) map[string]interface{} {
 	return map[string]interface{}{
 		"id":     c.ID,

@@ -2,6 +2,7 @@
 package commands
 
 import (
+	stderrors "errors"
 	"os"
 
 	"github.com/basecamp/fizzy-cli/internal/client"
@@ -70,7 +71,8 @@ func SetVersion(v string) {
 // Execute runs the root command.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		if cliErr, ok := err.(*errors.CLIError); ok {
+		var cliErr *errors.CLIError
+		if stderrors.As(err, &cliErr) {
 			response.Error(cliErr).PrintAndExit()
 		}
 		response.Error(errors.NewError(err.Error())).PrintAndExit()
@@ -156,7 +158,8 @@ type testExitSignal struct{}
 // exitWithError prints an error response and exits.
 func exitWithError(err error) {
 	var resp *response.Response
-	if cliErr, ok := err.(*errors.CLIError); ok {
+	var cliErr *errors.CLIError
+	if stderrors.As(err, &cliErr) {
 		resp = response.Error(cliErr)
 	} else {
 		resp = response.Error(errors.NewError(err.Error()))
@@ -183,44 +186,8 @@ func printSuccess(data interface{}) {
 }
 
 // printSuccessWithLocation prints a success response with location.
-func printSuccessWithLocation(data interface{}, location string) {
-	resp := response.SuccessWithLocation(data, location)
-	if lastResult != nil {
-		lastResult.Response = resp
-		lastResult.ExitCode = errors.ExitSuccess
-		panic(testExitSignal{}) // Signal to stop execution in test mode
-	}
-	resp.Print()
-	os.Exit(errors.ExitSuccess)
-}
-
-// printSuccessWithPagination prints a success response with pagination.
-func printSuccessWithPagination(data interface{}, hasNext bool, nextURL string) {
-	resp := response.SuccessWithPagination(data, hasNext, nextURL)
-	if lastResult != nil {
-		lastResult.Response = resp
-		lastResult.ExitCode = errors.ExitSuccess
-		panic(testExitSignal{}) // Signal to stop execution in test mode
-	}
-	resp.Print()
-	os.Exit(errors.ExitSuccess)
-}
-
-// printSuccessWithSummary prints a success response with summary.
-func printSuccessWithSummary(data interface{}, summary string) {
-	resp := response.SuccessWithSummary(data, summary)
-	if lastResult != nil {
-		lastResult.Response = resp
-		lastResult.ExitCode = errors.ExitSuccess
-		panic(testExitSignal{}) // Signal to stop execution in test mode
-	}
-	resp.Print()
-	os.Exit(errors.ExitSuccess)
-}
-
-// printSuccessWithPaginationAndSummary prints a success response with pagination and summary.
-func printSuccessWithPaginationAndSummary(data interface{}, hasNext bool, nextURL string, summary string) {
-	resp := response.SuccessWithPaginationAndSummary(data, hasNext, nextURL, summary)
+func printSuccessWithLocation(location string) {
+	resp := response.SuccessWithLocation(nil, location)
 	if lastResult != nil {
 		lastResult.Response = resp
 		lastResult.ExitCode = errors.ExitSuccess

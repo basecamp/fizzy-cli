@@ -1,0 +1,40 @@
+version: 2
+updates:
+  # Go modules
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 10
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 2
+      semver-major-days: 7
+      semver-minor-days: 3
+      semver-patch-days: 2
+    commit-message:
+      prefix: "deps"
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Chicago
+    open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    cooldown:
+      default-days: 2
+    commit-message:
+      prefix: "ci"

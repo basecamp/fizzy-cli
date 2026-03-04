@@ -383,10 +383,7 @@ func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]in
 
 	// Migrate inline attachments in description if requested
 	if migrateBoardIncludeImages && descriptionHTML != "" {
-		migratedDesc, attachmentCount, err := migrateInlineAttachments(sourceClient, targetClient, descriptionHTML)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "    Warning: Failed to migrate some inline attachments: %v\n", err)
-		}
+		migratedDesc, attachmentCount := migrateInlineAttachments(sourceClient, targetClient, descriptionHTML)
 		if attachmentCount > 0 {
 			// Use the migrated HTML as the description
 			description = migratedDesc
@@ -608,12 +605,8 @@ func migrateComments(sourceClient, targetClient client.API, sourceCardNum, targe
 
 		// Migrate inline attachments in comment if we have HTML and images are enabled
 		if migrateBoardIncludeImages && bodyHTML != "" {
-			migratedBody, _, err := migrateInlineAttachments(sourceClient, targetClient, bodyHTML)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "      Warning: Failed to migrate comment attachments: %v\n", err)
-			} else {
-				bodyContent = migratedBody
-			}
+			migratedBody, _ := migrateInlineAttachments(sourceClient, targetClient, bodyHTML)
+			bodyContent = migratedBody
 		}
 
 		createdAt := getStringField(commentMap, "created_at")
@@ -706,7 +699,7 @@ func migrateCardImage(sourceClient, targetClient client.API, imageURL, targetCar
 	// Create a temp file to download the image
 	tempDir := os.TempDir()
 	tempFile := filepath.Join(tempDir, fmt.Sprintf("fizzy-migrate-image-%s.jpg", targetCardNum))
-	defer os.Remove(tempFile)
+	defer func() { _ = os.Remove(tempFile) }()
 
 	// Download the image from source
 	// The imageURL is a relative path like /6086023/rails/active_storage/blobs/redirect/...
@@ -751,10 +744,10 @@ func migrateCardImage(sourceClient, targetClient client.API, imageURL, targetCar
 // migrateInlineAttachments finds all <action-text-attachment> elements in HTML,
 // downloads and re-uploads them to the target account, and returns the modified HTML
 // with updated attachment references.
-func migrateInlineAttachments(sourceClient, targetClient client.API, html string) (string, int, error) {
+func migrateInlineAttachments(sourceClient, targetClient client.API, html string) (string, int) {
 	attachments := parseAttachments(html)
 	if len(attachments) == 0 {
-		return html, 0, nil
+		return html, 0
 	}
 
 	migratedCount := 0
@@ -772,14 +765,14 @@ func migrateInlineAttachments(sourceClient, targetClient client.API, html string
 		// Download the attachment
 		err := sourceClient.DownloadFile(attachment.DownloadURL, tempFile)
 		if err != nil {
-			os.Remove(tempFile)
+			_ = os.Remove(tempFile)
 			fmt.Fprintf(os.Stderr, "      Warning: Failed to download attachment '%s': %v\n", attachment.Filename, err)
 			continue
 		}
 
 		// Upload to target account
 		uploadResp, err := targetClient.UploadFile(tempFile)
-		os.Remove(tempFile) // Clean up temp file
+		_ = os.Remove(tempFile) // Clean up temp file
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "      Warning: Failed to upload attachment '%s': %v\n", attachment.Filename, err)
 			continue
@@ -809,7 +802,7 @@ func migrateInlineAttachments(sourceClient, targetClient client.API, html string
 		}
 	}
 
-	return result, migratedCount, nil
+	return result, migratedCount
 }
 
 func printDryRunSummary(boardName string, columns, cards []interface{}) {

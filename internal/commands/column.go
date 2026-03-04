@@ -178,7 +178,7 @@ var columnCreateCmd = &cobra.Command{
 				os.Exit(0)
 				return
 			}
-			printSuccessWithLocation(nil, resp.Location)
+			printSuccessWithLocation(resp.Location)
 			return
 		}
 

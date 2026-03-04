@@ -1,0 +1,100 @@
+version: "2"
+
+run:
+  build-tags:
+    - integration
+
+linters:
+  enable:
+    # Core
+    - errcheck
+    - govet
+    - staticcheck
+    - unused
+    - gosec
+    - errorlint
+    # Extended
+    - misspell
+    - prealloc
+    - unconvert
+    - unparam
+    - revive
+    - nilerr
+    - noctx
+    - bodyclose
+    - durationcheck
+    - errname
+    - exhaustive
+    - predeclared
+    - wastedassign
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+    exhaustive:
+      default-signifies-exhaustive: true
+    gosec:
+      excludes:
+        # MD5 used for ActiveStorage Content-MD5 checksum (not security)
+        - G401
+        - G501
+        # File operations on user-provided paths are inherent to a CLI
+        - G304
+        # CLI is an HTTP client — requests to user-configured API URLs are expected
+        - G704
+        # CLI renders API responses to terminal, not a browser context
+        - G705
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: exported
+          disabled: true
+        - name: increment-decrement
+        - name: var-naming
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+
+  exclusions:
+    presets:
+      - std-error-handling
+    paths:
+      - e2e
+    rules:
+      # Test files: relax errcheck, gosec, errorlint, govet
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - errorlint
+          - govet
+      # Package name conflicts with stdlib — intentional
+      - path: internal/errors/
+        linters:
+          - revive
+      # Config paths are constructed from known values, not user input
+      - path: internal/config/
+        linters:
+          - gosec
+      # Skill install needs 0755 dirs and 0644 files for user-facing paths
+      - path: internal/commands/skill\.go
+        linters:
+          - gosec
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -88,7 +89,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 
 	// Handle custom path
 	if selectedPath == "other" {
-		err := huh.NewInput().
+		err = huh.NewInput().
 			Title("Enter custom path").
 			Description("You can enter a directory or full path ending in SKILL.md").
 			Placeholder("/path/to/skills/fizzy/SKILL.md").
@@ -116,7 +117,7 @@ func runSkill(cmd *cobra.Command, args []string) {
 	// Check if file already exists
 	if fileExists(expandedPath) {
 		var overwrite bool
-		err := huh.NewConfirm().
+		err = huh.NewConfirm().
 			Title(fmt.Sprintf("File already exists at %s. Overwrite?", selectedPath)).
 			Value(&overwrite).
 			Run()
@@ -214,11 +215,15 @@ func fileExists(path string) bool {
 
 // downloadSkillFile downloads the SKILL.md content from GitHub
 func downloadSkillFile() ([]byte, error) {
-	resp, err := http.Get(skillSourceURL)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", skillSourceURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)

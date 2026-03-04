@@ -3,6 +3,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
@@ -91,7 +92,7 @@ func (c *Client) PatchMultipart(path, fileField, filePath string, fields map[str
 	if err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to open file: %v", err))
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -101,22 +102,22 @@ func (c *Client) PatchMultipart(path, fileField, filePath string, fields map[str
 		return nil, errors.NewError(fmt.Sprintf("Failed to create form file: %v", err))
 	}
 
-	if _, err := io.Copy(part, file); err != nil {
+	if _, err = io.Copy(part, file); err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to copy file: %v", err))
 	}
 
 	for key, value := range fields {
-		if err := writer.WriteField(key, value); err != nil {
+		if err = writer.WriteField(key, value); err != nil {
 			return nil, errors.NewError(fmt.Sprintf("Failed to write form field: %v", err))
 		}
 	}
 
-	if err := writer.Close(); err != nil {
+	if err = writer.Close(); err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to finalize multipart body: %v", err))
 	}
 
 	reqURL := c.buildURL(path)
-	req, err := http.NewRequest("PATCH", reqURL, &buf)
+	req, err := http.NewRequestWithContext(context.Background(), "PATCH", reqURL, &buf)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Failed to create request: %v", err))
 	}
@@ -128,7 +129,7 @@ func (c *Client) PatchMultipart(path, fileField, filePath string, fields map[str
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -176,7 +177,7 @@ func (c *Client) request(method, path string, body interface{}) (*APIResponse, e
 		reqBody = bytes.NewReader(jsonBody)
 	}
 
-	req, err := http.NewRequest(method, requestURL, reqBody)
+	req, err := http.NewRequestWithContext(context.Background(), method, requestURL, reqBody)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Failed to create request: %v", err))
 	}
@@ -194,7 +195,7 @@ func (c *Client) request(method, path string, body interface{}) (*APIResponse, e
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -312,7 +313,7 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 	if err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to open file: %v", err))
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	// Get file info
 	fileInfo, err := file.Stat()
@@ -372,7 +373,7 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 	attachableSGID, _ := blobData["attachable_sgid"].(string)
 
 	// Step 2: Upload file to the direct upload URL
-	uploadReq, err := http.NewRequest("PUT", uploadURL, bytes.NewReader(fileContent))
+	uploadReq, err := http.NewRequestWithContext(context.Background(), "PUT", uploadURL, bytes.NewReader(fileContent))
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Failed to create upload request: %v", err))
 	}
@@ -388,7 +389,7 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Upload failed: %v", err))
 	}
-	defer uploadResp.Body.Close()
+	defer func() { _ = uploadResp.Body.Close() }()
 
 	if uploadResp.StatusCode >= 400 {
 		body, _ := io.ReadAll(uploadResp.Body)
@@ -415,7 +416,7 @@ func (c *Client) UploadFileMultipart(path, fieldName, filePath string, extraFiel
 	if err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to open file: %v", err))
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
@@ -426,23 +427,23 @@ func (c *Client) UploadFileMultipart(path, fieldName, filePath string, extraFiel
 		return nil, errors.NewError(fmt.Sprintf("Failed to create form file: %v", err))
 	}
 
-	if _, err := io.Copy(part, file); err != nil {
+	if _, err = io.Copy(part, file); err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to copy file: %v", err))
 	}
 
 	// Add extra fields
 	for key, value := range extraFields {
-		if err := writer.WriteField(key, value); err != nil {
+		if err = writer.WriteField(key, value); err != nil {
 			return nil, errors.NewError(fmt.Sprintf("Failed to write form field: %v", err))
 		}
 	}
 
-	if err := writer.Close(); err != nil {
+	if err = writer.Close(); err != nil {
 		return nil, errors.NewError(fmt.Sprintf("Failed to finalize multipart body: %v", err))
 	}
 
 	reqURL := c.buildURL(path)
-	req, err := http.NewRequest("POST", reqURL, &buf)
+	req, err := http.NewRequestWithContext(context.Background(), "POST", reqURL, &buf)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Failed to create request: %v", err))
 	}
@@ -454,7 +455,7 @@ func (c *Client) UploadFileMultipart(path, fieldName, filePath string, extraFiel
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -526,7 +527,7 @@ func ParsePage(nextURL string) string {
 func (c *Client) DownloadFile(urlPath string, destPath string) error {
 	requestURL := c.buildURL(urlPath)
 
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", requestURL, nil)
 	if err != nil {
 		return errors.NewNetworkError(fmt.Sprintf("Failed to create request: %v", err))
 	}
@@ -542,7 +543,7 @@ func (c *Client) DownloadFile(urlPath string, destPath string) error {
 	if err != nil {
 		return errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if c.Verbose {
 		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
@@ -562,8 +563,8 @@ func (c *Client) DownloadFile(urlPath string, destPath string) error {
 	// Copy the response body to the file
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		out.Close()
-		os.Remove(destPath)
+		_ = out.Close()
+		_ = os.Remove(destPath)
 		return errors.NewError(fmt.Sprintf("Failed to write file: %v", err))
 	}
 

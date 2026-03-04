@@ -4,6 +4,7 @@ package response
 import (
 	"bytes"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"time"
@@ -170,7 +171,8 @@ func Error(err *errors.CLIError) *Response {
 
 // ErrorFromError creates an error response from a generic error.
 func ErrorFromError(err error) *Response {
-	if cliErr, ok := err.(*errors.CLIError); ok {
+	var cliErr *errors.CLIError
+	if stderrors.As(err, &cliErr) {
 		return Error(cliErr)
 	}
 	return Error(errors.NewError(err.Error()))
