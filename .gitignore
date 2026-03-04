@@ -24,3 +24,11 @@ coverage.html
 # OS
 .DS_Store
 Thumbs.db
+
+# Release artifacts
+dist/
+completions/
+
+# Profiling
+profiles/
+default.pgo

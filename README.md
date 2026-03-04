@@ -24,7 +24,7 @@
 ## Quick Start
 
 ```bash
-brew install basecamp/fizzy-cli/fizzy-cli
+brew install basecamp/tap/fizzy
 fizzy setup
 ```
 
@@ -33,6 +33,22 @@ That's it. The setup wizard walks you through configuring your token, selecting 
 <details>
 <summary>Other installation methods</summary>
 
+**Scoop (Windows):**
+```bash
+scoop bucket add basecamp https://github.com/basecamp/homebrew-tap
+scoop install fizzy
+```
+
+**curl installer:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/basecamp/fizzy-cli/master/scripts/install.sh | bash
+```
+
+**Go install:**
+```bash
+go install github.com/basecamp/fizzy-cli/cmd/fizzy@latest
+```
+
 **Arch Linux (AUR):**
 ```bash
 yay -S fizzy-cli
@@ -40,22 +56,17 @@ yay -S fizzy-cli
 
 **Debian/Ubuntu:**
 ```bash
-curl -LO https://github.com/basecamp/fizzy-cli/releases/latest/download/fizzy-cli_VERSION_amd64.deb
-sudo dpkg -i fizzy-cli_VERSION_amd64.deb
+curl -LO https://github.com/basecamp/fizzy-cli/releases/latest/download/fizzy-cli_VERSION_linux_amd64.deb
+sudo dpkg -i fizzy-cli_VERSION_linux_amd64.deb
 ```
 
 **Fedora/RHEL:**
 ```bash
-curl -LO https://github.com/basecamp/fizzy-cli/releases/latest/download/fizzy-cli-VERSION-1.x86_64.rpm
-sudo rpm -i fizzy-cli-VERSION-1.x86_64.rpm
+curl -LO https://github.com/basecamp/fizzy-cli/releases/latest/download/fizzy-cli_VERSION_linux_amd64.rpm
+sudo rpm -i fizzy-cli_VERSION_linux_amd64.rpm
 ```
 
-**Windows:** download `fizzy-windows-amd64.exe` from [Releases](https://github.com/basecamp/fizzy-cli/releases), rename to `fizzy.exe`, and add to your PATH.
-
-**Go install:**
-```bash
-go install github.com/basecamp/fizzy-cli/cmd/fizzy@latest
-```
+**Windows:** download `fizzy_VERSION_windows_amd64.zip` from [Releases](https://github.com/basecamp/fizzy-cli/releases), extract, and add `fizzy.exe` to your PATH.
 
 **GitHub Release:** download from [Releases](https://github.com/basecamp/fizzy-cli/releases).
 
