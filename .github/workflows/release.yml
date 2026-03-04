@@ -1,286 +1,124 @@
 name: Release
 
 on:
-  release:
-    types: [created]
-  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
+  id-token: write
+  security-events: write
 
 jobs:
-  build:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  security:
+    uses: ./.github/workflows/security.yml
+
+  release:
+    name: Release
+    needs: [test, security]
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - goos: linux
-            goarch: amd64
-          - goos: linux
-            goarch: arm64
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          - goos: windows
-            goarch: amd64
-            ext: .exe
-
+    timeout-minutes: 45
+    environment: release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version-file: go.mod
 
-      - name: Build
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ github.ref_name }}
-          EXT: ${{ matrix.ext }}
+      - name: Verify tag is on default branch
         run: |
-          mkdir -p dist
-          go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o "dist/fizzy-${GOOS}-${GOARCH}${EXT}" ./cmd/fizzy
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch }}"
+          TAG_COMMIT=$(git rev-list -n 1 ${{ github.ref }})
+          if ! git branch -r --contains "$TAG_COMMIT" | grep -q "origin/${DEFAULT_BRANCH}$"; then
+            echo "ERROR: Tag ${{ github.ref_name }} is not on ${DEFAULT_BRANCH}"
+            exit 1
+          fi
 
-      - name: Checksums
+      - name: Verify macOS signing secrets
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          EXT: ${{ matrix.ext }}
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
         run: |
-          cd dist
-          sha256sum "fizzy-${GOOS}-${GOARCH}${EXT}" > "SHA256SUMS-${GOOS}-${GOARCH}.txt"
+          missing=()
+          for var in MACOS_SIGN_P12 MACOS_SIGN_PASSWORD MACOS_NOTARY_KEY MACOS_NOTARY_KEY_ID MACOS_NOTARY_ISSUER_ID; do
+            if [ -z "${!var}" ]; then
+              missing+=("$var")
+            fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "ERROR: Missing required macOS signing secrets: ${missing[*]}"
+            echo "Notarization is mandatory. Configure all MACOS_* secrets before releasing."
+            exit 1
+          fi
 
-      - name: Upload assets to release
-        uses: softprops/action-gh-release@v2
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf # v2
         with:
-          files: |
-            dist/fizzy-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
-            dist/SHA256SUMS-${{ matrix.goos }}-${{ matrix.goarch }}.txt
+          app-id: ${{ vars.RELEASE_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          repositories: homebrew-tap
 
-  build-packages:
-    runs-on: ubuntu-latest
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            goarch: amd64
-            rpm_arch: x86_64
-          - arch: arm64
-            goarch: arm64
-            rpm_arch: aarch64
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
 
-    steps:
-      - uses: actions/checkout@v4
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@17ae1740179002c89186b61233e0f892c3118b11 # v0
 
-      - name: Install packaging tools
-        run: sudo apt-get update && sudo apt-get install -y rpm
-
-      - name: Download binary
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Generate shell completions
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          curl -sL "https://github.com/basecamp/fizzy-cli/releases/download/v${VERSION}/fizzy-linux-${{ matrix.goarch }}" -o fizzy
-          chmod +x fizzy
+          go build -o fizzy-tmp ./cmd/fizzy
+          mkdir -p completions
+          ./fizzy-tmp completion bash > completions/fizzy.bash
+          ./fizzy-tmp completion zsh > completions/fizzy.zsh
+          ./fizzy-tmp completion fish > completions/fizzy.fish
+          rm fizzy-tmp
 
-      - name: Build .deb package
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          PKG_ROOT="fizzy-cli_${VERSION}_${{ matrix.arch }}"
-
-          mkdir -p "${PKG_ROOT}/DEBIAN"
-          mkdir -p "${PKG_ROOT}/usr/bin"
-          mkdir -p "${PKG_ROOT}/usr/share/doc/fizzy-cli"
-
-          cp fizzy "${PKG_ROOT}/usr/bin/fizzy"
-          cp LICENSE "${PKG_ROOT}/usr/share/doc/fizzy-cli/copyright"
-
-          cat > "${PKG_ROOT}/DEBIAN/control" << EOF
-          Package: fizzy-cli
-          Version: ${VERSION}
-          Section: utils
-          Priority: optional
-          Architecture: ${{ matrix.arch }}
-          Maintainer: Rob Zolkos <rob@zolkos.com>
-          Description: CLI for managing Fizzy boards, cards, and tasks
-           A command-line interface for the Fizzy API.
-          Homepage: https://github.com/basecamp/fizzy-cli
-          EOF
-
-          sed -i 's/^          //' "${PKG_ROOT}/DEBIAN/control"
-
-          dpkg-deb --build "${PKG_ROOT}"
-
-      - name: Build .rpm package
-        run: |
-          VERSION=${GITHUB_REF_NAME#v}
-
-          mkdir -p rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-          mkdir -p rpmbuild/BUILDROOT/fizzy-cli-${VERSION}-1.${{ matrix.rpm_arch }}/usr/bin
-          mkdir -p rpmbuild/BUILDROOT/fizzy-cli-${VERSION}-1.${{ matrix.rpm_arch }}/usr/share/licenses/fizzy-cli
-
-          cp fizzy rpmbuild/BUILDROOT/fizzy-cli-${VERSION}-1.${{ matrix.rpm_arch }}/usr/bin/fizzy
-          cp LICENSE rpmbuild/BUILDROOT/fizzy-cli-${VERSION}-1.${{ matrix.rpm_arch }}/usr/share/licenses/fizzy-cli/LICENSE
-
-          cat > rpmbuild/SPECS/fizzy-cli.spec << EOF
-          Name:           fizzy-cli
-          Version:        ${VERSION}
-          Release:        1
-          Summary:        CLI for managing Fizzy boards, cards, and tasks
-          License:        MIT
-          URL:            https://github.com/basecamp/fizzy-cli
-
-          %description
-          A command-line interface for the Fizzy API.
-
-          %files
-          %license /usr/share/licenses/fizzy-cli/LICENSE
-          /usr/bin/fizzy
-          EOF
-
-          rpmbuild --define "_topdir $(pwd)/rpmbuild" \
-                   --define "_rpmdir $(pwd)/rpmbuild/RPMS" \
-                   --target ${{ matrix.rpm_arch }} \
-                   -bb rpmbuild/SPECS/fizzy-cli.spec
-
-          cp rpmbuild/RPMS/${{ matrix.rpm_arch }}/*.rpm .
-
-      - name: Upload packages to release
-        uses: softprops/action-gh-release@v2
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
         with:
-          files: |
-            fizzy-cli_*_${{ matrix.arch }}.deb
-            fizzy-cli-*.rpm
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ steps.app-token.outputs.token }}
+          MACOS_SIGN_P12: ${{ secrets.MACOS_SIGN_P12 }}
+          MACOS_SIGN_PASSWORD: ${{ secrets.MACOS_SIGN_PASSWORD }}
+          MACOS_NOTARY_KEY: ${{ secrets.MACOS_NOTARY_KEY }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER_ID: ${{ secrets.MACOS_NOTARY_ISSUER_ID }}
 
   aur-publish:
     runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'release'
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - name: Generate PKGBUILD
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Check AUR secret
+        id: check
+        env:
+          AUR_KEY: ${{ secrets.AUR_KEY }}
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-
-          # Download source tarball and calculate checksum
-          curl -sL "https://github.com/basecamp/fizzy-cli/archive/v${VERSION}.tar.gz" -o source.tar.gz
-          SHA256=$(sha256sum source.tar.gz | cut -d' ' -f1)
-
-          # Generate PKGBUILD
-          cat > PKGBUILD << 'EOF'
-          # Maintainer: Rob Zolkos <rob@zolkos.com>
-          pkgname=fizzy-cli
-          pkgver=VERSION_PLACEHOLDER
-          pkgrel=1
-          pkgdesc="CLI for managing Fizzy boards, cards, and tasks"
-          arch=('x86_64' 'aarch64')
-          url="https://github.com/basecamp/fizzy-cli"
-          license=('MIT')
-          depends=('glibc')
-          makedepends=('go')
-          source=("$pkgname-$pkgver.tar.gz::https://github.com/basecamp/fizzy-cli/archive/v$pkgver.tar.gz")
-          sha256sums=('SHA256_PLACEHOLDER')
-          options=('!debug')
-
-          build() {
-              cd "$pkgname-$pkgver"
-              export CGO_CPPFLAGS="${CPPFLAGS}"
-              export CGO_CFLAGS="${CFLAGS}"
-              export CGO_CXXFLAGS="${CXXFLAGS}"
-              export CGO_LDFLAGS="${LDFLAGS}"
-              export GOFLAGS="-buildmode=pie -trimpath -mod=readonly -modcacherw"
-              go build -ldflags "-s -w -X main.version=${pkgver}" -o fizzy ./cmd/fizzy
-          }
-
-          package() {
-              cd "$pkgname-$pkgver"
-              install -Dm755 fizzy "$pkgdir/usr/bin/fizzy"
-              install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-          }
-          EOF
-
-          # Remove leading whitespace from PKGBUILD
-          sed -i 's/^          //' PKGBUILD
-
-          # Replace placeholders
-          sed -i "s/VERSION_PLACEHOLDER/$VERSION/" PKGBUILD
-          sed -i "s/SHA256_PLACEHOLDER/$SHA256/" PKGBUILD
+          if [ -n "$AUR_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Publish to AUR
-        uses: KSXGitHub/github-actions-deploy-aur@v3.0.1
-        with:
-          pkgname: fizzy-cli
-          pkgbuild: ./PKGBUILD
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
-          ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          commit_message: "Update to ${{ github.ref_name }}"
-
-  homebrew-publish:
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.event_name == 'release'
-    steps:
-      - name: Update Homebrew Formula
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        if: steps.check.outputs.available == 'true'
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-
-          # Download SHA256 files
-          curl -sL "https://github.com/basecamp/fizzy-cli/releases/download/v${VERSION}/SHA256SUMS-darwin-amd64.txt" -o sha256-amd64.txt
-          curl -sL "https://github.com/basecamp/fizzy-cli/releases/download/v${VERSION}/SHA256SUMS-darwin-arm64.txt" -o sha256-arm64.txt
-
-          SHA256_AMD64=$(cut -d' ' -f1 sha256-amd64.txt)
-          SHA256_ARM64=$(cut -d' ' -f1 sha256-arm64.txt)
-
-          # Generate formula
-          cat > fizzy-cli.rb << 'FORMULA'
-          class FizzyCli < Formula
-            desc "CLI for managing Fizzy boards, cards, and tasks"
-            homepage "https://github.com/basecamp/fizzy-cli"
-            version "VERSION_PLACEHOLDER"
-            license "MIT"
-
-            on_macos do
-              if Hardware::CPU.arm?
-                url "https://github.com/basecamp/fizzy-cli/releases/download/v#{version}/fizzy-darwin-arm64"
-                sha256 "SHA256_ARM64_PLACEHOLDER"
-              else
-                url "https://github.com/basecamp/fizzy-cli/releases/download/v#{version}/fizzy-darwin-amd64"
-                sha256 "SHA256_AMD64_PLACEHOLDER"
-              end
-            end
-
-            def install
-              binary_name = Hardware::CPU.arm? ? "fizzy-darwin-arm64" : "fizzy-darwin-amd64"
-              bin.install binary_name => "fizzy"
-            end
-
-            test do
-              assert_match version.to_s, shell_output("#{bin}/fizzy --version")
-            end
-          end
-          FORMULA
-
-          # Remove leading whitespace and replace placeholders
-          sed -i 's/^          //' fizzy-cli.rb
-          sed -i "s/VERSION_PLACEHOLDER/${VERSION}/" fizzy-cli.rb
-          sed -i "s/SHA256_ARM64_PLACEHOLDER/${SHA256_ARM64}/" fizzy-cli.rb
-          sed -i "s/SHA256_AMD64_PLACEHOLDER/${SHA256_AMD64}/" fizzy-cli.rb
-
-          # Clone tap repo, update formula, push
-          git clone https://x-access-token:${GH_TOKEN}@github.com/robzolkos/homebrew-fizzy-cli.git
-          cd homebrew-fizzy-cli
-          cp ../fizzy-cli.rb Formula/fizzy-cli.rb
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/fizzy-cli.rb
-          git commit -m "Update fizzy-cli to ${VERSION}"
-          git push
+          scripts/publish-aur.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUR_KEY: ${{ secrets.AUR_KEY }}

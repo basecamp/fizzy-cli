@@ -1,0 +1,121 @@
+version: 2
+
+project_name: fizzy
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: fizzy
+    main: ./cmd/fizzy
+    binary: fizzy
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+      - freebsd
+      - openbsd
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - id: default
+    ids: [fizzy]
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - MIT-LICENSE
+      - README.md
+      - completions/*
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    cmd: syft
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    output: true
+    args:
+      - sign-blob
+      - --yes
+      - --output-certificate=${certificate}
+      - --output-signature=${signature}
+      - ${artifact}
+
+notarize:
+  macos:
+    - enabled: true
+      ids: [fizzy]
+      sign:
+        certificate: "{{.Env.MACOS_SIGN_P12}}"
+        password: "{{.Env.MACOS_SIGN_PASSWORD}}"
+      notarize:
+        issuer_id: "{{.Env.MACOS_NOTARY_ISSUER_ID}}"
+        key_id: "{{.Env.MACOS_NOTARY_KEY_ID}}"
+        key: "{{.Env.MACOS_NOTARY_KEY}}"
+        wait: true
+        timeout: 20m
+
+changelog:
+  use: github-native
+
+homebrew_casks:
+  - name: fizzy
+    ids: [default]
+    repository:
+      owner: basecamp
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Casks
+    homepage: "https://github.com/basecamp/fizzy-cli"
+    description: "CLI for managing Fizzy boards, cards, and tasks"
+    license: "MIT"
+    completions:
+      bash: "completions/fizzy.bash"
+      zsh: "completions/fizzy.zsh"
+      fish: "completions/fizzy.fish"
+
+scoops:
+  - name: fizzy
+    ids: [default]
+    repository:
+      owner: basecamp
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/basecamp/fizzy-cli"
+    description: "CLI for managing Fizzy boards, cards, and tasks"
+    license: MIT
+
+nfpms:
+  - id: packages
+    package_name: fizzy-cli
+    ids: [fizzy]
+    vendor: 37signals
+    homepage: "https://github.com/basecamp/fizzy-cli"
+    maintainer: "37signals <support@37signals.com>"
+    description: "CLI for managing Fizzy boards, cards, and tasks"
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: completions/fizzy.bash
+        dst: /usr/share/bash-completion/completions/fizzy
+      - src: completions/fizzy.zsh
+        dst: /usr/share/zsh/vendor-completions/_fizzy
+      - src: completions/fizzy.fish
+        dst: /usr/share/fish/vendor_completions.d/fizzy.fish
