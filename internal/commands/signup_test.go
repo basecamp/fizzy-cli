@@ -599,8 +599,7 @@ func TestNormalizeAccountSlugs(t *testing.T) {
 			},
 		}
 
-		result := normalizeAccountSlugs(input)
-		accounts := result.([]any)
+		accounts := normalizeAccountSlugs(input)
 
 		slug1 := accounts[0].(map[string]any)["slug"].(string)
 		slug2 := accounts[1].(map[string]any)["slug"].(string)
@@ -620,8 +619,7 @@ func TestNormalizeAccountSlugs(t *testing.T) {
 			},
 		}
 
-		result := normalizeAccountSlugs(input)
-		accounts := result.([]any)
+		accounts := normalizeAccountSlugs(input)
 		slug := accounts[0].(map[string]any)["slug"].(string)
 
 		if slug != "already-clean" {
@@ -629,13 +627,6 @@ func TestNormalizeAccountSlugs(t *testing.T) {
 		}
 	})
 
-	t.Run("returns non-array input unchanged", func(t *testing.T) {
-		input := "not-an-array"
-		result := normalizeAccountSlugs(input)
-		if result != "not-an-array" {
-			t.Errorf("expected unchanged input, got '%v'", result)
-		}
-	})
 }
 
 func TestValidateSignupURL(t *testing.T) {

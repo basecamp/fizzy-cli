@@ -388,7 +388,9 @@ func runSignupVerify(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.NewError(fmt.Sprintf("Failed to fetch accounts: %v", err))
 		}
-		result["accounts"] = normalizeAccountSlugs(identityData["accounts"])
+		if accountsList, ok := identityData["accounts"].([]any); ok {
+			result["accounts"] = normalizeAccountSlugs(accountsList)
+		}
 	}
 
 	printSuccess(result)
@@ -680,19 +682,15 @@ func validateSignupURL(rawURL string) error {
 
 // normalizeAccountSlugs strips leading "/" from account slugs in the identity response
 // so they match the format expected by --account flags and URL construction.
-func normalizeAccountSlugs(accounts any) any {
-	accountsList, ok := accounts.([]any)
-	if !ok {
-		return accounts
-	}
-	for _, acc := range accountsList {
+func normalizeAccountSlugs(accounts []any) []any {
+	for _, acc := range accounts {
 		if m, ok := acc.(map[string]any); ok {
 			if slug, ok := m["slug"].(string); ok {
 				m["slug"] = strings.TrimPrefix(slug, "/")
 			}
 		}
 	}
-	return accountsList
+	return accounts
 }
 
 // getCookieValue extracts a cookie value from the HTTP client's cookie jar.
