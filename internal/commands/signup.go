@@ -3,6 +3,7 @@ package commands
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -53,12 +54,12 @@ func init() {
 	signupCmd.AddCommand(signupCompleteCmd)
 
 	signupStartCmd.Flags().String("email", "", "Email address")
-	signupStartCmd.MarkFlagRequired("email")
+	_ = signupStartCmd.MarkFlagRequired("email")
 
 	signupVerifyCmd.Flags().String("code", "", "Magic link code from email")
 	signupVerifyCmd.Flags().String("pending-token", "", "Pending authentication token from start step")
-	signupVerifyCmd.MarkFlagRequired("code")
-	signupVerifyCmd.MarkFlagRequired("pending-token")
+	_ = signupVerifyCmd.MarkFlagRequired("code")
+	_ = signupVerifyCmd.MarkFlagRequired("pending-token")
 
 	signupCompleteCmd.Flags().String("name", "", "Full name (required for new users)")
 	signupCompleteCmd.Flags().String("account", "", "Account slug (required for existing users)")
@@ -92,7 +93,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	apiURL := config.DefaultAPIURL
 	if hostingType == "selfhosted" {
-		err := huh.NewInput().
+		err = huh.NewInput().
 			Title("Enter your Fizzy URL").
 			Placeholder("https://fizzy.example.com").
 			Value(&apiURL).
@@ -139,7 +140,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	// Step 3: Request magic link
 	fmt.Print("Sending magic link... ")
-	_, resp, err := signupPost(httpClient, apiURL+"/session.json", map[string]any{
+	_, respHeader, err := signupPost(httpClient, apiURL+"/session.json", map[string]any{
 		"email_address": email,
 	})
 	if err != nil {
@@ -149,7 +150,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 	fmt.Println("✓")
 
 	// Development servers include the magic link code in a response header
-	if devCode := resp.Header.Get("X-Magic-Link-Code"); devCode != "" {
+	if devCode := respHeader.Get("X-Magic-Link-Code"); devCode != "" {
 		fmt.Printf("Development code: %s\n", devCode)
 	} else {
 		fmt.Println("Check your email for a 6-digit code.")
@@ -186,10 +187,12 @@ func runSignup(cmd *cobra.Command, args []string) error {
 			fmt.Println("✗")
 
 			var retry bool
-			huh.NewConfirm().
+			if confirmErr := huh.NewConfirm().
 				Title("Invalid code. Would you like to try again?").
 				Value(&retry).
-				Run()
+				Run(); confirmErr != nil {
+				retry = false
+			}
 
 			if !retry {
 				fmt.Println("Signup cancelled.")
@@ -263,7 +266,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 			accountOptions[i] = huh.NewOption(fmt.Sprintf("%s (%s)", acc.Name, acc.Slug), acc.Slug)
 		}
 
-		err := huh.NewSelect[string]().
+		err = huh.NewSelect[string]().
 			Title("Select your account").
 			Options(accountOptions...).
 			Value(&selectedAccountSlug).
@@ -312,7 +315,7 @@ func runSignupStart(cmd *cobra.Command, args []string) error {
 	apiURL := signupAPIURL()
 
 	httpClient := newSignupHTTPClient()
-	_, resp, err := signupPost(httpClient, apiURL+"/session.json", map[string]any{
+	_, respHeader, err := signupPost(httpClient, apiURL+"/session.json", map[string]any{
 		"email_address": email,
 	})
 	if err != nil {
@@ -334,7 +337,7 @@ func runSignupStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// Development servers include the magic link code in a response header
-	if code := resp.Header.Get("X-Magic-Link-Code"); code != "" {
+	if code := respHeader.Get("X-Magic-Link-Code"); code != "" {
 		data["code"] = code
 	}
 
@@ -494,14 +497,14 @@ func newSignupHTTPClient() *http.Client {
 	}
 }
 
-// signupPost makes a JSON POST request and returns the parsed response body.
-func signupPost(client *http.Client, reqURL string, body any) (map[string]any, *http.Response, error) {
+// signupPost makes a JSON POST request and returns the parsed response body and headers.
+func signupPost(client *http.Client, reqURL string, body any) (map[string]any, http.Header, error) {
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", reqURL, bytes.NewReader(jsonBody))
+	req, err := http.NewRequestWithContext(context.Background(), "POST", reqURL, bytes.NewReader(jsonBody))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -517,7 +520,7 @@ func signupPost(client *http.Client, reqURL string, body any) (map[string]any, *
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, resp, fmt.Errorf("failed to read response: %w", err)
+		return nil, resp.Header, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode >= 400 {
@@ -528,33 +531,33 @@ func signupPost(client *http.Client, reqURL string, body any) (map[string]any, *
 		}
 		if json.Unmarshal(respBody, &errData) == nil {
 			if errData.Error != "" {
-				return nil, resp, fmt.Errorf("%s", errData.Error)
+				return nil, resp.Header, fmt.Errorf("%s", errData.Error)
 			}
 			if errData.Message != "" {
-				return nil, resp, fmt.Errorf("%s", errData.Message)
+				return nil, resp.Header, fmt.Errorf("%s", errData.Message)
 			}
 			if len(errData.Errors) > 0 {
-				return nil, resp, fmt.Errorf("%s", strings.Join(errData.Errors, ", "))
+				return nil, resp.Header, fmt.Errorf("%s", strings.Join(errData.Errors, ", "))
 			}
 		}
-		return nil, resp, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		return nil, resp.Header, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	if len(respBody) == 0 {
-		return map[string]any{}, resp, nil
+		return map[string]any{}, resp.Header, nil
 	}
 
 	var data map[string]any
 	if err := json.Unmarshal(respBody, &data); err != nil {
-		return nil, resp, fmt.Errorf("failed to parse response: %w", err)
+		return nil, resp.Header, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	return data, resp, nil
+	return data, resp.Header, nil
 }
 
 // signupGet makes a GET request and returns the parsed response body.
 func signupGet(client *http.Client, reqURL string) (map[string]any, error) {
-	req, err := http.NewRequest("GET", reqURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
