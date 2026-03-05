@@ -118,7 +118,10 @@ All commands support:
 | `--token TOKEN` | API access token |
 | `--account SLUG` | Account slug (for multi-account users) |
 | `--api-url URL` | API base URL (default: https://app.fizzy.do) |
-| `--pretty` | Pretty-print JSON output |
+| `--json` | JSON envelope output (default) |
+| `--quiet` | Raw JSON data without envelope |
+| `--ids-only` | Print one ID per line |
+| `--count` | Print count of results |
 | `--verbose` | Show request/response details |
 
 ## Pagination

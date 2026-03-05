@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	stderrors "errors"
+	"fmt"
 	"os"
 
 	"github.com/basecamp/cli/output"
@@ -23,7 +24,10 @@ var (
 	cfgAccount string
 	cfgAPIURL  string
 	cfgVerbose bool
-	cfgPretty  bool
+	cfgJSON    bool
+	cfgQuiet   bool
+	cfgIDsOnly bool
+	cfgCount   bool
 
 	// Loaded config
 	cfg *config.Config
@@ -44,6 +48,18 @@ var rootCmd = &cobra.Command{
 Use fizzy to manage boards, cards, comments, and more from your terminal.`,
 	Version: "dev",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Resolve output format from parsed flags (must happen post-parse).
+		format, err := resolveFormat()
+		if err != nil {
+			return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+		}
+		if lastResult != nil {
+			// Test mode — preserve test buffer as writer.
+			out = output.New(output.Options{Format: format, Writer: &testBuf})
+		} else {
+			out = output.New(output.Options{Format: format, Writer: os.Stdout})
+		}
+
 		// In test mode, cfg is already set by SetTestConfig - don't overwrite
 		if cfg == nil {
 			// Load config from file/env
@@ -77,6 +93,7 @@ func SetVersion(v string) {
 
 // Execute runs the root command.
 func Execute() {
+	// Default to JSON — PersistentPreRunE will re-resolve from parsed flags.
 	out = output.New(output.Options{Format: output.FormatJSON, Writer: os.Stdout})
 	if err := rootCmd.Execute(); err != nil {
 		var e *output.Error
@@ -89,12 +106,47 @@ func Execute() {
 	}
 }
 
+// resolveFormat returns the output format from flags.
+// Default is FormatJSON. At most one format flag may be set.
+func resolveFormat() (output.Format, error) {
+	n := 0
+	if cfgJSON {
+		n++
+	}
+	if cfgQuiet {
+		n++
+	}
+	if cfgIDsOnly {
+		n++
+	}
+	if cfgCount {
+		n++
+	}
+	if n > 1 {
+		return 0, fmt.Errorf("only one output format flag may be used at a time (--json, --quiet, --ids-only, --count)")
+	}
+
+	switch {
+	case cfgQuiet:
+		return output.FormatQuiet, nil
+	case cfgIDsOnly:
+		return output.FormatIDs, nil
+	case cfgCount:
+		return output.FormatCount, nil
+	default:
+		return output.FormatJSON, nil
+	}
+}
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgToken, "token", "", "API access token")
 	rootCmd.PersistentFlags().StringVar(&cfgAccount, "account", "", "Account slug")
 	rootCmd.PersistentFlags().StringVar(&cfgAPIURL, "api-url", "", "API base URL")
 	rootCmd.PersistentFlags().BoolVar(&cfgVerbose, "verbose", false, "Show request/response details")
-	rootCmd.PersistentFlags().BoolVar(&cfgPretty, "pretty", false, "Pretty-print JSON output with indentation")
+	rootCmd.PersistentFlags().BoolVar(&cfgJSON, "json", false, "JSON envelope output (default)")
+	rootCmd.PersistentFlags().BoolVar(&cfgQuiet, "quiet", false, "Raw JSON data without envelope")
+	rootCmd.PersistentFlags().BoolVar(&cfgIDsOnly, "ids-only", false, "Print one ID per line")
+	rootCmd.PersistentFlags().BoolVar(&cfgCount, "count", false, "Print count of results")
 }
 
 // getClient returns an API client configured from global settings.
@@ -164,11 +216,15 @@ var lastResult *CommandResult
 // testBuf captures output for test mode
 var testBuf bytes.Buffer
 
+// lastRawOutput holds the raw output from the last command (before buffer reset).
+var lastRawOutput string
+
 // captureResponse parses the writer buffer into lastResult after each shim call.
 func captureResponse() {
 	if lastResult == nil {
 		return
 	}
+	lastRawOutput = testBuf.String()
 	var resp output.Response
 	json.Unmarshal(testBuf.Bytes(), &resp)
 	lastResult.Response = &resp
@@ -239,6 +295,19 @@ func SetTestMode(mockClient client.API) *CommandResult {
 	return lastResult
 }
 
+// SetTestFormat reconfigures the output writer with the given format.
+// Must be called after SetTestMode.
+func SetTestFormat(format output.Format) {
+	testBuf.Reset()
+	out = output.New(output.Options{Format: format, Writer: &testBuf})
+}
+
+// TestOutput returns the raw output from the last command execution.
+// Useful for verifying non-JSON format output.
+func TestOutput() string {
+	return lastRawOutput
+}
+
 // SetTestConfig sets the config for testing.
 func SetTestConfig(token, account, apiURL string) {
 	cfg = &config.Config{
@@ -252,7 +321,12 @@ func SetTestConfig(token, account, apiURL string) {
 func ResetTestMode() {
 	clientFactory = nil
 	lastResult = nil
+	lastRawOutput = ""
 	cfg = nil
+	cfgJSON = false
+	cfgQuiet = false
+	cfgIDsOnly = false
+	cfgCount = false
 }
 
 // GetRootCmd returns the root command for testing.
