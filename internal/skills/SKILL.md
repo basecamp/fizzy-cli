@@ -194,6 +194,37 @@ fizzy auth status                        # Check auth status
 fizzy identity show                      # Show accounts
 ```
 
+### Signup (New User or Token Generation)
+
+Interactive:
+```bash
+fizzy signup                                    # Full interactive wizard
+```
+
+Step-by-step (for agents):
+```bash
+# Step 1: Request magic link
+fizzy signup start --email user@example.com
+# Returns: {"pending_authentication_token": "eyJ..."}
+
+# Step 2: User checks email for 6-digit code, then verify
+fizzy signup verify --code ABC123 --pending-token eyJ...
+# Returns: {"session_token": "eyJ...", "requires_signup_completion": true/false}
+# For existing users (requires_signup_completion=false), also returns: "accounts": [{"name": "...", "slug": "..."}]
+
+# Step 3a: New user — complete signup (session token via stdin)
+echo "eyJ..." | fizzy signup complete --name "Full Name"
+# Returns: {"token": "fizzy_...", "account": "slug"}
+
+# Step 3b: Existing user — generate token for an account
+echo "eyJ..." | fizzy signup complete --account SLUG
+# Returns: {"token": "fizzy_...", "account": "slug"}
+```
+
+**Note:** The user must check their email for the 6-digit code between steps 1 and 2.
+The session token is read from stdin (pipe or interactive prompt) to avoid exposing it in shell history.
+Token and account are automatically saved to ~/.config/fizzy/config.yaml.
+
 ---
 
 ## Response Structure

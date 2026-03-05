@@ -82,6 +82,11 @@ CMD fizzy reaction help
 CMD fizzy reaction list
 CMD fizzy search
 CMD fizzy setup
+CMD fizzy signup
+CMD fizzy signup complete
+CMD fizzy signup help
+CMD fizzy signup start
+CMD fizzy signup verify
 CMD fizzy skill
 CMD fizzy step
 CMD fizzy step create
@@ -1282,6 +1287,75 @@ FLAG fizzy setup --quiet type=bool
 FLAG fizzy setup --styled type=bool
 FLAG fizzy setup --token type=string
 FLAG fizzy setup --verbose type=bool
+FLAG fizzy signup --account type=string
+FLAG fizzy signup --agent type=bool
+FLAG fizzy signup --api-url type=string
+FLAG fizzy signup --count type=bool
+FLAG fizzy signup --help type=bool
+FLAG fizzy signup --ids-only type=bool
+FLAG fizzy signup --json type=bool
+FLAG fizzy signup --limit type=int
+FLAG fizzy signup --markdown type=bool
+FLAG fizzy signup --quiet type=bool
+FLAG fizzy signup --styled type=bool
+FLAG fizzy signup --token type=string
+FLAG fizzy signup --verbose type=bool
+FLAG fizzy signup complete --account type=string
+FLAG fizzy signup complete --agent type=bool
+FLAG fizzy signup complete --api-url type=string
+FLAG fizzy signup complete --count type=bool
+FLAG fizzy signup complete --help type=bool
+FLAG fizzy signup complete --ids-only type=bool
+FLAG fizzy signup complete --json type=bool
+FLAG fizzy signup complete --limit type=int
+FLAG fizzy signup complete --markdown type=bool
+FLAG fizzy signup complete --name type=string
+FLAG fizzy signup complete --quiet type=bool
+FLAG fizzy signup complete --styled type=bool
+FLAG fizzy signup complete --token type=string
+FLAG fizzy signup complete --verbose type=bool
+FLAG fizzy signup help --account type=string
+FLAG fizzy signup help --agent type=bool
+FLAG fizzy signup help --api-url type=string
+FLAG fizzy signup help --count type=bool
+FLAG fizzy signup help --help type=bool
+FLAG fizzy signup help --ids-only type=bool
+FLAG fizzy signup help --json type=bool
+FLAG fizzy signup help --limit type=int
+FLAG fizzy signup help --markdown type=bool
+FLAG fizzy signup help --quiet type=bool
+FLAG fizzy signup help --styled type=bool
+FLAG fizzy signup help --token type=string
+FLAG fizzy signup help --verbose type=bool
+FLAG fizzy signup start --account type=string
+FLAG fizzy signup start --agent type=bool
+FLAG fizzy signup start --api-url type=string
+FLAG fizzy signup start --count type=bool
+FLAG fizzy signup start --email type=string
+FLAG fizzy signup start --help type=bool
+FLAG fizzy signup start --ids-only type=bool
+FLAG fizzy signup start --json type=bool
+FLAG fizzy signup start --limit type=int
+FLAG fizzy signup start --markdown type=bool
+FLAG fizzy signup start --quiet type=bool
+FLAG fizzy signup start --styled type=bool
+FLAG fizzy signup start --token type=string
+FLAG fizzy signup start --verbose type=bool
+FLAG fizzy signup verify --account type=string
+FLAG fizzy signup verify --agent type=bool
+FLAG fizzy signup verify --api-url type=string
+FLAG fizzy signup verify --code type=string
+FLAG fizzy signup verify --count type=bool
+FLAG fizzy signup verify --help type=bool
+FLAG fizzy signup verify --ids-only type=bool
+FLAG fizzy signup verify --json type=bool
+FLAG fizzy signup verify --limit type=int
+FLAG fizzy signup verify --markdown type=bool
+FLAG fizzy signup verify --pending-token type=string
+FLAG fizzy signup verify --quiet type=bool
+FLAG fizzy signup verify --styled type=bool
+FLAG fizzy signup verify --token type=string
+FLAG fizzy signup verify --verbose type=bool
 FLAG fizzy skill --account type=string
 FLAG fizzy skill --agent type=bool
 FLAG fizzy skill --api-url type=string
@@ -1640,6 +1714,11 @@ SUB fizzy reaction help
 SUB fizzy reaction list
 SUB fizzy search
 SUB fizzy setup
+SUB fizzy signup
+SUB fizzy signup complete
+SUB fizzy signup help
+SUB fizzy signup start
+SUB fizzy signup verify
 SUB fizzy skill
 SUB fizzy step
 SUB fizzy step create
