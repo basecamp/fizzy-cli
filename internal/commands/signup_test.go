@@ -452,6 +452,68 @@ func TestSignupComplete(t *testing.T) {
 	})
 }
 
+func TestSignupPostReturnsHTTPError(t *testing.T) {
+	t.Run("returns signupHTTPError with status code for auth failures", func(t *testing.T) {
+		server := newTestSignupServer(t, testSignupServerOpts{accessToken: "fizzy_test"})
+		defer server.Close()
+
+		client := newSignupHTTPClient()
+		setSignedCookie(client, server.URL, "pending_authentication_token", "token")
+
+		_, _, err := signupPost(client, server.URL+"/session/magic_link.json", map[string]any{
+			"code": "BADCODE",
+		})
+
+		if err == nil {
+			t.Fatal("expected error for invalid code")
+		}
+
+		he, ok := err.(*signupHTTPError)
+		if !ok {
+			t.Fatalf("expected *signupHTTPError, got %T", err)
+		}
+		if he.statusCode != http.StatusUnauthorized {
+			t.Errorf("expected status 401, got %d", he.statusCode)
+		}
+	})
+
+	t.Run("returns signupHTTPError with status code for server errors", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte("internal error"))
+		}))
+		defer server.Close()
+
+		client := newSignupHTTPClient()
+		_, _, err := signupPost(client, server.URL+"/test", map[string]any{})
+
+		if err == nil {
+			t.Fatal("expected error for 500")
+		}
+
+		he, ok := err.(*signupHTTPError)
+		if !ok {
+			t.Fatalf("expected *signupHTTPError, got %T", err)
+		}
+		if he.statusCode != http.StatusInternalServerError {
+			t.Errorf("expected status 500, got %d", he.statusCode)
+		}
+	})
+
+	t.Run("returns plain error for network failures", func(t *testing.T) {
+		client := newSignupHTTPClient()
+		_, _, err := signupPost(client, "http://127.0.0.1:1/unreachable", map[string]any{})
+
+		if err == nil {
+			t.Fatal("expected error for unreachable host")
+		}
+
+		if _, ok := err.(*signupHTTPError); ok {
+			t.Error("expected plain error for network failure, got *signupHTTPError")
+		}
+	})
+}
+
 func TestSignupAPIURL(t *testing.T) {
 	t.Run("trims trailing slash", func(t *testing.T) {
 		SetTestConfig("", "", "https://example.com/")

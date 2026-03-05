@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -188,19 +189,25 @@ func runSignup(cmd *cobra.Command, args []string) error {
 		if verifyErr != nil {
 			fmt.Println("✗")
 
-			var retry bool
-			if confirmErr := huh.NewConfirm().
-				Title("Invalid code. Would you like to try again?").
-				Value(&retry).
-				Run(); confirmErr != nil {
-				retry = false
+			// Only offer retry for authentication errors (wrong code)
+			var he *signupHTTPError
+			if stderrors.As(verifyErr, &he) && he.statusCode == http.StatusUnauthorized {
+				var retry bool
+				if confirmErr := huh.NewConfirm().
+					Title("Invalid code. Would you like to try again?").
+					Value(&retry).
+					Run(); confirmErr != nil {
+					retry = false
+				}
+
+				if !retry {
+					fmt.Println("Signup cancelled.")
+					return nil
+				}
+				continue
 			}
 
-			if !retry {
-				fmt.Println("Signup cancelled.")
-				return nil
-			}
-			continue
+			return errors.NewError(fmt.Sprintf("Failed to verify code: %v", verifyErr))
 		}
 
 		fmt.Println("✓")
@@ -501,6 +508,15 @@ func newSignupHTTPClient() *http.Client {
 	}
 }
 
+// signupHTTPError is returned by signupPost for HTTP error responses (status >= 400),
+// allowing callers to distinguish auth errors from operational failures.
+type signupHTTPError struct {
+	statusCode int
+	message    string
+}
+
+func (e *signupHTTPError) Error() string { return e.message }
+
 // signupPost makes a JSON POST request and returns the parsed response body and headers.
 func signupPost(client *http.Client, reqURL string, body any) (map[string]any, http.Header, error) {
 	jsonBody, err := json.Marshal(body)
@@ -535,16 +551,16 @@ func signupPost(client *http.Client, reqURL string, body any) (map[string]any, h
 		}
 		if json.Unmarshal(respBody, &errData) == nil {
 			if errData.Error != "" {
-				return nil, resp.Header, fmt.Errorf("%s", errData.Error)
+				return nil, resp.Header, &signupHTTPError{statusCode: resp.StatusCode, message: errData.Error}
 			}
 			if errData.Message != "" {
-				return nil, resp.Header, fmt.Errorf("%s", errData.Message)
+				return nil, resp.Header, &signupHTTPError{statusCode: resp.StatusCode, message: errData.Message}
 			}
 			if len(errData.Errors) > 0 {
-				return nil, resp.Header, fmt.Errorf("%s", strings.Join(errData.Errors, ", "))
+				return nil, resp.Header, &signupHTTPError{statusCode: resp.StatusCode, message: strings.Join(errData.Errors, ", ")}
 			}
 		}
-		return nil, resp.Header, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		return nil, resp.Header, &signupHTTPError{statusCode: resp.StatusCode, message: fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(respBody))}
 	}
 
 	if len(respBody) == 0 {
