@@ -88,7 +88,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	if err != nil {
 		fmt.Println("Signup cancelled.")
-		os.Exit(0)
+		return nil //nolint:nilerr // user cancelled prompt
 	}
 
 	apiURL := config.DefaultAPIURL
@@ -110,7 +110,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			fmt.Println("Signup cancelled.")
-			os.Exit(0)
+			return nil //nolint:nilerr // user cancelled prompt
 		}
 	}
 
@@ -135,7 +135,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	if err != nil {
 		fmt.Println("Signup cancelled.")
-		os.Exit(0)
+		return nil //nolint:nilerr // user cancelled prompt
 	}
 
 	// Step 3: Request magic link
@@ -176,7 +176,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			fmt.Println("Signup cancelled.")
-			os.Exit(0)
+			return nil //nolint:nilerr // user cancelled prompt
 		}
 
 		fmt.Print("Verifying code... ")
@@ -196,7 +196,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 			if !retry {
 				fmt.Println("Signup cancelled.")
-				os.Exit(0)
+				return nil
 			}
 			continue
 		}
@@ -225,7 +225,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			fmt.Println("Signup cancelled.")
-			os.Exit(0)
+			return nil //nolint:nilerr // user cancelled prompt
 		}
 
 		fmt.Print("Completing signup... ")
@@ -274,7 +274,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 		if err != nil {
 			fmt.Println("Signup cancelled.")
-			os.Exit(0)
+			return nil //nolint:nilerr // user cancelled prompt
 		}
 	}
 
