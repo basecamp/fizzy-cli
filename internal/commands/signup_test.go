@@ -690,6 +690,31 @@ func TestSignupClientRejectsSSRFRedirect(t *testing.T) {
 	})
 }
 
+func TestSignupGetReturnsHTTPError(t *testing.T) {
+	t.Run("returns signupHTTPError for HTTP errors", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("not found"))
+		}))
+		defer server.Close()
+
+		client := newSignupHTTPClient()
+		_, err := signupGet(client, server.URL+"/missing")
+
+		if err == nil {
+			t.Fatal("expected error for 404")
+		}
+
+		he, ok := err.(*signupHTTPError)
+		if !ok {
+			t.Fatalf("expected *signupHTTPError, got %T", err)
+		}
+		if he.statusCode != http.StatusNotFound {
+			t.Errorf("expected status 404, got %d", he.statusCode)
+		}
+	})
+}
+
 func TestGetCookieValue(t *testing.T) {
 	t.Run("returns empty string for missing cookie", func(t *testing.T) {
 		client := newSignupHTTPClient()

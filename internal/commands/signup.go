@@ -287,7 +287,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	// Step 8: Generate access token
 	fmt.Print("Generating access token... ")
-	tokenData, _, err := signupPost(httpClient, apiURL+"/"+selectedAccountSlug+"/my/access_tokens.json", map[string]any{
+	tokenData, _, err := signupPost(httpClient, apiURL+"/"+url.PathEscape(selectedAccountSlug)+"/my/access_tokens.json", map[string]any{
 		"access_token": map[string]any{
 			"description": "Fizzy CLI",
 			"permission":  "write",
@@ -456,7 +456,7 @@ func runSignupComplete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Generate access token
-	tokenData, _, err := signupPost(httpClient, apiURL+"/"+accountSlug+"/my/access_tokens.json", map[string]any{
+	tokenData, _, err := signupPost(httpClient, apiURL+"/"+url.PathEscape(accountSlug)+"/my/access_tokens.json", map[string]any{
 		"access_token": map[string]any{
 			"description": "Fizzy CLI",
 			"permission":  "write",
@@ -521,6 +521,9 @@ type signupHTTPError struct {
 
 func (e *signupHTTPError) Error() string { return e.message }
 
+// signupMaxResponseBytes is the maximum response body size for signup HTTP requests (1MB).
+const signupMaxResponseBytes = 1 << 20
+
 // signupPost makes a JSON POST request and returns the parsed response body and headers.
 func signupPost(client *http.Client, reqURL string, body any) (map[string]any, http.Header, error) {
 	if err := validateSignupURL(reqURL); err != nil {
@@ -546,7 +549,7 @@ func signupPost(client *http.Client, reqURL string, body any) (map[string]any, h
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, signupMaxResponseBytes))
 	if err != nil {
 		return nil, resp.Header, fmt.Errorf("failed to read response: %w", err)
 	}
@@ -602,13 +605,13 @@ func signupGet(client *http.Client, reqURL string) (map[string]any, error) {
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, signupMaxResponseBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		return nil, &signupHTTPError{statusCode: resp.StatusCode, message: fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(respBody))}
 	}
 
 	var data map[string]any
@@ -621,17 +624,23 @@ func signupGet(client *http.Client, reqURL string) (map[string]any, error) {
 
 // setSessionCookie sets the session_token cookie on the HTTP client's cookie jar.
 func setSessionCookie(client *http.Client, apiURL, sessionToken string) {
-	u, _ := url.Parse(apiURL)
+	u, err := url.Parse(apiURL)
+	if err != nil {
+		return
+	}
 	client.Jar.SetCookies(u, []*http.Cookie{
-		{Name: "session_token", Value: sessionToken},
+		{Name: "session_token", Value: sessionToken, Secure: true, HttpOnly: true},
 	})
 }
 
 // setSignedCookie sets a named cookie on the HTTP client's cookie jar.
 func setSignedCookie(client *http.Client, apiURL, name, value string) {
-	u, _ := url.Parse(apiURL)
+	u, err := url.Parse(apiURL)
+	if err != nil {
+		return
+	}
 	client.Jar.SetCookies(u, []*http.Cookie{
-		{Name: name, Value: value},
+		{Name: name, Value: value, Secure: true, HttpOnly: true},
 	})
 }
 
@@ -688,7 +697,10 @@ func normalizeAccountSlugs(accounts any) any {
 
 // getCookieValue extracts a cookie value from the HTTP client's cookie jar.
 func getCookieValue(client *http.Client, apiURL, name string) string {
-	u, _ := url.Parse(apiURL)
+	u, err := url.Parse(apiURL)
+	if err != nil {
+		return ""
+	}
 	for _, c := range client.Jar.Cookies(u) {
 		if c.Name == name {
 			return c.Value
