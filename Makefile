@@ -10,6 +10,9 @@ LDFLAGS := -X main.version=$(VERSION)
 # export FIZZY_TEST_TOKEN=your-token
 # export FIZZY_TEST_ACCOUNT=your-account
 
+# Default target — local CI gate
+.DEFAULT_GOAL := check
+
 help:
 	@echo "Fizzy CLI"
 	@echo ""
