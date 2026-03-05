@@ -185,7 +185,7 @@ func TestAuthStatus(t *testing.T) {
 		}
 
 		// Check response data
-		data, ok := result.Response.Data.(map[string]interface{})
+		data, ok := result.Response.Data.(map[string]any)
 		if !ok {
 			t.Fatal("expected map response data")
 		}
@@ -222,7 +222,7 @@ func TestAuthStatus(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		data, ok := result.Response.Data.(map[string]interface{})
+		data, ok := result.Response.Data.(map[string]any)
 		if !ok {
 			t.Fatal("expected map response data")
 		}
@@ -257,7 +257,7 @@ func TestAuthStatus(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		data := result.Response.Data.(map[string]interface{})
+		data := result.Response.Data.(map[string]any)
 		if data["api_url"] != "https://custom.fizzy.do" {
 			t.Errorf("expected api_url='https://custom.fizzy.do', got %v", data["api_url"])
 		}

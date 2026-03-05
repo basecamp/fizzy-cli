@@ -65,7 +65,7 @@ func TestNotificationReadUnread(t *testing.T) {
 		t.Skip("no notifications available to test")
 	}
 
-	firstNotification, ok := notifications[0].(map[string]interface{})
+	firstNotification, ok := notifications[0].(map[string]any)
 	if !ok {
 		t.Fatal("expected notification to be a map")
 	}

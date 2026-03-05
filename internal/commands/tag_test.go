@@ -11,9 +11,9 @@ func TestTagList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "title": "bug"},
-				map[string]interface{}{"id": "2", "title": "feature"},
+			Data: []any{
+				map[string]any{"id": "1", "title": "bug"},
+				map[string]any{"id": "2", "title": "feature"},
 			},
 		}
 

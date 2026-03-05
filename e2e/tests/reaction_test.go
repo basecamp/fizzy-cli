@@ -144,7 +144,7 @@ func TestReactionCRUD(t *testing.T) {
 			arr := listResult.GetDataArray()
 			if len(arr) > 0 {
 				// Get the last reaction (most recently created)
-				lastReaction := arr[len(arr)-1].(map[string]interface{})
+				lastReaction := arr[len(arr)-1].(map[string]any)
 				if id, ok := lastReaction["id"].(string); ok {
 					reactionID = id
 					h.Cleanup.AddReaction(reactionID, cardNumber, commentID)
@@ -244,7 +244,7 @@ func TestCardReactionCRUD(t *testing.T) {
 			arr := listResult.GetDataArray()
 			if len(arr) > 0 {
 				// Get the last reaction (most recently created)
-				lastReaction := arr[len(arr)-1].(map[string]interface{})
+				lastReaction := arr[len(arr)-1].(map[string]any)
 				if id, ok := lastReaction["id"].(string); ok {
 					reactionID = id
 					h.Cleanup.AddCardReaction(reactionID, cardNumber)

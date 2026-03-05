@@ -22,22 +22,22 @@ func SetPrettyPrint(enabled bool) {
 
 // Response represents the JSON response envelope.
 type Response struct {
-	Success     bool                   `json:"success"`
-	Data        interface{}            `json:"data,omitempty"`
-	Error       *ErrorDetail           `json:"error,omitempty"`
-	Pagination  *Pagination            `json:"pagination,omitempty"`
-	Breadcrumbs []Breadcrumb           `json:"breadcrumbs,omitempty"`
-	Location    string                 `json:"location,omitempty"`
-	Summary     string                 `json:"summary,omitempty"`
-	Meta        map[string]interface{} `json:"meta,omitempty"`
+	Success     bool           `json:"success"`
+	Data        any            `json:"data,omitempty"`
+	Error       *ErrorDetail   `json:"error,omitempty"`
+	Pagination  *Pagination    `json:"pagination,omitempty"`
+	Breadcrumbs []Breadcrumb   `json:"breadcrumbs,omitempty"`
+	Location    string         `json:"location,omitempty"`
+	Summary     string         `json:"summary,omitempty"`
+	Meta        map[string]any `json:"meta,omitempty"`
 }
 
 // ErrorDetail represents an error in the response.
 type ErrorDetail struct {
-	Code    string      `json:"code"`
-	Message string      `json:"message"`
-	Status  int         `json:"status,omitempty"`
-	Details interface{} `json:"details,omitempty"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Status  int    `json:"status,omitempty"`
+	Details any    `json:"details,omitempty"`
 }
 
 // Pagination represents pagination info in the response.
@@ -63,7 +63,7 @@ func NewBreadcrumb(action, cmd, description string) Breadcrumb {
 }
 
 // Success creates a successful response with data.
-func Success(data interface{}) *Response {
+func Success(data any) *Response {
 	return &Response{
 		Success: true,
 		Data:    data,
@@ -72,7 +72,7 @@ func Success(data interface{}) *Response {
 }
 
 // SuccessWithLocation creates a successful response with location.
-func SuccessWithLocation(data interface{}, location string) *Response {
+func SuccessWithLocation(data any, location string) *Response {
 	return &Response{
 		Success:  true,
 		Data:     data,
@@ -82,7 +82,7 @@ func SuccessWithLocation(data interface{}, location string) *Response {
 }
 
 // SuccessWithPagination creates a successful response with pagination.
-func SuccessWithPagination(data interface{}, hasNext bool, nextURL string) *Response {
+func SuccessWithPagination(data any, hasNext bool, nextURL string) *Response {
 	resp := &Response{
 		Success: true,
 		Data:    data,
@@ -98,7 +98,7 @@ func SuccessWithPagination(data interface{}, hasNext bool, nextURL string) *Resp
 }
 
 // SuccessWithSummary creates a successful response with a summary.
-func SuccessWithSummary(data interface{}, summary string) *Response {
+func SuccessWithSummary(data any, summary string) *Response {
 	return &Response{
 		Success: true,
 		Data:    data,
@@ -108,7 +108,7 @@ func SuccessWithSummary(data interface{}, summary string) *Response {
 }
 
 // SuccessWithPaginationAndSummary creates a successful response with pagination and summary.
-func SuccessWithPaginationAndSummary(data interface{}, hasNext bool, nextURL string, summary string) *Response {
+func SuccessWithPaginationAndSummary(data any, hasNext bool, nextURL string, summary string) *Response {
 	resp := &Response{
 		Success: true,
 		Data:    data,
@@ -125,7 +125,7 @@ func SuccessWithPaginationAndSummary(data interface{}, hasNext bool, nextURL str
 }
 
 // SuccessWithBreadcrumbs creates a successful response with breadcrumbs.
-func SuccessWithBreadcrumbs(data interface{}, summary string, breadcrumbs []Breadcrumb) *Response {
+func SuccessWithBreadcrumbs(data any, summary string, breadcrumbs []Breadcrumb) *Response {
 	return &Response{
 		Success:     true,
 		Data:        data,
@@ -136,7 +136,7 @@ func SuccessWithBreadcrumbs(data interface{}, summary string, breadcrumbs []Brea
 }
 
 // SuccessWithPaginationAndBreadcrumbs creates a successful response with pagination, summary, and breadcrumbs.
-func SuccessWithPaginationAndBreadcrumbs(data interface{}, hasNext bool, nextURL string, summary string, breadcrumbs []Breadcrumb) *Response {
+func SuccessWithPaginationAndBreadcrumbs(data any, hasNext bool, nextURL string, summary string, breadcrumbs []Breadcrumb) *Response {
 	resp := &Response{
 		Success:     true,
 		Data:        data,
@@ -178,8 +178,8 @@ func ErrorFromError(err error) *Response {
 	return Error(errors.NewError(err.Error()))
 }
 
-func createMeta() map[string]interface{} {
-	return map[string]interface{}{
+func createMeta() map[string]any {
+	return map[string]any{
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
 	}
 }

@@ -12,11 +12,11 @@ func TestIdentityShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":    "user-123",
 				"email": "test@example.com",
-				"accounts": []interface{}{
-					map[string]interface{}{"slug": "123456"},
+				"accounts": []any{
+					map[string]any{"slug": "123456"},
 				},
 			},
 		}

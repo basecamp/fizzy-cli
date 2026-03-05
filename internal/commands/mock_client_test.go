@@ -53,7 +53,7 @@ type MockDownloadCall struct {
 // MockCall represents a captured API call.
 type MockCall struct {
 	Path string
-	Body interface{}
+	Body any
 }
 
 // NewMockClient creates a new mock client with default success responses.
@@ -61,40 +61,40 @@ func NewMockClient() *MockClient {
 	return &MockClient{
 		GetResponse: &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		},
 		PostResponse: &client.APIResponse{
 			StatusCode: 201,
 			Location:   "https://api.example.com/resource/123",
-			Data:       map[string]interface{}{"id": "123"},
+			Data:       map[string]any{"id": "123"},
 		},
 		PatchResponse: &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		},
 		PatchMultipartResponse: &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		},
 		PutResponse: &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		},
 		DeleteResponse: &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		},
 		GetWithPaginationResponse: &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		},
 		FollowLocationResponse: &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		},
 		UploadFileResponse: &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{"signed_id": "test-signed-id"},
+			Data:       map[string]any{"signed_id": "test-signed-id"},
 		},
 	}
 }
@@ -107,7 +107,7 @@ func (m *MockClient) Get(path string) (*client.APIResponse, error) {
 	return m.GetResponse, nil
 }
 
-func (m *MockClient) Post(path string, body interface{}) (*client.APIResponse, error) {
+func (m *MockClient) Post(path string, body any) (*client.APIResponse, error) {
 	m.PostCalls = append(m.PostCalls, MockCall{Path: path, Body: body})
 	if m.PostError != nil {
 		return nil, m.PostError
@@ -115,7 +115,7 @@ func (m *MockClient) Post(path string, body interface{}) (*client.APIResponse, e
 	return m.PostResponse, nil
 }
 
-func (m *MockClient) Patch(path string, body interface{}) (*client.APIResponse, error) {
+func (m *MockClient) Patch(path string, body any) (*client.APIResponse, error) {
 	m.PatchCalls = append(m.PatchCalls, MockCall{Path: path, Body: body})
 	if m.PatchError != nil {
 		return nil, m.PatchError
@@ -124,7 +124,7 @@ func (m *MockClient) Patch(path string, body interface{}) (*client.APIResponse, 
 }
 
 func (m *MockClient) PatchMultipart(path, fileField, filePath string, fields map[string]string) (*client.APIResponse, error) {
-	m.PatchMultipartCalls = append(m.PatchMultipartCalls, MockCall{Path: path, Body: map[string]interface{}{
+	m.PatchMultipartCalls = append(m.PatchMultipartCalls, MockCall{Path: path, Body: map[string]any{
 		"file_field": fileField,
 		"file_path":  filePath,
 		"fields":     fields,
@@ -135,7 +135,7 @@ func (m *MockClient) PatchMultipart(path, fileField, filePath string, fields map
 	return m.PatchMultipartResponse, nil
 }
 
-func (m *MockClient) Put(path string, body interface{}) (*client.APIResponse, error) {
+func (m *MockClient) Put(path string, body any) (*client.APIResponse, error) {
 	m.PutCalls = append(m.PutCalls, MockCall{Path: path, Body: body})
 	if m.PutError != nil {
 		return nil, m.PutError
@@ -186,31 +186,31 @@ func (m *MockClient) DownloadFile(urlPath string, destPath string) error {
 // Helper functions for creating common responses
 
 // WithGetData sets the data returned by Get calls.
-func (m *MockClient) WithGetData(data interface{}) *MockClient {
+func (m *MockClient) WithGetData(data any) *MockClient {
 	m.GetResponse.Data = data
 	return m
 }
 
 // WithPostData sets the data returned by Post calls.
-func (m *MockClient) WithPostData(data interface{}) *MockClient {
+func (m *MockClient) WithPostData(data any) *MockClient {
 	m.PostResponse.Data = data
 	return m
 }
 
 // WithPatchData sets the data returned by Patch calls.
-func (m *MockClient) WithPatchData(data interface{}) *MockClient {
+func (m *MockClient) WithPatchData(data any) *MockClient {
 	m.PatchResponse.Data = data
 	return m
 }
 
 // WithListData sets the data returned by GetWithPagination calls.
-func (m *MockClient) WithListData(data []interface{}) *MockClient {
+func (m *MockClient) WithListData(data []any) *MockClient {
 	m.GetWithPaginationResponse.Data = data
 	return m
 }
 
 // WithFollowLocationData sets the data returned by FollowLocation calls.
-func (m *MockClient) WithFollowLocationData(data interface{}) *MockClient {
+func (m *MockClient) WithFollowLocationData(data any) *MockClient {
 	m.FollowLocationResponse.Data = data
 	return m
 }

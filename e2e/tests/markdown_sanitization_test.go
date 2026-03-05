@@ -95,8 +95,8 @@ func TestMarkdownSanitization(t *testing.T) {
 			t.Fatal("expected at least one comment")
 		}
 
-		comment := comments[0].(map[string]interface{})
-		bodyObj := comment["body"].(map[string]interface{})
+		comment := comments[0].(map[string]any)
+		bodyObj := comment["body"].(map[string]any)
 		bodyHTML := bodyObj["html"].(string)
 
 		if strings.Contains(bodyHTML, `<action-text-attachment`) {

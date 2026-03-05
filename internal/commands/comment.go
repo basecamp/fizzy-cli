@@ -45,7 +45,7 @@ var commentListCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		summary := fmt.Sprintf("%d comments on card #%s", count, commentListCard)
@@ -137,14 +137,14 @@ var commentCreateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("body or body_file"))
 		}
 
-		commentParams := map[string]interface{}{
+		commentParams := map[string]any{
 			"body": body,
 		}
 		if commentCreateCreatedAt != "" {
 			commentParams["created_at"] = commentCreateCreatedAt
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"comment": commentParams,
 		}
 
@@ -204,7 +204,7 @@ var commentUpdateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("card"))
 		}
 
-		commentParams := make(map[string]interface{})
+		commentParams := make(map[string]any)
 
 		if commentUpdateBodyFile != "" {
 			content, err := os.ReadFile(commentUpdateBodyFile)
@@ -216,7 +216,7 @@ var commentUpdateCmd = &cobra.Command{
 			commentParams["body"] = markdownToHTML(commentUpdateBody)
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"comment": commentParams,
 		}
 
@@ -270,7 +270,7 @@ var commentDeleteCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 	},

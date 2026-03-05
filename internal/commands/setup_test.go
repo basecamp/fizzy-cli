@@ -11,14 +11,14 @@ import (
 
 func TestParseAccounts(t *testing.T) {
 	t.Run("parses accounts from identity response", func(t *testing.T) {
-		data := map[string]interface{}{
-			"accounts": []interface{}{
-				map[string]interface{}{
+		data := map[string]any{
+			"accounts": []any{
+				map[string]any{
 					"id":   "abc123",
 					"name": "Acme Corp",
 					"slug": "/897362094",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "def456",
 					"name": "Personal",
 					"slug": "/123456789",
@@ -55,7 +55,7 @@ func TestParseAccounts(t *testing.T) {
 	})
 
 	t.Run("returns error when accounts key missing", func(t *testing.T) {
-		data := map[string]interface{}{
+		data := map[string]any{
 			"other": "data",
 		}
 		_, err := parseAccounts(data)
@@ -65,13 +65,13 @@ func TestParseAccounts(t *testing.T) {
 	})
 
 	t.Run("handles accounts without slug", func(t *testing.T) {
-		data := map[string]interface{}{
-			"accounts": []interface{}{
-				map[string]interface{}{
+		data := map[string]any{
+			"accounts": []any{
+				map[string]any{
 					"id":   "abc123",
 					"name": "No Slug Account",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":   "def456",
 					"name": "Has Slug",
 					"slug": "/123",
@@ -96,12 +96,12 @@ func TestParseAccounts(t *testing.T) {
 
 func TestParseBoards(t *testing.T) {
 	t.Run("parses boards from boards response", func(t *testing.T) {
-		data := []interface{}{
-			map[string]interface{}{
+		data := []any{
+			map[string]any{
 				"id":   "board1",
 				"name": "Engineering",
 			},
-			map[string]interface{}{
+			map[string]any{
 				"id":   "board2",
 				"name": "Marketing",
 			},
@@ -133,7 +133,7 @@ func TestParseBoards(t *testing.T) {
 	})
 
 	t.Run("handles empty boards list", func(t *testing.T) {
-		data := []interface{}{}
+		data := []any{}
 
 		boards, err := parseBoards(data)
 		if err != nil {
@@ -146,16 +146,16 @@ func TestParseBoards(t *testing.T) {
 	})
 
 	t.Run("skips boards without id or name", func(t *testing.T) {
-		data := []interface{}{
-			map[string]interface{}{
+		data := []any{
+			map[string]any{
 				"id": "board1",
 				// missing name
 			},
-			map[string]interface{}{
+			map[string]any{
 				"name": "No ID Board",
 				// missing id
 			},
-			map[string]interface{}{
+			map[string]any{
 				"id":   "board3",
 				"name": "Valid Board",
 			},
@@ -177,9 +177,9 @@ func TestParseBoards(t *testing.T) {
 
 func TestValidateToken(t *testing.T) {
 	t.Run("returns accounts on successful validation", func(t *testing.T) {
-		mock := NewMockClient().WithGetData(map[string]interface{}{
-			"accounts": []interface{}{
-				map[string]interface{}{
+		mock := NewMockClient().WithGetData(map[string]any{
+			"accounts": []any{
+				map[string]any{
 					"id":   "abc123",
 					"name": "Test Account",
 					"slug": "/123456",

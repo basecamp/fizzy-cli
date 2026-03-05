@@ -34,20 +34,20 @@ type Harness struct {
 
 // Response represents the JSON response envelope from the CLI.
 type Response struct {
-	Success    bool                   `json:"success"`
-	Data       interface{}            `json:"data,omitempty"`
-	Error      *ErrorDetail           `json:"error,omitempty"`
-	Pagination *Pagination            `json:"pagination,omitempty"`
-	Location   string                 `json:"location,omitempty"`
-	Meta       map[string]interface{} `json:"meta,omitempty"`
+	Success    bool           `json:"success"`
+	Data       any            `json:"data,omitempty"`
+	Error      *ErrorDetail   `json:"error,omitempty"`
+	Pagination *Pagination    `json:"pagination,omitempty"`
+	Location   string         `json:"location,omitempty"`
+	Meta       map[string]any `json:"meta,omitempty"`
 }
 
 // ErrorDetail represents an error in the response.
 type ErrorDetail struct {
-	Code    string      `json:"code"`
-	Message string      `json:"message"`
-	Status  int         `json:"status,omitempty"`
-	Details interface{} `json:"details,omitempty"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Status  int    `json:"status,omitempty"`
+	Details any    `json:"details,omitempty"`
 }
 
 // Pagination represents pagination info in the response.
@@ -222,7 +222,7 @@ func (r *Result) GetDataString(key string) string {
 	if r.Response == nil || r.Response.Data == nil {
 		return ""
 	}
-	data, ok := r.Response.Data.(map[string]interface{})
+	data, ok := r.Response.Data.(map[string]any)
 	if !ok {
 		return ""
 	}
@@ -238,7 +238,7 @@ func (r *Result) GetDataInt(key string) int {
 	if r.Response == nil || r.Response.Data == nil {
 		return 0
 	}
-	data, ok := r.Response.Data.(map[string]interface{})
+	data, ok := r.Response.Data.(map[string]any)
 	if !ok {
 		return 0
 	}
@@ -255,7 +255,7 @@ func (r *Result) GetDataBool(key string) bool {
 	if r.Response == nil || r.Response.Data == nil {
 		return false
 	}
-	data, ok := r.Response.Data.(map[string]interface{})
+	data, ok := r.Response.Data.(map[string]any)
 	if !ok {
 		return false
 	}
@@ -267,11 +267,11 @@ func (r *Result) GetDataBool(key string) bool {
 }
 
 // GetDataArray extracts an array from the response data.
-func (r *Result) GetDataArray() []interface{} {
+func (r *Result) GetDataArray() []any {
 	if r.Response == nil || r.Response.Data == nil {
 		return nil
 	}
-	arr, ok := r.Response.Data.([]interface{})
+	arr, ok := r.Response.Data.([]any)
 	if !ok {
 		return nil
 	}
@@ -279,11 +279,11 @@ func (r *Result) GetDataArray() []interface{} {
 }
 
 // GetDataMap extracts the data as a map.
-func (r *Result) GetDataMap() map[string]interface{} {
+func (r *Result) GetDataMap() map[string]any {
 	if r.Response == nil || r.Response.Data == nil {
 		return nil
 	}
-	data, ok := r.Response.Data.(map[string]interface{})
+	data, ok := r.Response.Data.(map[string]any)
 	if !ok {
 		return nil
 	}

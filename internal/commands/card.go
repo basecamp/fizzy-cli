@@ -97,7 +97,7 @@ var cardListCmd = &cobra.Command{
 			params = append(params, "assignee_ids[]="+cardListAssignee)
 		}
 		if cardListSearch != "" {
-			for _, term := range strings.Fields(cardListSearch) {
+			for term := range strings.FieldsSeq(cardListSearch) {
 				params = append(params, "terms[]="+term)
 			}
 		}
@@ -136,14 +136,14 @@ var cardListCmd = &cobra.Command{
 		}
 
 		if clientSideTriage || clientSideColumnFilter != "" {
-			arr, ok := resp.Data.([]interface{})
+			arr, ok := resp.Data.([]any)
 			if !ok {
 				exitWithError(errors.NewError("Unexpected cards list response"))
 			}
 
-			filtered := make([]interface{}, 0, len(arr))
+			filtered := make([]any, 0, len(arr))
 			for _, item := range arr {
-				card, ok := item.(map[string]interface{})
+				card, ok := item.(map[string]any)
 				if !ok {
 					continue
 				}
@@ -153,7 +153,7 @@ var cardListCmd = &cobra.Command{
 					columnID = v
 				}
 				if columnID == "" {
-					if col, ok := card["column"].(map[string]interface{}); ok {
+					if col, ok := card["column"].(map[string]any); ok {
 						if id, ok := col["id"].(string); ok {
 							columnID = id
 						}
@@ -177,7 +177,7 @@ var cardListCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		summary := fmt.Sprintf("%d cards", count)
@@ -227,7 +227,7 @@ var cardShowCmd = &cobra.Command{
 
 		// Build summary
 		summary := fmt.Sprintf("Card #%s", cardNumber)
-		if card, ok := resp.Data.(map[string]interface{}); ok {
+		if card, ok := resp.Data.(map[string]any); ok {
 			if title, ok := card["title"].(string); ok {
 				summary = fmt.Sprintf("Card #%s: %s", cardNumber, title)
 			}
@@ -271,7 +271,7 @@ var cardCreateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("title"))
 		}
 
-		cardParams := map[string]interface{}{
+		cardParams := map[string]any{
 			"title": cardCreateTitle,
 		}
 
@@ -296,7 +296,7 @@ var cardCreateCmd = &cobra.Command{
 			cardParams["created_at"] = cardCreateCreatedAt
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"board_id": boardID,
 			"card":     cardParams,
 		}
@@ -313,7 +313,7 @@ var cardCreateCmd = &cobra.Command{
 			if err == nil && followResp != nil {
 				// Extract card number from response
 				cardNumber := ""
-				if card, ok := followResp.Data.(map[string]interface{}); ok {
+				if card, ok := followResp.Data.(map[string]any); ok {
 					if num, ok := card["number"].(float64); ok {
 						cardNumber = fmt.Sprintf("%d", int(num))
 					}
@@ -365,7 +365,7 @@ var cardUpdateCmd = &cobra.Command{
 			exitWithError(err)
 		}
 
-		cardParams := make(map[string]interface{})
+		cardParams := make(map[string]any)
 
 		if cardUpdateTitle != "" {
 			cardParams["title"] = cardUpdateTitle
@@ -386,7 +386,7 @@ var cardUpdateCmd = &cobra.Command{
 			cardParams["created_at"] = cardUpdateCreatedAt
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"card": cardParams,
 		}
 
@@ -431,7 +431,7 @@ var cardDeleteCmd = &cobra.Command{
 			breadcrumb("create", "fizzy card create --board <id> --title \"title\"", "Create new card"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 	},
@@ -463,7 +463,7 @@ var cardCloseCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -496,7 +496,7 @@ var cardReopenCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -528,7 +528,7 @@ var cardPostponeCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -553,7 +553,7 @@ var cardMoveCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"board_id": cardMoveBoard,
 		}
 
@@ -571,7 +571,7 @@ var cardMoveCmd = &cobra.Command{
 
 		// Build summary with card title if available
 		summary := fmt.Sprintf("Card #%s moved to board %s", cardNumber, cardMoveBoard)
-		if card, ok := resp.Data.(map[string]interface{}); ok {
+		if card, ok := resp.Data.(map[string]any); ok {
 			if title, ok := card["title"].(string); ok {
 				summary = fmt.Sprintf("Card #%s \"%s\" moved to board %s", cardNumber, title, cardMoveBoard)
 			}
@@ -623,7 +623,7 @@ var cardColumnCmd = &cobra.Command{
 				}
 				data := resp.Data
 				if data == nil {
-					data = map[string]interface{}{}
+					data = map[string]any{}
 				}
 				printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 				return
@@ -634,7 +634,7 @@ var cardColumnCmd = &cobra.Command{
 				}
 				data := resp.Data
 				if data == nil {
-					data = map[string]interface{}{}
+					data = map[string]any{}
 				}
 				printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 				return
@@ -645,14 +645,14 @@ var cardColumnCmd = &cobra.Command{
 				}
 				data := resp.Data
 				if data == nil {
-					data = map[string]interface{}{}
+					data = map[string]any{}
 				}
 				printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 				return
 			}
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"column_id": cardColumnColumn,
 		}
 
@@ -663,7 +663,7 @@ var cardColumnCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -695,7 +695,7 @@ var cardUntriageCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{
+			data = map[string]any{
 				"untriaged": true,
 			}
 		}
@@ -722,7 +722,7 @@ var cardAssignCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"assignee_id": cardAssignUser,
 		}
 
@@ -740,7 +740,7 @@ var cardAssignCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -770,7 +770,7 @@ var cardSelfAssignCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -795,7 +795,7 @@ var cardTagCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"tag_title": cardTagTag,
 		}
 
@@ -813,7 +813,7 @@ var cardTagCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -845,7 +845,7 @@ var cardWatchCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -877,7 +877,7 @@ var cardUnwatchCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -909,7 +909,7 @@ var cardImageRemoveCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -942,7 +942,7 @@ var cardPinCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -975,7 +975,7 @@ var cardUnpinCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -1007,7 +1007,7 @@ var cardGoldenCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -1039,7 +1039,7 @@ var cardUngoldenCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},

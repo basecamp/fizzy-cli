@@ -44,7 +44,7 @@ var commentAttachmentsShowCmd = &cobra.Command{
 			exitWithError(err)
 		}
 
-		comments, ok := resp.Data.([]interface{})
+		comments, ok := resp.Data.([]any)
 		if !ok {
 			exitWithError(errors.NewError("Invalid comments response"))
 		}
@@ -96,7 +96,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			exitWithError(err)
 		}
 
-		comments, ok := resp.Data.([]interface{})
+		comments, ok := resp.Data.([]any)
 		if !ok {
 			exitWithError(errors.NewError("Invalid comments response"))
 		}
@@ -123,7 +123,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 		}
 
 		// Download the files
-		results := make([]map[string]interface{}, 0, len(toDownload))
+		results := make([]map[string]any, 0, len(toDownload))
 		for i, attachment := range toDownload {
 			outputPath := buildOutputPath(commentAttachmentsDownloadOutput, attachment.Filename, i+1, len(toDownload))
 
@@ -131,7 +131,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 				exitWithError(err)
 			}
 
-			results = append(results, map[string]interface{}{
+			results = append(results, map[string]any{
 				"filename":   attachment.Filename,
 				"saved_to":   outputPath,
 				"filesize":   attachment.Filesize,
@@ -139,7 +139,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			})
 		}
 
-		printSuccess(map[string]interface{}{
+		printSuccess(map[string]any{
 			"downloaded": len(results),
 			"files":      results,
 		})
@@ -147,12 +147,12 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 }
 
 // extractCommentAttachments parses all comments and returns attachments with comment context
-func extractCommentAttachments(comments []interface{}) []CommentAttachment {
+func extractCommentAttachments(comments []any) []CommentAttachment {
 	var allAttachments []CommentAttachment
 	globalIndex := 1
 
 	for _, c := range comments {
-		comment, ok := c.(map[string]interface{})
+		comment, ok := c.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -160,7 +160,7 @@ func extractCommentAttachments(comments []interface{}) []CommentAttachment {
 		commentID, _ := comment["id"].(string)
 
 		// Comment body is an object with html and plain_text fields
-		bodyObj, ok := comment["body"].(map[string]interface{})
+		bodyObj, ok := comment["body"].(map[string]any)
 		if !ok {
 			continue
 		}

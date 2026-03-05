@@ -280,8 +280,8 @@ func validateToken(apiURL, token string) ([]Account, error) {
 }
 
 // parseAccounts extracts account information from the identity response.
-func parseAccounts(data interface{}) ([]Account, error) {
-	dataMap, ok := data.(map[string]interface{})
+func parseAccounts(data any) ([]Account, error) {
+	dataMap, ok := data.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected response format")
 	}
@@ -291,14 +291,14 @@ func parseAccounts(data interface{}) ([]Account, error) {
 		return nil, fmt.Errorf("no accounts in response")
 	}
 
-	accountsList, ok := accountsRaw.([]interface{})
+	accountsList, ok := accountsRaw.([]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected accounts format")
 	}
 
 	accounts := make([]Account, 0, len(accountsList))
 	for _, acc := range accountsList {
-		accMap, ok := acc.(map[string]interface{})
+		accMap, ok := acc.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -334,15 +334,15 @@ func fetchBoards(apiURL, token, accountSlug string) ([]Board, error) {
 }
 
 // parseBoards extracts board information from the boards response.
-func parseBoards(data interface{}) ([]Board, error) {
-	boardsList, ok := data.([]interface{})
+func parseBoards(data any) ([]Board, error) {
+	boardsList, ok := data.([]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected boards format")
 	}
 
 	boards := make([]Board, 0, len(boardsList))
 	for _, b := range boardsList {
-		boardMap, ok := b.(map[string]interface{})
+		boardMap, ok := b.(map[string]any)
 		if !ok {
 			continue
 		}

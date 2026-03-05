@@ -30,7 +30,7 @@ var pinListCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		summary := fmt.Sprintf("%d pinned cards", count)

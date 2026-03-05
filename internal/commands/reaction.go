@@ -46,7 +46,7 @@ var reactionListCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		var summary string
@@ -97,7 +97,7 @@ var reactionCreateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("content"))
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"content": reactionCreateContent,
 		}
 
@@ -132,7 +132,7 @@ var reactionCreateCmd = &cobra.Command{
 		// Reaction create returns just success, no location or data
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -184,7 +184,7 @@ var reactionDeleteCmd = &cobra.Command{
 			}
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 	},

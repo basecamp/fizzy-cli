@@ -12,9 +12,9 @@ func TestUserList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "name": "User 1"},
-				map[string]interface{}{"id": "2", "name": "User 2"},
+			Data: []any{
+				map[string]any{"id": "1", "name": "User 1"},
+				map[string]any{"id": "2", "name": "User 2"},
 			},
 		}
 
@@ -40,7 +40,7 @@ func TestUserShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "user-1",
 				"name": "Test User",
 			},
@@ -68,7 +68,7 @@ func TestUserUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -91,8 +91,8 @@ func TestUserUpdate(t *testing.T) {
 			t.Errorf("expected path '/users/user-1.json', got '%s'", mock.PatchCalls[0].Path)
 		}
 
-		body := mock.PatchCalls[0].Body.(map[string]interface{})
-		userParams := body["user"].(map[string]interface{})
+		body := mock.PatchCalls[0].Body.(map[string]any)
+		userParams := body["user"].(map[string]any)
 		if userParams["name"] != "New Name" {
 			t.Errorf("expected name 'New Name', got '%v'", userParams["name"])
 		}
@@ -102,7 +102,7 @@ func TestUserUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchMultipartResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -130,7 +130,7 @@ func TestUserUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchMultipartResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -180,7 +180,7 @@ func TestUserDeactivate(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

@@ -12,9 +12,9 @@ func TestBoardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "name": "Board 1"},
-				map[string]interface{}{"id": "2", "name": "Board 2"},
+			Data: []any{
+				map[string]any{"id": "1", "name": "Board 1"},
+				map[string]any{"id": "2", "name": "Board 2"},
 			},
 		}
 
@@ -44,7 +44,7 @@ func TestBoardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 			LinkNext:   "https://api.example.com/boards.json?page=2",
 		}
 
@@ -100,7 +100,7 @@ func TestBoardShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "123",
 				"name": "Test Board",
 			},
@@ -152,11 +152,11 @@ func TestBoardCreate(t *testing.T) {
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
 			Location:   "https://api.example.com/boards/456",
-			Data:       map[string]interface{}{"id": "456"},
+			Data:       map[string]any{"id": "456"},
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "456",
 				"name": "New Board",
 			},
@@ -186,11 +186,11 @@ func TestBoardCreate(t *testing.T) {
 		}
 
 		// Verify body contains board wrapper with name
-		body, ok := mock.PostCalls[0].Body.(map[string]interface{})
+		body, ok := mock.PostCalls[0].Body.(map[string]any)
 		if !ok {
 			t.Fatal("expected map body")
 		}
-		boardParams, ok := body["board"].(map[string]interface{})
+		boardParams, ok := body["board"].(map[string]any)
 		if !ok {
 			t.Fatal("expected board wrapper in body")
 		}
@@ -223,7 +223,7 @@ func TestBoardCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{"id": "789"},
+			Data:       map[string]any{"id": "789"},
 		}
 
 		result := SetTestMode(mock)
@@ -244,8 +244,8 @@ func TestBoardCreate(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		boardParams := body["board"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		boardParams := body["board"].(map[string]any)
 		if boardParams["all_access"] != false {
 			t.Errorf("expected all_access false, got %v", boardParams["all_access"])
 		}
@@ -260,7 +260,7 @@ func TestBoardUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "123",
 				"name": "Updated Name",
 			},
@@ -312,7 +312,7 @@ func TestBoardDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

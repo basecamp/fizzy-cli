@@ -40,7 +40,7 @@ var userListCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		summary := fmt.Sprintf("%d users", count)
@@ -137,14 +137,14 @@ var userUpdateCmd = &cobra.Command{
 
 			data := resp.Data
 			if data == nil {
-				data = map[string]interface{}{}
+				data = map[string]any{}
 			}
 			printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 			return
 		}
 
-		body := map[string]interface{}{
-			"user": map[string]interface{}{
+		body := map[string]any{
+			"user": map[string]any{
 				"name": userUpdateName,
 			},
 		}
@@ -161,7 +161,7 @@ var userUpdateCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -189,7 +189,7 @@ var userDeactivateCmd = &cobra.Command{
 			breadcrumb("people", "fizzy user list", "List users"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deactivated": true,
 		}, "", breadcrumbs)
 	},

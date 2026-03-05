@@ -38,13 +38,13 @@ var columnListCmd = &cobra.Command{
 			exitWithError(err)
 		}
 
-		data, ok := resp.Data.([]interface{})
+		data, ok := resp.Data.([]any)
 		if !ok {
 			printSuccess(resp.Data)
 			return
 		}
 
-		cols := make([]interface{}, 0, len(data)+3)
+		cols := make([]any, 0, len(data)+3)
 		cols = append(cols, pseudoColumnObject(pseudoColumnNotNow), pseudoColumnObject(pseudoColumnMaybe))
 		cols = append(cols, data...)
 		cols = append(cols, pseudoColumnObject(pseudoColumnDone))
@@ -129,14 +129,14 @@ var columnCreateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("name"))
 		}
 
-		columnParams := map[string]interface{}{
+		columnParams := map[string]any{
 			"name": columnCreateName,
 		}
 		if columnCreateColor != "" {
 			columnParams["color"] = columnCreateColor
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"column": columnParams,
 		}
 
@@ -152,7 +152,7 @@ var columnCreateCmd = &cobra.Command{
 			if err == nil && followResp != nil {
 				// Extract column ID from response
 				columnID := ""
-				if col, ok := followResp.Data.(map[string]interface{}); ok {
+				if col, ok := followResp.Data.(map[string]any); ok {
 					if id, ok := col["id"].(string); ok {
 						columnID = id
 					}
@@ -210,7 +210,7 @@ var columnUpdateCmd = &cobra.Command{
 			exitWithError(err)
 		}
 
-		columnParams := make(map[string]interface{})
+		columnParams := make(map[string]any)
 		if columnUpdateName != "" {
 			columnParams["name"] = columnUpdateName
 		}
@@ -218,7 +218,7 @@ var columnUpdateCmd = &cobra.Command{
 			columnParams["color"] = columnUpdateColor
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"column": columnParams,
 		}
 
@@ -274,7 +274,7 @@ var columnDeleteCmd = &cobra.Command{
 			breadcrumb("create", fmt.Sprintf("fizzy column create --board %s --name \"name\"", boardID), "Create column"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 	},

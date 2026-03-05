@@ -1,6 +1,6 @@
 module github.com/basecamp/fizzy-cli
 
-go 1.24.0
+go 1.26
 
 require (
 	github.com/charmbracelet/huh v0.8.0
