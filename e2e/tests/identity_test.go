@@ -30,7 +30,7 @@ func TestIdentityShow(t *testing.T) {
 		}
 
 		// Should have accounts array
-		accounts, ok := data["accounts"].([]interface{})
+		accounts, ok := data["accounts"].([]any)
 		if !ok {
 			t.Error("expected accounts array in response")
 		}
@@ -41,7 +41,7 @@ func TestIdentityShow(t *testing.T) {
 
 		// First account should have an id and slug
 		if len(accounts) > 0 {
-			firstAccount, ok := accounts[0].(map[string]interface{})
+			firstAccount, ok := accounts[0].(map[string]any)
 			if !ok {
 				t.Error("expected account to be a map")
 			} else {

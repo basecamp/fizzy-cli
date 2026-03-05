@@ -12,8 +12,8 @@ func TestReactionList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "content": "👍"},
+			Data: []any{
+				map[string]any{"id": "1", "content": "👍"},
 			},
 		}
 
@@ -59,7 +59,7 @@ func TestReactionList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -87,7 +87,7 @@ func TestReactionCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -111,7 +111,7 @@ func TestReactionCreate(t *testing.T) {
 			t.Errorf("expected path '/cards/42/comments/comment-1/reactions.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["content"] != "👍" {
 			t.Errorf("expected content '👍', got '%v'", body["content"])
 		}
@@ -121,7 +121,7 @@ func TestReactionCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -144,7 +144,7 @@ func TestReactionCreate(t *testing.T) {
 			t.Errorf("expected path '/cards/42/reactions.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["content"] != "🎉" {
 			t.Errorf("expected content '🎉', got '%v'", body["content"])
 		}
@@ -156,7 +156,7 @@ func TestReactionDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -183,7 +183,7 @@ func TestReactionDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

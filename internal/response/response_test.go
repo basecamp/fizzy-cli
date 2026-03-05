@@ -292,7 +292,7 @@ func TestResponseOmitsEmptyFields(t *testing.T) {
 }
 
 func containsKey(jsonStr, key string) bool {
-	var m map[string]interface{}
+	var m map[string]any
 	json.Unmarshal([]byte(jsonStr), &m)
 	_, ok := m[key]
 	return ok

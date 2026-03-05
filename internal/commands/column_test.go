@@ -12,9 +12,9 @@ func TestColumnList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "name": "To Do"},
-				map[string]interface{}{"id": "2", "name": "In Progress"},
+			Data: []any{
+				map[string]any{"id": "1", "name": "To Do"},
+				map[string]any{"id": "2", "name": "In Progress"},
 			},
 		}
 
@@ -35,7 +35,7 @@ func TestColumnList(t *testing.T) {
 			t.Errorf("expected path '/boards/123/columns.json', got '%s'", mock.GetCalls[0].Path)
 		}
 
-		arr, ok := result.Response.Data.([]interface{})
+		arr, ok := result.Response.Data.([]any)
 		if !ok {
 			t.Fatalf("expected array response data, got %T", result.Response.Data)
 		}
@@ -43,15 +43,15 @@ func TestColumnList(t *testing.T) {
 			t.Fatalf("expected 5 columns (3 pseudo + 2 real), got %d", len(arr))
 		}
 
-		first := arr[0].(map[string]interface{})
+		first := arr[0].(map[string]any)
 		if first["id"] != "not-now" || first["name"] != "Not Now" {
 			t.Errorf("expected first pseudo column Not Now, got %+v", first)
 		}
-		second := arr[1].(map[string]interface{})
+		second := arr[1].(map[string]any)
 		if second["id"] != "maybe" || second["name"] != "Maybe?" {
 			t.Errorf("expected second pseudo column Maybe?, got %+v", second)
 		}
-		last := arr[len(arr)-1].(map[string]interface{})
+		last := arr[len(arr)-1].(map[string]any)
 		if last["id"] != "done" || last["name"] != "Done" {
 			t.Errorf("expected last pseudo column Done, got %+v", last)
 		}
@@ -77,7 +77,7 @@ func TestColumnList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -104,7 +104,7 @@ func TestColumnShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "col-1",
 				"name": "In Progress",
 			},
@@ -159,7 +159,7 @@ func TestColumnShow(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		data, ok := result.Response.Data.(map[string]interface{})
+		data, ok := result.Response.Data.(map[string]any)
 		if !ok {
 			t.Fatalf("expected map response data, got %T", result.Response.Data)
 		}
@@ -178,7 +178,7 @@ func TestColumnCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "col-1",
 				"name": "New Column",
 			},
@@ -203,8 +203,8 @@ func TestColumnCreate(t *testing.T) {
 			t.Errorf("expected path '/boards/123/columns.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		columnParams := body["column"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		columnParams := body["column"].(map[string]any)
 		if columnParams["name"] != "New Column" {
 			t.Errorf("expected name 'New Column', got '%v'", columnParams["name"])
 		}
@@ -254,7 +254,7 @@ func TestColumnCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -275,8 +275,8 @@ func TestColumnCreate(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		columnParams := body["column"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		columnParams := body["column"].(map[string]any)
 		if columnParams["color"] != "blue" {
 			t.Errorf("expected color 'blue', got '%v'", columnParams["color"])
 		}
@@ -288,7 +288,7 @@ func TestColumnUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "col-1",
 				"name": "Updated Column",
 			},
@@ -336,7 +336,7 @@ func TestColumnDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

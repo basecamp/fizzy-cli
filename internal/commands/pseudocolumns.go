@@ -16,8 +16,8 @@ var (
 	pseudoColumnDone  = pseudoColumn{ID: "done", Name: "Done", Kind: "closed"}
 )
 
-func pseudoColumnObject(c pseudoColumn) map[string]interface{} {
-	return map[string]interface{}{
+func pseudoColumnObject(c pseudoColumn) map[string]any {
+	return map[string]any{
 		"id":     c.ID,
 		"name":   c.Name,
 		"kind":   c.Kind,

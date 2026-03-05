@@ -102,7 +102,7 @@ func TestCommentAttachmentsShow(t *testing.T) {
 		}
 
 		if len(arr) > 0 {
-			attachment, ok := arr[0].(map[string]interface{})
+			attachment, ok := arr[0].(map[string]any)
 			if !ok {
 				t.Fatalf("expected attachment to be a map, got %T", arr[0])
 			}
@@ -292,9 +292,9 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 		}
 
 		data := result.GetDataMap()
-		files := data["files"].([]interface{})
+		files := data["files"].([]any)
 		if len(files) > 0 {
-			fileInfo := files[0].(map[string]interface{})
+			fileInfo := files[0].(map[string]any)
 			savedTo := fileInfo["saved_to"].(string)
 			if savedTo != customFilename {
 				t.Errorf("expected saved_to=%q, got %q", customFilename, savedTo)
@@ -392,7 +392,7 @@ func TestCardAttachmentsIncludeComments(t *testing.T) {
 		}
 
 		if len(arr) > 0 {
-			attachment := arr[0].(map[string]interface{})
+			attachment := arr[0].(map[string]any)
 			if filename := attachment["filename"].(string); filename != expectedFilename {
 				t.Errorf("expected filename %q, got %q", expectedFilename, filename)
 			}

@@ -127,7 +127,7 @@ func TestColumnCRUD(t *testing.T) {
 			}
 			// Color is returned as an object with "value" field
 			data := showResult.GetDataMap()
-			if colorObj, ok := data["color"].(map[string]interface{}); ok {
+			if colorObj, ok := data["color"].(map[string]any); ok {
 				savedColorValue := colorObj["value"].(string)
 				if savedColorValue != color {
 					t.Errorf("expected color value %q, got %q", color, savedColorValue)

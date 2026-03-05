@@ -11,8 +11,8 @@ func TestNotificationList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "message": "You have a notification"},
+			Data: []any{
+				map[string]any{"id": "1", "message": "You have a notification"},
 			},
 		}
 
@@ -38,7 +38,7 @@ func TestNotificationRead(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -63,7 +63,7 @@ func TestNotificationUnread(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -88,9 +88,9 @@ func TestNotificationTray(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "read": false},
-				map[string]interface{}{"id": "2", "read": false},
+			Data: []any{
+				map[string]any{"id": "1", "read": false},
+				map[string]any{"id": "2", "read": false},
 			},
 		}
 
@@ -114,9 +114,9 @@ func TestNotificationTray(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "read": false},
-				map[string]interface{}{"id": "2", "read": true},
+			Data: []any{
+				map[string]any{"id": "1", "read": false},
+				map[string]any{"id": "2", "read": true},
 			},
 		}
 
@@ -144,7 +144,7 @@ func TestNotificationReadAll(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

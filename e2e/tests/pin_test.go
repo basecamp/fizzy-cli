@@ -62,7 +62,7 @@ func TestPinActions(t *testing.T) {
 		// Find our pinned card in the list
 		found := false
 		for _, item := range arr {
-			card, ok := item.(map[string]interface{})
+			card, ok := item.(map[string]any)
 			if !ok {
 				continue
 			}
@@ -102,7 +102,7 @@ func TestPinActions(t *testing.T) {
 		}
 
 		for _, item := range arr {
-			card, ok := item.(map[string]interface{})
+			card, ok := item.(map[string]any)
 			if !ok {
 				continue
 			}

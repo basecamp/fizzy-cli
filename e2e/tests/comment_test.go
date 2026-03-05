@@ -125,7 +125,7 @@ func TestCommentCRUD(t *testing.T) {
 		}
 		// Body is returned as an object with "plain_text" and "html" fields
 		data := showResult.GetDataMap()
-		if bodyObj, ok := data["body"].(map[string]interface{}); ok {
+		if bodyObj, ok := data["body"].(map[string]any); ok {
 			savedBody := bodyObj["plain_text"].(string)
 			if savedBody != commentBody {
 				t.Errorf("expected body %q, got %q", commentBody, savedBody)
@@ -224,7 +224,7 @@ func TestCommentCRUD(t *testing.T) {
 		}
 		// Body is returned as an object with "plain_text" and "html" fields
 		data := showResult.GetDataMap()
-		if bodyObj, ok := data["body"].(map[string]interface{}); ok {
+		if bodyObj, ok := data["body"].(map[string]any); ok {
 			savedBody := bodyObj["plain_text"].(string)
 			if savedBody != newBody {
 				t.Errorf("expected body %q after update, got %q", newBody, savedBody)

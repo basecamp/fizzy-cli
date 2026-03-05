@@ -12,8 +12,8 @@ func TestSearch(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "title": "Bug fix"},
+			Data: []any{
+				map[string]any{"id": "1", "title": "Bug fix"},
 			},
 		}
 
@@ -41,7 +41,7 @@ func TestSearch(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -65,7 +65,7 @@ func TestSearch(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -91,7 +91,7 @@ func TestSearch(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -117,7 +117,7 @@ func TestSearch(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)

@@ -186,7 +186,7 @@ func TestCardAttachmentsCommand(t *testing.T) {
 	tests := []struct {
 		name          string
 		cardNumber    string
-		cardData      map[string]interface{}
+		cardData      map[string]any
 		expectSuccess bool
 		expectError   string
 		expectedCount int
@@ -194,7 +194,7 @@ func TestCardAttachmentsCommand(t *testing.T) {
 		{
 			name:       "card with attachments",
 			cardNumber: "241",
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="test.png" filesize="1000">
@@ -207,7 +207,7 @@ func TestCardAttachmentsCommand(t *testing.T) {
 		{
 			name:       "card without attachments",
 			cardNumber: "100",
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":               "card-id",
 				"number":           100,
 				"description_html": "<p>No attachments here</p>",
@@ -365,7 +365,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 	tests := []struct {
 		name                string
 		args                []string
-		cardData            map[string]interface{}
+		cardData            map[string]any
 		downloadError       error
 		expectSuccess       bool
 		expectError         string
@@ -375,7 +375,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "download single attachment by index",
 			args: []string{"card", "attachments", "download", "241", "1"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="test.png" filesize="1000">
@@ -389,7 +389,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "download all attachments",
 			args: []string{"card", "attachments", "download", "241"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="image1.png" filesize="1000">
@@ -405,7 +405,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "no attachments on card",
 			args: []string{"card", "attachments", "download", "100"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":               "card-id",
 				"number":           100,
 				"description_html": "<p>No attachments here</p>",
@@ -416,7 +416,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "invalid attachment index - not a number",
 			args: []string{"card", "attachments", "download", "241", "abc"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="test.png" filesize="1000">
@@ -429,7 +429,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "attachment index out of range - too high",
 			args: []string{"card", "attachments", "download", "241", "5"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="test.png" filesize="1000">
@@ -442,7 +442,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "attachment index out of range - zero",
 			args: []string{"card", "attachments", "download", "241", "0"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="test.png" filesize="1000">
@@ -455,7 +455,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 		{
 			name: "download error",
 			args: []string{"card", "attachments", "download", "241", "1"},
-			cardData: map[string]interface{}{
+			cardData: map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="test.png" filesize="1000">
@@ -506,7 +506,7 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 				}
 
 				// Verify response data
-				if data, ok := result.Response.Data.(map[string]interface{}); ok {
+				if data, ok := result.Response.Data.(map[string]any); ok {
 					if downloaded, ok := data["downloaded"].(int); ok {
 						if downloaded != tt.expectedDownloads {
 							t.Errorf("expected downloaded count %d, got %d", tt.expectedDownloads, downloaded)
@@ -591,7 +591,7 @@ func TestAttachmentDownloadSanitizesFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cardData := map[string]interface{}{
+			cardData := map[string]any{
 				"id":     "card-id",
 				"number": 241,
 				"description_html": `<action-text-attachment sgid="test-sgid" content-type="image/png" filename="` + tt.maliciousFilename + `" filesize="1000">

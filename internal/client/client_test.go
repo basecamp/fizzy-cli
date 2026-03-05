@@ -113,7 +113,7 @@ func TestGet(t *testing.T) {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		t.Fatalf("expected map response data")
 	}
@@ -377,7 +377,7 @@ func TestGetWithPagination(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		data, ok := resp.Data.([]interface{})
+		data, ok := resp.Data.([]any)
 		if !ok {
 			t.Fatalf("expected array response data")
 		}
@@ -406,7 +406,7 @@ func TestGetWithPagination(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		data, ok := resp.Data.([]interface{})
+		data, ok := resp.Data.([]any)
 		if !ok {
 			t.Fatalf("expected array response data")
 		}
@@ -552,9 +552,9 @@ func TestUploadFile(t *testing.T) {
 		if r.Method == "POST" && r.URL.Path == "/rails/active_storage/direct_uploads" {
 			// Blob creation request
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			json.NewEncoder(w).Encode(map[string]any{
 				"signed_id": "test-signed-id-123",
-				"direct_upload": map[string]interface{}{
+				"direct_upload": map[string]any{
 					"url": serverURL + "/upload",
 					"headers": map[string]string{
 						"Content-Type": "text/plain",
@@ -581,7 +581,7 @@ func TestUploadFile(t *testing.T) {
 		t.Error("expected upload endpoint to be called")
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		t.Fatal("expected map response data")
 	}

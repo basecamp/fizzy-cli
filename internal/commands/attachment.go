@@ -50,7 +50,7 @@ Use --include-comments to also include attachments from comments on the card.`,
 			exitWithError(err)
 		}
 
-		cardData, ok := resp.Data.(map[string]interface{})
+		cardData, ok := resp.Data.(map[string]any)
 		if !ok {
 			exitWithError(errors.NewError("Invalid card response"))
 		}
@@ -61,7 +61,7 @@ Use --include-comments to also include attachments from comments on the card.`,
 		if attachmentsShowIncludeComments {
 			commentsResp, err := client.GetWithPagination("/cards/"+args[0]+"/comments.json", true)
 			if err == nil {
-				if comments, ok := commentsResp.Data.([]interface{}); ok {
+				if comments, ok := commentsResp.Data.([]any); ok {
 					commentAttachments := extractCommentAttachments(comments)
 					// Re-index and append
 					for _, ca := range commentAttachments {
@@ -105,7 +105,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 			exitWithError(err)
 		}
 
-		cardData, ok := resp.Data.(map[string]interface{})
+		cardData, ok := resp.Data.(map[string]any)
 		if !ok {
 			exitWithError(errors.NewError("Invalid card response"))
 		}
@@ -116,7 +116,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 		if attachmentsDownloadIncludeComments {
 			commentsResp, err := client.GetWithPagination("/cards/"+cardNumber+"/comments.json", true)
 			if err == nil {
-				if comments, ok := commentsResp.Data.([]interface{}); ok {
+				if comments, ok := commentsResp.Data.([]any); ok {
 					commentAttachments := extractCommentAttachments(comments)
 					for _, ca := range commentAttachments {
 						ca.Index = len(attachments) + 1
@@ -148,7 +148,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 		}
 
 		// Download the files
-		results := make([]map[string]interface{}, 0, len(toDownload))
+		results := make([]map[string]any, 0, len(toDownload))
 		for i, attachment := range toDownload {
 			outputPath := buildOutputPath(attachmentDownloadOutput, attachment.Filename, i+1, len(toDownload))
 
@@ -156,14 +156,14 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 				exitWithError(err)
 			}
 
-			results = append(results, map[string]interface{}{
+			results = append(results, map[string]any{
 				"filename": attachment.Filename,
 				"saved_to": outputPath,
 				"filesize": attachment.Filesize,
 			})
 		}
 
-		printSuccess(map[string]interface{}{
+		printSuccess(map[string]any{
 			"downloaded": len(results),
 			"files":      results,
 		})

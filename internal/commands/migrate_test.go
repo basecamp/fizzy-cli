@@ -105,7 +105,7 @@ func TestVerifyAccountAccess(t *testing.T) {
 
 func TestGetStringField(t *testing.T) {
 	t.Run("returns string value", func(t *testing.T) {
-		m := map[string]interface{}{"key": "value"}
+		m := map[string]any{"key": "value"}
 		result := getStringField(m, "key")
 		if result != "value" {
 			t.Errorf("expected 'value', got '%s'", result)
@@ -113,7 +113,7 @@ func TestGetStringField(t *testing.T) {
 	})
 
 	t.Run("returns empty string for missing key", func(t *testing.T) {
-		m := map[string]interface{}{}
+		m := map[string]any{}
 		result := getStringField(m, "missing")
 		if result != "" {
 			t.Errorf("expected empty string, got '%s'", result)
@@ -121,7 +121,7 @@ func TestGetStringField(t *testing.T) {
 	})
 
 	t.Run("returns empty string for non-string value", func(t *testing.T) {
-		m := map[string]interface{}{"key": 123}
+		m := map[string]any{"key": 123}
 		result := getStringField(m, "key")
 		if result != "" {
 			t.Errorf("expected empty string, got '%s'", result)
@@ -131,7 +131,7 @@ func TestGetStringField(t *testing.T) {
 
 func TestGetIntField(t *testing.T) {
 	t.Run("returns int from float64", func(t *testing.T) {
-		m := map[string]interface{}{"key": float64(42)}
+		m := map[string]any{"key": float64(42)}
 		result := getIntField(m, "key")
 		if result != 42 {
 			t.Errorf("expected 42, got %d", result)
@@ -139,7 +139,7 @@ func TestGetIntField(t *testing.T) {
 	})
 
 	t.Run("returns int from int", func(t *testing.T) {
-		m := map[string]interface{}{"key": 42}
+		m := map[string]any{"key": 42}
 		result := getIntField(m, "key")
 		if result != 42 {
 			t.Errorf("expected 42, got %d", result)
@@ -147,7 +147,7 @@ func TestGetIntField(t *testing.T) {
 	})
 
 	t.Run("returns 0 for missing key", func(t *testing.T) {
-		m := map[string]interface{}{}
+		m := map[string]any{}
 		result := getIntField(m, "missing")
 		if result != 0 {
 			t.Errorf("expected 0, got %d", result)
@@ -157,7 +157,7 @@ func TestGetIntField(t *testing.T) {
 
 func TestGetBoolField(t *testing.T) {
 	t.Run("returns true", func(t *testing.T) {
-		m := map[string]interface{}{"key": true}
+		m := map[string]any{"key": true}
 		result := getBoolField(m, "key")
 		if !result {
 			t.Error("expected true, got false")
@@ -165,7 +165,7 @@ func TestGetBoolField(t *testing.T) {
 	})
 
 	t.Run("returns false", func(t *testing.T) {
-		m := map[string]interface{}{"key": false}
+		m := map[string]any{"key": false}
 		result := getBoolField(m, "key")
 		if result {
 			t.Error("expected false, got true")
@@ -173,7 +173,7 @@ func TestGetBoolField(t *testing.T) {
 	})
 
 	t.Run("returns false for missing key", func(t *testing.T) {
-		m := map[string]interface{}{}
+		m := map[string]any{}
 		result := getBoolField(m, "missing")
 		if result {
 			t.Error("expected false, got true")
@@ -183,7 +183,7 @@ func TestGetBoolField(t *testing.T) {
 
 func TestGetCardColumnID(t *testing.T) {
 	t.Run("returns column_id directly", func(t *testing.T) {
-		card := map[string]interface{}{"column_id": "col-123"}
+		card := map[string]any{"column_id": "col-123"}
 		result := getCardColumnID(card)
 		if result != "col-123" {
 			t.Errorf("expected 'col-123', got '%s'", result)
@@ -191,8 +191,8 @@ func TestGetCardColumnID(t *testing.T) {
 	})
 
 	t.Run("returns id from nested column object", func(t *testing.T) {
-		card := map[string]interface{}{
-			"column": map[string]interface{}{"id": "col-456"},
+		card := map[string]any{
+			"column": map[string]any{"id": "col-456"},
 		}
 		result := getCardColumnID(card)
 		if result != "col-456" {
@@ -201,7 +201,7 @@ func TestGetCardColumnID(t *testing.T) {
 	})
 
 	t.Run("returns empty string when no column", func(t *testing.T) {
-		card := map[string]interface{}{}
+		card := map[string]any{}
 		result := getCardColumnID(card)
 		if result != "" {
 			t.Errorf("expected empty string, got '%s'", result)
@@ -209,9 +209,9 @@ func TestGetCardColumnID(t *testing.T) {
 	})
 
 	t.Run("prefers column_id over nested column", func(t *testing.T) {
-		card := map[string]interface{}{
+		card := map[string]any{
 			"column_id": "col-123",
-			"column":    map[string]interface{}{"id": "col-456"},
+			"column":    map[string]any{"id": "col-456"},
 		}
 		result := getCardColumnID(card)
 		if result != "col-123" {
@@ -222,11 +222,11 @@ func TestGetCardColumnID(t *testing.T) {
 
 func TestCountRealColumns(t *testing.T) {
 	t.Run("counts only real columns", func(t *testing.T) {
-		columns := []interface{}{
-			map[string]interface{}{"id": "1", "name": "Backlog", "kind": "real"},
-			map[string]interface{}{"id": "2", "name": "In Progress", "kind": "real"},
-			map[string]interface{}{"id": "3", "name": "Not Now", "kind": "pseudo", "pseudo": true},
-			map[string]interface{}{"id": "4", "name": "Done", "pseudo": true},
+		columns := []any{
+			map[string]any{"id": "1", "name": "Backlog", "kind": "real"},
+			map[string]any{"id": "2", "name": "In Progress", "kind": "real"},
+			map[string]any{"id": "3", "name": "Not Now", "kind": "pseudo", "pseudo": true},
+			map[string]any{"id": "4", "name": "Done", "pseudo": true},
 		}
 		result := countRealColumns(columns)
 		if result != 2 {
@@ -235,7 +235,7 @@ func TestCountRealColumns(t *testing.T) {
 	})
 
 	t.Run("returns 0 for empty list", func(t *testing.T) {
-		columns := []interface{}{}
+		columns := []any{}
 		result := countRealColumns(columns)
 		if result != 0 {
 			t.Errorf("expected 0, got %d", result)
@@ -243,8 +243,8 @@ func TestCountRealColumns(t *testing.T) {
 	})
 
 	t.Run("handles columns without kind field", func(t *testing.T) {
-		columns := []interface{}{
-			map[string]interface{}{"id": "1", "name": "Column"},
+		columns := []any{
+			map[string]any{"id": "1", "name": "Column"},
 		}
 		result := countRealColumns(columns)
 		if result != 1 {

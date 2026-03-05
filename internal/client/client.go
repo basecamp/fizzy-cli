@@ -36,7 +36,7 @@ type APIResponse struct {
 	Body       []byte
 	Location   string
 	LinkNext   string
-	Data       interface{}
+	Data       any
 }
 
 // New creates a new API client.
@@ -77,12 +77,12 @@ func (c *Client) Get(path string) (*APIResponse, error) {
 }
 
 // Post performs a POST request with JSON body.
-func (c *Client) Post(path string, body interface{}) (*APIResponse, error) {
+func (c *Client) Post(path string, body any) (*APIResponse, error) {
 	return c.request("POST", path, body)
 }
 
 // Patch performs a PATCH request with JSON body.
-func (c *Client) Patch(path string, body interface{}) (*APIResponse, error) {
+func (c *Client) Patch(path string, body any) (*APIResponse, error) {
 	return c.request("PATCH", path, body)
 }
 
@@ -156,7 +156,7 @@ func (c *Client) PatchMultipart(path, fileField, filePath string, fields map[str
 }
 
 // Put performs a PUT request with JSON body.
-func (c *Client) Put(path string, body interface{}) (*APIResponse, error) {
+func (c *Client) Put(path string, body any) (*APIResponse, error) {
 	return c.request("PUT", path, body)
 }
 
@@ -165,7 +165,7 @@ func (c *Client) Delete(path string) (*APIResponse, error) {
 	return c.request("DELETE", path, nil)
 }
 
-func (c *Client) request(method, path string, body interface{}) (*APIResponse, error) {
+func (c *Client) request(method, path string, body any) (*APIResponse, error) {
 	requestURL := c.buildURL(path)
 
 	var reqBody io.Reader
@@ -273,8 +273,8 @@ func (c *Client) GetWithPagination(path string, fetchAll bool) (*APIResponse, er
 	}
 
 	// Collect all data
-	var allData []interface{}
-	if arr, ok := resp.Data.([]interface{}); ok {
+	var allData []any
+	if arr, ok := resp.Data.([]any); ok {
 		allData = append(allData, arr...)
 	}
 
@@ -286,7 +286,7 @@ func (c *Client) GetWithPagination(path string, fetchAll bool) (*APIResponse, er
 			return nil, err
 		}
 
-		if arr, ok := pageResp.Data.([]interface{}); ok {
+		if arr, ok := pageResp.Data.([]any); ok {
 			allData = append(allData, arr...)
 		}
 
@@ -332,8 +332,8 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 	checksum := computeChecksum(fileContent)
 
 	// Step 1: Create blob
-	blobReq := map[string]interface{}{
-		"blob": map[string]interface{}{
+	blobReq := map[string]any{
+		"blob": map[string]any{
 			"filename":     filename,
 			"byte_size":    fileInfo.Size(),
 			"content_type": contentType,
@@ -347,12 +347,12 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 	}
 
 	// Parse the response to get upload URL and signed_id
-	blobData, ok := createResp.Data.(map[string]interface{})
+	blobData, ok := createResp.Data.(map[string]any)
 	if !ok {
 		return nil, errors.NewError("Invalid blob creation response")
 	}
 
-	directUploadData, ok := blobData["direct_upload"].(map[string]interface{})
+	directUploadData, ok := blobData["direct_upload"].(map[string]any)
 	if !ok {
 		return nil, errors.NewError("Missing direct_upload in response")
 	}
@@ -362,7 +362,7 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 		return nil, errors.NewError("Missing upload URL in response")
 	}
 
-	headers, _ := directUploadData["headers"].(map[string]interface{})
+	headers, _ := directUploadData["headers"].(map[string]any)
 
 	signedID, ok := blobData["signed_id"].(string)
 	if !ok {
@@ -397,7 +397,7 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 	}
 
 	// Return the signed_id and attachable_sgid
-	responseData := map[string]interface{}{
+	responseData := map[string]any{
 		"signed_id": signedID,
 	}
 	if attachableSGID != "" {

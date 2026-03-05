@@ -123,7 +123,7 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 	// Dry run: just show what would be done
 	if migrateBoardDryRun {
 		printDryRunSummary(boardName, sourceColumns, sourceCards)
-		printSuccess(map[string]interface{}{
+		printSuccess(map[string]any{
 			"dry_run":      true,
 			"board":        boardName,
 			"columns":      len(sourceColumns),
@@ -148,7 +148,7 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 	fmt.Fprintf(os.Stderr, "Creating columns...\n")
 	columnMapping := make(map[string]string) // source column ID -> target column ID
 	for _, col := range sourceColumns {
-		colMap, ok := col.(map[string]interface{})
+		colMap, ok := col.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -177,7 +177,7 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 	// 7. Migrate cards
 	fmt.Fprintf(os.Stderr, "Migrating cards...\n")
 	for i, card := range sourceCards {
-		cardMap, ok := card.(map[string]interface{})
+		cardMap, ok := card.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -198,7 +198,7 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 	// Print summary
 	printMigrationSummary(stats)
 
-	printSuccess(map[string]interface{}{
+	printSuccess(map[string]any{
 		"migrated":         true,
 		"board_id":         stats.targetBoardID,
 		"board_name":       stats.targetBoardName,
@@ -226,12 +226,12 @@ func verifyAccountAccess(sourceAccount, targetAccount string) error {
 		return errors.NewError(fmt.Sprintf("Failed to fetch identity: %v", err))
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		return errors.NewError("Invalid identity response")
 	}
 
-	accounts, ok := data["accounts"].([]interface{})
+	accounts, ok := data["accounts"].([]any)
 	if !ok {
 		return errors.NewError("No accounts found in identity response")
 	}
@@ -240,7 +240,7 @@ func verifyAccountAccess(sourceAccount, targetAccount string) error {
 	foundTarget := false
 
 	for _, acc := range accounts {
-		accMap, ok := acc.(map[string]interface{})
+		accMap, ok := acc.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -266,13 +266,13 @@ func verifyAccountAccess(sourceAccount, targetAccount string) error {
 	return nil
 }
 
-func getBoard(c client.API, boardID string) (map[string]interface{}, error) {
+func getBoard(c client.API, boardID string) (map[string]any, error) {
 	resp, err := c.Get("/boards/" + boardID + ".json")
 	if err != nil {
 		return nil, err
 	}
 
-	data, ok := resp.Data.(map[string]interface{})
+	data, ok := resp.Data.(map[string]any)
 	if !ok {
 		return nil, errors.NewError("Invalid board response")
 	}
@@ -280,13 +280,13 @@ func getBoard(c client.API, boardID string) (map[string]interface{}, error) {
 	return data, nil
 }
 
-func getColumns(c client.API, boardID string) ([]interface{}, error) {
+func getColumns(c client.API, boardID string) ([]any, error) {
 	resp, err := c.Get("/boards/" + boardID + "/columns.json")
 	if err != nil {
 		return nil, err
 	}
 
-	data, ok := resp.Data.([]interface{})
+	data, ok := resp.Data.([]any)
 	if !ok {
 		return nil, errors.NewError("Invalid columns response")
 	}
@@ -294,13 +294,13 @@ func getColumns(c client.API, boardID string) ([]interface{}, error) {
 	return data, nil
 }
 
-func getAllCards(c client.API, boardID string) ([]interface{}, error) {
+func getAllCards(c client.API, boardID string) ([]any, error) {
 	resp, err := c.GetWithPagination("/cards.json?board_ids[]="+boardID, true)
 	if err != nil {
 		return nil, err
 	}
 
-	data, ok := resp.Data.([]interface{})
+	data, ok := resp.Data.([]any)
 	if !ok {
 		return nil, errors.NewError("Invalid cards response")
 	}
@@ -309,8 +309,8 @@ func getAllCards(c client.API, boardID string) ([]interface{}, error) {
 }
 
 func createBoard(c client.API, name string) (string, error) {
-	body := map[string]interface{}{
-		"board": map[string]interface{}{
+	body := map[string]any{
+		"board": map[string]any{
 			"name": name,
 		},
 	}
@@ -324,14 +324,14 @@ func createBoard(c client.API, name string) (string, error) {
 	if resp.Location != "" {
 		followResp, err := c.FollowLocation(resp.Location)
 		if err == nil && followResp != nil {
-			if data, ok := followResp.Data.(map[string]interface{}); ok {
+			if data, ok := followResp.Data.(map[string]any); ok {
 				return getStringField(data, "id"), nil
 			}
 		}
 	}
 
 	// Try to get ID from response data
-	if data, ok := resp.Data.(map[string]interface{}); ok {
+	if data, ok := resp.Data.(map[string]any); ok {
 		return getStringField(data, "id"), nil
 	}
 
@@ -339,14 +339,14 @@ func createBoard(c client.API, name string) (string, error) {
 }
 
 func createColumn(c client.API, boardID, name, color string) (string, error) {
-	colParams := map[string]interface{}{
+	colParams := map[string]any{
 		"name": name,
 	}
 	if color != "" {
 		colParams["color"] = color
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"column": colParams,
 	}
 
@@ -359,21 +359,21 @@ func createColumn(c client.API, boardID, name, color string) (string, error) {
 	if resp.Location != "" {
 		followResp, err := c.FollowLocation(resp.Location)
 		if err == nil && followResp != nil {
-			if data, ok := followResp.Data.(map[string]interface{}); ok {
+			if data, ok := followResp.Data.(map[string]any); ok {
 				return getStringField(data, "id"), nil
 			}
 		}
 	}
 
 	// Try to get ID from response data
-	if data, ok := resp.Data.(map[string]interface{}); ok {
+	if data, ok := resp.Data.(map[string]any); ok {
 		return getStringField(data, "id"), nil
 	}
 
 	return "", errors.NewError("Failed to get column ID from response")
 }
 
-func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]interface{}, targetBoardID string, columnMapping map[string]string, stats *migrationStats) (int, error) {
+func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]any, targetBoardID string, columnMapping map[string]string, stats *migrationStats) (int, error) {
 	// Extract card data
 	title := getStringField(sourceCard, "title")
 	description := getStringField(sourceCard, "description")
@@ -392,7 +392,7 @@ func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]in
 	}
 
 	// Create card in target
-	cardParams := map[string]interface{}{
+	cardParams := map[string]any{
 		"title": title,
 	}
 	if description != "" {
@@ -402,7 +402,7 @@ func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]in
 		cardParams["created_at"] = createdAt
 	}
 
-	body := map[string]interface{}{
+	body := map[string]any{
 		"board_id": targetBoardID,
 		"card":     cardParams,
 	}
@@ -414,19 +414,19 @@ func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]in
 
 	// Get the new card number
 	var newCardNum int
-	var newCardData map[string]interface{}
+	var newCardData map[string]any
 
 	if resp.Location != "" {
 		followResp, err := targetClient.FollowLocation(resp.Location)
 		if err == nil && followResp != nil {
-			if data, ok := followResp.Data.(map[string]interface{}); ok {
+			if data, ok := followResp.Data.(map[string]any); ok {
 				newCardData = data
 				newCardNum = getIntField(data, "number")
 			}
 		}
 	}
 	if newCardNum == 0 {
-		if data, ok := resp.Data.(map[string]interface{}); ok {
+		if data, ok := resp.Data.(map[string]any); ok {
 			newCardData = data
 			newCardNum = getIntField(data, "number")
 		}
@@ -439,7 +439,7 @@ func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]in
 	_ = newCardData // might use later for additional operations
 
 	// Apply tags
-	if tags, ok := sourceCard["tags"].([]interface{}); ok {
+	if tags, ok := sourceCard["tags"].([]any); ok {
 		for _, tag := range tags {
 			tagName, ok := tag.(string)
 			if !ok {
@@ -523,14 +523,14 @@ func migrateCard(sourceClient, targetClient client.API, sourceCard map[string]in
 	return newCardNum, nil
 }
 
-func getCardColumnID(card map[string]interface{}) string {
+func getCardColumnID(card map[string]any) string {
 	// Try column_id directly
 	if colID, ok := card["column_id"].(string); ok && colID != "" {
 		return colID
 	}
 
 	// Try nested column object
-	if col, ok := card["column"].(map[string]interface{}); ok {
+	if col, ok := card["column"].(map[string]any); ok {
 		if colID, ok := col["id"].(string); ok {
 			return colID
 		}
@@ -540,7 +540,7 @@ func getCardColumnID(card map[string]interface{}) string {
 }
 
 func applyTag(c client.API, cardNum, tagName string) error {
-	body := map[string]interface{}{
+	body := map[string]any{
 		"tag_title": tagName,
 	}
 	_, err := c.Post("/cards/"+cardNum+"/taggings.json", body)
@@ -548,7 +548,7 @@ func applyTag(c client.API, cardNum, tagName string) error {
 }
 
 func moveToColumn(c client.API, cardNum, columnID string) error {
-	body := map[string]interface{}{
+	body := map[string]any{
 		"column_id": columnID,
 	}
 	_, err := c.Post("/cards/"+cardNum+"/triage.json", body)
@@ -572,14 +572,14 @@ func migrateComments(sourceClient, targetClient client.API, sourceCardNum, targe
 		return 0, err
 	}
 
-	comments, ok := resp.Data.([]interface{})
+	comments, ok := resp.Data.([]any)
 	if !ok {
 		return 0, nil // No comments or invalid response
 	}
 
 	created := 0
 	for _, comment := range comments {
-		commentMap, ok := comment.(map[string]interface{})
+		commentMap, ok := comment.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -587,7 +587,7 @@ func migrateComments(sourceClient, targetClient client.API, sourceCardNum, targe
 		// Get comment body - it might be a string or an object with html/plain_text
 		var bodyContent string
 		var bodyHTML string
-		if body, ok := commentMap["body"].(map[string]interface{}); ok {
+		if body, ok := commentMap["body"].(map[string]any); ok {
 			// Try to get HTML content first, then plain_text
 			if html, ok := body["html"].(string); ok {
 				bodyHTML = html
@@ -611,14 +611,14 @@ func migrateComments(sourceClient, targetClient client.API, sourceCardNum, targe
 
 		createdAt := getStringField(commentMap, "created_at")
 
-		commentParams := map[string]interface{}{
+		commentParams := map[string]any{
 			"body": bodyContent,
 		}
 		if createdAt != "" {
 			commentParams["created_at"] = createdAt
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"comment": commentParams,
 		}
 
@@ -633,9 +633,9 @@ func migrateComments(sourceClient, targetClient client.API, sourceCardNum, targe
 	return created, nil
 }
 
-func migrateSteps(sourceClient, targetClient client.API, sourceCard map[string]interface{}, targetCardNum string) (int, error) {
+func migrateSteps(sourceClient, targetClient client.API, sourceCard map[string]any, targetCardNum string) (int, error) {
 	// Steps are not included in card list response, need to fetch card details
-	steps, ok := sourceCard["steps"].([]interface{})
+	steps, ok := sourceCard["steps"].([]any)
 	if !ok || len(steps) == 0 {
 		// Fetch card details to get steps
 		sourceCardNum := getIntField(sourceCard, "number")
@@ -648,12 +648,12 @@ func migrateSteps(sourceClient, targetClient client.API, sourceCard map[string]i
 			return 0, fmt.Errorf("failed to fetch card details: %w", err)
 		}
 
-		cardData, ok := cardResp.Data.(map[string]interface{})
+		cardData, ok := cardResp.Data.(map[string]any)
 		if !ok {
 			return 0, nil
 		}
 
-		steps, ok = cardData["steps"].([]interface{})
+		steps, ok = cardData["steps"].([]any)
 		if !ok || len(steps) == 0 {
 			return 0, nil
 		}
@@ -661,7 +661,7 @@ func migrateSteps(sourceClient, targetClient client.API, sourceCard map[string]i
 
 	created := 0
 	for _, step := range steps {
-		stepMap, ok := step.(map[string]interface{})
+		stepMap, ok := step.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -673,14 +673,14 @@ func migrateSteps(sourceClient, targetClient client.API, sourceCard map[string]i
 
 		completed := getBoolField(stepMap, "completed")
 
-		stepParams := map[string]interface{}{
+		stepParams := map[string]any{
 			"content": content,
 		}
 		if completed {
 			stepParams["completed"] = true
 		}
 
-		reqBody := map[string]interface{}{
+		reqBody := map[string]any{
 			"step": stepParams,
 		}
 
@@ -715,7 +715,7 @@ func migrateCardImage(sourceClient, targetClient client.API, imageURL, targetCar
 	}
 
 	// Get the signed_id from upload response
-	uploadData, ok := uploadResp.Data.(map[string]interface{})
+	uploadData, ok := uploadResp.Data.(map[string]any)
 	if !ok {
 		return fmt.Errorf("invalid upload response")
 	}
@@ -726,10 +726,10 @@ func migrateCardImage(sourceClient, targetClient client.API, imageURL, targetCar
 	}
 
 	// Update the card with the new image
-	cardParams := map[string]interface{}{
+	cardParams := map[string]any{
 		"image": signedID,
 	}
-	body := map[string]interface{}{
+	body := map[string]any{
 		"card": cardParams,
 	}
 
@@ -779,7 +779,7 @@ func migrateInlineAttachments(sourceClient, targetClient client.API, html string
 		}
 
 		// Get the new SGID from upload response
-		uploadData, ok := uploadResp.Data.(map[string]interface{})
+		uploadData, ok := uploadResp.Data.(map[string]any)
 		if !ok {
 			fmt.Fprintf(os.Stderr, "      Warning: Invalid upload response for '%s'\n", attachment.Filename)
 			continue
@@ -805,7 +805,7 @@ func migrateInlineAttachments(sourceClient, targetClient client.API, html string
 	return result, migratedCount
 }
 
-func printDryRunSummary(boardName string, columns, cards []interface{}) {
+func printDryRunSummary(boardName string, columns, cards []any) {
 	fmt.Fprintf(os.Stderr, "\n=== DRY RUN SUMMARY ===\n")
 	fmt.Fprintf(os.Stderr, "Would migrate board: %s\n", boardName)
 	fmt.Fprintf(os.Stderr, "Columns to create: %d\n", countRealColumns(columns))
@@ -845,10 +845,10 @@ func printMigrationSummary(stats *migrationStats) {
 	fmt.Fprintf(os.Stderr, "      User assignments were not migrated - reassign as needed.\n")
 }
 
-func countRealColumns(columns []interface{}) int {
+func countRealColumns(columns []any) int {
 	count := 0
 	for _, col := range columns {
-		colMap, ok := col.(map[string]interface{})
+		colMap, ok := col.(map[string]any)
 		if !ok {
 			continue
 		}
@@ -864,14 +864,14 @@ func countRealColumns(columns []interface{}) int {
 }
 
 // Helper functions for safe type assertions
-func getStringField(m map[string]interface{}, key string) string {
+func getStringField(m map[string]any, key string) string {
 	if v, ok := m[key].(string); ok {
 		return v
 	}
 	return ""
 }
 
-func getIntField(m map[string]interface{}, key string) int {
+func getIntField(m map[string]any, key string) int {
 	if v, ok := m[key].(float64); ok {
 		return int(v)
 	}
@@ -881,7 +881,7 @@ func getIntField(m map[string]interface{}, key string) int {
 	return 0
 }
 
-func getBoolField(m map[string]interface{}, key string) bool {
+func getBoolField(m map[string]any, key string) bool {
 	if v, ok := m[key].(bool); ok {
 		return v
 	}

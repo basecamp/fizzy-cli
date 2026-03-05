@@ -12,7 +12,7 @@ func TestCardPin(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -72,7 +72,7 @@ func TestCardUnpin(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -132,9 +132,9 @@ func TestPinList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "title": "Pinned Card 1"},
-				map[string]interface{}{"id": "2", "title": "Pinned Card 2"},
+			Data: []any{
+				map[string]any{"id": "1", "title": "Pinned Card 1"},
+				map[string]any{"id": "2", "title": "Pinned Card 2"},
 			},
 		}
 
@@ -167,7 +167,7 @@ func TestPinList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)

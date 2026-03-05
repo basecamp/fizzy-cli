@@ -36,7 +36,7 @@ var searchCmd = &cobra.Command{
 		var params []string
 
 		// Add search terms
-		for _, term := range strings.Fields(query) {
+		for term := range strings.FieldsSeq(query) {
 			params = append(params, "terms[]="+term)
 		}
 
@@ -72,7 +72,7 @@ var searchCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		summary := fmt.Sprintf("%d results for \"%s\"", count, query)

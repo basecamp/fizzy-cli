@@ -37,7 +37,7 @@ make test-e2e         # Run e2e tests (requires credentials)
 make test-run NAME=TestBoardCRUD  # Run a specific test
 ```
 
-Requirements: Go 1.23+, API credentials for e2e tests.
+Requirements: Go 1.26+, API credentials for e2e tests.
 
 E2E environment variables:
 - `FIZZY_TEST_TOKEN` - API token (required)

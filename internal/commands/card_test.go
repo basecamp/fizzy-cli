@@ -12,9 +12,9 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "title": "Card 1"},
-				map[string]interface{}{"id": "2", "title": "Card 2"},
+			Data: []any{
+				map[string]any{"id": "1", "title": "Card 1"},
+				map[string]any{"id": "2", "title": "Card 2"},
 			},
 		}
 
@@ -44,7 +44,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -73,7 +73,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -119,10 +119,10 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "title": "Triage", "column": nil},
-				map[string]interface{}{"id": "2", "title": "In Column", "column": map[string]interface{}{"id": "col-1"}},
-				map[string]interface{}{"id": "3", "title": "In Column 2", "column_id": "col-2"},
+			Data: []any{
+				map[string]any{"id": "1", "title": "Triage", "column": nil},
+				map[string]any{"id": "2", "title": "In Column", "column": map[string]any{"id": "col-1"}},
+				map[string]any{"id": "3", "title": "In Column 2", "column_id": "col-2"},
 			},
 		}
 
@@ -142,14 +142,14 @@ func TestCardList(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		arr, ok := result.Response.Data.([]interface{})
+		arr, ok := result.Response.Data.([]any)
 		if !ok {
 			t.Fatalf("expected array response data, got %T", result.Response.Data)
 		}
 		if len(arr) != 1 {
 			t.Fatalf("expected 1 triage card, got %d", len(arr))
 		}
-		card := arr[0].(map[string]interface{})
+		card := arr[0].(map[string]any)
 		if card["id"] != "1" {
 			t.Errorf("expected triage card id '1', got '%v'", card["id"])
 		}
@@ -159,7 +159,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -198,7 +198,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -224,7 +224,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -250,7 +250,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -276,7 +276,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -302,7 +302,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -328,7 +328,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -354,7 +354,7 @@ func TestCardList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       []interface{}{},
+			Data:       []any{},
 		}
 
 		result := SetTestMode(mock)
@@ -389,7 +389,7 @@ func TestCardShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":     "123",
 				"number": 42,
 				"title":  "Test Card",
@@ -442,7 +442,7 @@ func TestCardCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":     "abc",
 				"number": 42,
 				"title":  "New Card",
@@ -468,11 +468,11 @@ func TestCardCreate(t *testing.T) {
 			t.Errorf("expected path '/cards.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["board_id"] != "123" {
 			t.Errorf("expected board_id '123', got '%v'", body["board_id"])
 		}
-		cardParams := body["card"].(map[string]interface{})
+		cardParams := body["card"].(map[string]any)
 		if cardParams["title"] != "New Card" {
 			t.Errorf("expected title 'New Card', got '%v'", cardParams["title"])
 		}
@@ -504,7 +504,7 @@ func TestCardCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -522,7 +522,7 @@ func TestCardCreate(t *testing.T) {
 		if result.ExitCode != 0 {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["board_id"] != "555" {
 			t.Errorf("expected board_id '555', got '%v'", body["board_id"])
 		}
@@ -554,7 +554,7 @@ func TestCardCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -577,8 +577,8 @@ func TestCardCreate(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		cardParams := body["card"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		cardParams := body["card"].(map[string]any)
 		if cardParams["description"] != "<p>Description</p>" {
 			t.Errorf("expected description '<p>Description</p>', got '%v'", cardParams["description"])
 		}
@@ -593,7 +593,7 @@ func TestCardUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":    "abc",
 				"title": "Updated Title",
 			},
@@ -623,7 +623,7 @@ func TestCardDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -648,7 +648,7 @@ func TestCardClose(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -673,7 +673,7 @@ func TestCardReopen(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -698,7 +698,7 @@ func TestCardPostpone(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -723,7 +723,7 @@ func TestCardColumn(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -743,7 +743,7 @@ func TestCardColumn(t *testing.T) {
 			t.Errorf("expected path '/cards/42/triage.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["column_id"] != "col-123" {
 			t.Errorf("expected column_id 'col-123', got '%v'", body["column_id"])
 		}
@@ -752,7 +752,7 @@ func TestCardColumn(t *testing.T) {
 	t.Run("moves card to pseudo columns", func(t *testing.T) {
 		t.Run("not-now", func(t *testing.T) {
 			mock := NewMockClient()
-			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]interface{}{}}
+			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
 
 			result := SetTestMode(mock)
 			SetTestConfig("token", "account", "https://api.example.com")
@@ -774,7 +774,7 @@ func TestCardColumn(t *testing.T) {
 
 		t.Run("maybe", func(t *testing.T) {
 			mock := NewMockClient()
-			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]interface{}{}}
+			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
 
 			result := SetTestMode(mock)
 			SetTestConfig("token", "account", "https://api.example.com")
@@ -796,7 +796,7 @@ func TestCardColumn(t *testing.T) {
 
 		t.Run("done", func(t *testing.T) {
 			mock := NewMockClient()
-			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]interface{}{}}
+			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
 
 			result := SetTestMode(mock)
 			SetTestConfig("token", "account", "https://api.example.com")
@@ -839,7 +839,7 @@ func TestCardUntriage(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -864,7 +864,7 @@ func TestCardAssign(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -884,7 +884,7 @@ func TestCardAssign(t *testing.T) {
 			t.Errorf("expected path '/cards/42/assignments.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["assignee_id"] != "user-123" {
 			t.Errorf("expected assignee_id 'user-123', got '%v'", body["assignee_id"])
 		}
@@ -912,7 +912,7 @@ func TestCardSelfAssign(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -937,7 +937,7 @@ func TestCardTag(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -957,7 +957,7 @@ func TestCardTag(t *testing.T) {
 			t.Errorf("expected path '/cards/42/taggings.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
 		if body["tag_title"] != "bug" {
 			t.Errorf("expected tag_title 'bug', got '%v'", body["tag_title"])
 		}
@@ -985,7 +985,7 @@ func TestCardWatch(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -1010,7 +1010,7 @@ func TestCardUnwatch(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -1035,7 +1035,7 @@ func TestCardImageRemove(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -1095,7 +1095,7 @@ func TestCardGolden(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -1155,7 +1155,7 @@ func TestCardUngolden(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -1219,7 +1219,7 @@ func TestCardMove(t *testing.T) {
 		}
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":       "abc",
 				"number":   float64(42),
 				"title":    "Test Card",
@@ -1247,7 +1247,7 @@ func TestCardMove(t *testing.T) {
 			t.Errorf("expected path '/cards/42/board.json', got '%s'", mock.PatchCalls[0].Path)
 		}
 
-		body := mock.PatchCalls[0].Body.(map[string]interface{})
+		body := mock.PatchCalls[0].Body.(map[string]any)
 		if body["board_id"] != "board-456" {
 			t.Errorf("expected board_id 'board-456', got '%v'", body["board_id"])
 		}

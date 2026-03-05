@@ -41,10 +41,10 @@ var notificationListCmd = &cobra.Command{
 		// Build summary with unread count
 		count := 0
 		unreadCount := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 			for _, item := range arr {
-				if notif, ok := item.(map[string]interface{}); ok {
+				if notif, ok := item.(map[string]any); ok {
 					if read, ok := notif["read"].(bool); ok && !read {
 						unreadCount++
 					}
@@ -101,7 +101,7 @@ var notificationReadCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -130,7 +130,7 @@ var notificationUnreadCmd = &cobra.Command{
 
 		data := resp.Data
 		if data == nil {
-			data = map[string]interface{}{}
+			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
 	},
@@ -186,10 +186,10 @@ var notificationTrayCmd = &cobra.Command{
 		// Build summary
 		count := 0
 		unreadCount := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 			for _, item := range arr {
-				if notif, ok := item.(map[string]interface{}); ok {
+				if notif, ok := item.(map[string]any); ok {
 					if read, ok := notif["read"].(bool); ok && !read {
 						unreadCount++
 					}

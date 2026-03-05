@@ -12,7 +12,7 @@ func TestStepShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":      "step-1",
 				"content": "Review PR",
 			},
@@ -62,7 +62,7 @@ func TestStepCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":      "step-1",
 				"content": "New step",
 			},
@@ -87,8 +87,8 @@ func TestStepCreate(t *testing.T) {
 			t.Errorf("expected path '/cards/42/steps.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		stepParams := body["step"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		stepParams := body["step"].(map[string]any)
 		if stepParams["content"] != "New step" {
 			t.Errorf("expected content 'New step', got '%v'", stepParams["content"])
 		}
@@ -102,7 +102,7 @@ func TestStepCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -123,8 +123,8 @@ func TestStepCreate(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		stepParams := body["step"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		stepParams := body["step"].(map[string]any)
 		if stepParams["completed"] != true {
 			t.Errorf("expected completed true, got '%v'", stepParams["completed"])
 		}
@@ -172,7 +172,7 @@ func TestStepUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -201,7 +201,7 @@ func TestStepDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

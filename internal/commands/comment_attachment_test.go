@@ -10,16 +10,16 @@ import (
 func TestExtractCommentAttachments(t *testing.T) {
 	tests := []struct {
 		name          string
-		comments      []interface{}
+		comments      []any
 		expectedCount int
 		expectedFirst *CommentAttachment
 	}{
 		{
 			name: "comment with attachment",
-			comments: []interface{}{
-				map[string]interface{}{
+			comments: []any{
+				map[string]any{
 					"id": "comment-1",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="screenshot.png" filesize="5000" width="800" height="600">
 							<a href="/blobs/blob1/screenshot.png?disposition=attachment">Download</a>
 						</action-text-attachment>`,
@@ -44,18 +44,18 @@ func TestExtractCommentAttachments(t *testing.T) {
 		},
 		{
 			name: "multiple comments with attachments",
-			comments: []interface{}{
-				map[string]interface{}{
+			comments: []any{
+				map[string]any{
 					"id": "comment-1",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="img1.png" filesize="1000">
 							<a href="/blobs/blob1/img1.png?disposition=attachment">Download</a>
 						</action-text-attachment>`,
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id": "comment-2",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": `<action-text-attachment sgid="sgid2" content-type="image/jpeg" filename="img2.jpg" filesize="2000">
 							<a href="/blobs/blob2/img2.jpg?disposition=attachment">Download</a>
 						</action-text-attachment>`,
@@ -66,10 +66,10 @@ func TestExtractCommentAttachments(t *testing.T) {
 		},
 		{
 			name: "comment without attachments",
-			comments: []interface{}{
-				map[string]interface{}{
+			comments: []any{
+				map[string]any{
 					"id": "comment-1",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html":       "<p>Just text</p>",
 						"plain_text": "Just text",
 					},
@@ -79,21 +79,21 @@ func TestExtractCommentAttachments(t *testing.T) {
 		},
 		{
 			name:          "empty comments",
-			comments:      []interface{}{},
+			comments:      []any{},
 			expectedCount: 0,
 		},
 		{
 			name: "mixed comments with and without attachments",
-			comments: []interface{}{
-				map[string]interface{}{
+			comments: []any{
+				map[string]any{
 					"id": "comment-1",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": "<p>No attachment here</p>",
 					},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id": "comment-2",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="found.png" filesize="3000">
 							<a href="/blobs/blob1/found.png?disposition=attachment">Download</a>
 						</action-text-attachment>`,
@@ -144,10 +144,10 @@ func TestCommentAttachmentsShowCommand(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{
+			Data: []any{
+				map[string]any{
 					"id": "comment-1",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="test.png" filesize="1000">
 							<a href="/blobs/blob1/test.png?disposition=attachment">Download</a>
 						</action-text-attachment>`,
@@ -195,10 +195,10 @@ func TestCommentAttachmentsShowCommand(t *testing.T) {
 }
 
 func TestCommentAttachmentsDownloadCommand(t *testing.T) {
-	commentsWithAttachment := []interface{}{
-		map[string]interface{}{
+	commentsWithAttachment := []any{
+		map[string]any{
 			"id": "comment-1",
-			"body": map[string]interface{}{
+			"body": map[string]any{
 				"html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="test.png" filesize="1000">
 					<a href="/blobs/blob1/test.png?disposition=attachment">Download</a>
 				</action-text-attachment>`,
@@ -206,10 +206,10 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		},
 	}
 
-	commentsWithMultipleAttachments := []interface{}{
-		map[string]interface{}{
+	commentsWithMultipleAttachments := []any{
+		map[string]any{
 			"id": "comment-1",
-			"body": map[string]interface{}{
+			"body": map[string]any{
 				"html": `<action-text-attachment sgid="sgid1" content-type="image/png" filename="img1.png" filesize="1000">
 					<a href="/blobs/blob1/img1.png?disposition=attachment">Download</a>
 				</action-text-attachment>
@@ -277,10 +277,10 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{
+			Data: []any{
+				map[string]any{
 					"id": "comment-1",
-					"body": map[string]interface{}{
+					"body": map[string]any{
 						"html": "<p>No images here</p>",
 					},
 				},

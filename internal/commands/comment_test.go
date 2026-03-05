@@ -12,9 +12,9 @@ func TestCommentList(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: []interface{}{
-				map[string]interface{}{"id": "1", "body": "Comment 1"},
-				map[string]interface{}{"id": "2", "body": "Comment 2"},
+			Data: []any{
+				map[string]any{"id": "1", "body": "Comment 1"},
+				map[string]any{"id": "2", "body": "Comment 2"},
 			},
 		}
 
@@ -33,6 +33,34 @@ func TestCommentList(t *testing.T) {
 		}
 		if mock.GetWithPaginationCalls[0].Path != "/cards/42/comments.json" {
 			t.Errorf("expected path '/cards/42/comments.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("handles double-digit page numbers", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		result := SetTestMode(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer ResetTestMode()
+
+		commentListCard = "42"
+		commentListPage = 12
+		commentListAll = false
+		RunTestCommand(func() {
+			commentListCmd.Run(commentListCmd, []string{})
+		})
+		commentListCard = ""
+		commentListPage = 0
+
+		if result.ExitCode != 0 {
+			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		}
+		if mock.GetWithPaginationCalls[0].Path != "/cards/42/comments.json?page=12" {
+			t.Errorf("expected path '/cards/42/comments.json?page=12', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
 	})
 
@@ -58,7 +86,7 @@ func TestCommentShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "comment-1",
 				"body": "This is a comment",
 			},
@@ -108,7 +136,7 @@ func TestCommentCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "comment-1",
 				"body": "New comment",
 			},
@@ -133,8 +161,8 @@ func TestCommentCreate(t *testing.T) {
 			t.Errorf("expected path '/cards/42/comments.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		comment := body["comment"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		comment := body["comment"].(map[string]any)
 		if comment["body"] != "New comment" {
 			t.Errorf("expected body 'New comment', got '%v'", comment["body"])
 		}
@@ -185,7 +213,7 @@ func TestCommentCreate(t *testing.T) {
 		}
 		mock.FollowLocationResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)
@@ -206,8 +234,8 @@ func TestCommentCreate(t *testing.T) {
 			t.Errorf("expected exit code 0, got %d", result.ExitCode)
 		}
 
-		body := mock.PostCalls[0].Body.(map[string]interface{})
-		comment := body["comment"].(map[string]interface{})
+		body := mock.PostCalls[0].Body.(map[string]any)
+		comment := body["comment"].(map[string]any)
 		if comment["created_at"] != "2020-01-01T00:00:00Z" {
 			t.Errorf("expected created_at '2020-01-01T00:00:00Z', got '%v'", comment["created_at"])
 		}
@@ -219,7 +247,7 @@ func TestCommentUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"id":   "comment-1",
 				"body": "Updated comment",
 			},
@@ -267,7 +295,7 @@ func TestCommentDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteResponse = &client.APIResponse{
 			StatusCode: 204,
-			Data:       map[string]interface{}{},
+			Data:       map[string]any{},
 		}
 
 		result := SetTestMode(mock)

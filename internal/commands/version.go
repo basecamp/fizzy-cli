@@ -6,7 +6,7 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		printSuccess(map[string]interface{}{
+		printSuccess(map[string]any{
 			"version": rootCmd.Version,
 		})
 	},

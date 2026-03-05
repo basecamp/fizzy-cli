@@ -138,7 +138,7 @@ func TestCardListWithFilters(t *testing.T) {
 		foundA := false
 		foundB := false
 		for _, item := range arr {
-			card, ok := item.(map[string]interface{})
+			card, ok := item.(map[string]any)
 			if !ok {
 				continue
 			}

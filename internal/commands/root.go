@@ -71,8 +71,7 @@ func SetVersion(v string) {
 // Execute runs the root command.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		var cliErr *errors.CLIError
-		if stderrors.As(err, &cliErr) {
+		if cliErr, ok := stderrors.AsType[*errors.CLIError](err); ok {
 			response.Error(cliErr).PrintAndExit()
 		}
 		response.Error(errors.NewError(err.Error())).PrintAndExit()
@@ -158,8 +157,7 @@ type testExitSignal struct{}
 // exitWithError prints an error response and exits.
 func exitWithError(err error) {
 	var resp *response.Response
-	var cliErr *errors.CLIError
-	if stderrors.As(err, &cliErr) {
+	if cliErr, ok := stderrors.AsType[*errors.CLIError](err); ok {
 		resp = response.Error(cliErr)
 	} else {
 		resp = response.Error(errors.NewError(err.Error()))
@@ -174,7 +172,7 @@ func exitWithError(err error) {
 }
 
 // printSuccess prints a success response.
-func printSuccess(data interface{}) {
+func printSuccess(data any) {
 	resp := response.Success(data)
 	if lastResult != nil {
 		lastResult.Response = resp
@@ -203,7 +201,7 @@ func breadcrumb(action, cmd, description string) response.Breadcrumb {
 }
 
 // printSuccessWithBreadcrumbs prints a success response with breadcrumbs.
-func printSuccessWithBreadcrumbs(data interface{}, summary string, breadcrumbs []response.Breadcrumb) {
+func printSuccessWithBreadcrumbs(data any, summary string, breadcrumbs []response.Breadcrumb) {
 	resp := response.SuccessWithBreadcrumbs(data, summary, breadcrumbs)
 	if lastResult != nil {
 		lastResult.Response = resp
@@ -215,7 +213,7 @@ func printSuccessWithBreadcrumbs(data interface{}, summary string, breadcrumbs [
 }
 
 // printSuccessWithPaginationAndBreadcrumbs prints a success response with pagination and breadcrumbs.
-func printSuccessWithPaginationAndBreadcrumbs(data interface{}, hasNext bool, nextURL string, summary string, breadcrumbs []response.Breadcrumb) {
+func printSuccessWithPaginationAndBreadcrumbs(data any, hasNext bool, nextURL string, summary string, breadcrumbs []response.Breadcrumb) {
 	resp := response.SuccessWithPaginationAndBreadcrumbs(data, hasNext, nextURL, summary, breadcrumbs)
 	if lastResult != nil {
 		lastResult.Response = resp

@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-cli/internal/response"
@@ -31,7 +32,7 @@ var boardListCmd = &cobra.Command{
 		client := getClient()
 		path := "/boards.json"
 		if boardListPage > 0 {
-			path += "?page=" + string(rune(boardListPage+'0'))
+			path += "?page=" + strconv.Itoa(boardListPage)
 		}
 
 		resp, err := client.GetWithPagination(path, boardListAll)
@@ -41,7 +42,7 @@ var boardListCmd = &cobra.Command{
 
 		// Build summary
 		count := 0
-		if arr, ok := resp.Data.([]interface{}); ok {
+		if arr, ok := resp.Data.([]any); ok {
 			count = len(arr)
 		}
 		summary := fmt.Sprintf("%d boards", count)
@@ -91,7 +92,7 @@ var boardShowCmd = &cobra.Command{
 
 		// Build summary
 		summary := "Board"
-		if board, ok := resp.Data.(map[string]interface{}); ok {
+		if board, ok := resp.Data.(map[string]any); ok {
 			if name, ok := board["name"].(string); ok {
 				summary = fmt.Sprintf("Board: %s", name)
 			}
@@ -126,7 +127,7 @@ var boardCreateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("name"))
 		}
 
-		boardParams := map[string]interface{}{
+		boardParams := map[string]any{
 			"name": boardCreateName,
 		}
 
@@ -137,7 +138,7 @@ var boardCreateCmd = &cobra.Command{
 			boardParams["auto_postpone_period"] = boardCreateAutoPostponePeriod
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"board": boardParams,
 		}
 
@@ -153,7 +154,7 @@ var boardCreateCmd = &cobra.Command{
 			if err == nil && followResp != nil {
 				// Extract board ID from response
 				boardID := ""
-				if board, ok := followResp.Data.(map[string]interface{}); ok {
+				if board, ok := followResp.Data.(map[string]any); ok {
 					if id, ok := board["id"].(string); ok {
 						boardID = id
 					}
@@ -206,7 +207,7 @@ var boardUpdateCmd = &cobra.Command{
 
 		boardID := args[0]
 
-		boardParams := make(map[string]interface{})
+		boardParams := make(map[string]any)
 
 		if boardUpdateName != "" {
 			boardParams["name"] = boardUpdateName
@@ -218,7 +219,7 @@ var boardUpdateCmd = &cobra.Command{
 			boardParams["auto_postpone_period"] = boardUpdateAutoPostponePeriod
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"board": boardParams,
 		}
 
@@ -260,7 +261,7 @@ var boardDeleteCmd = &cobra.Command{
 			breadcrumb("create", "fizzy board create --name \"name\"", "Create new board"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 	},

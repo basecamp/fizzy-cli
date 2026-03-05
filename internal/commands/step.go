@@ -71,14 +71,14 @@ var stepCreateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("content"))
 		}
 
-		stepParams := map[string]interface{}{
+		stepParams := map[string]any{
 			"content": stepCreateContent,
 		}
 		if stepCreateCompleted {
 			stepParams["completed"] = true
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"step": stepParams,
 		}
 
@@ -139,7 +139,7 @@ var stepUpdateCmd = &cobra.Command{
 			exitWithError(newRequiredFlagError("card"))
 		}
 
-		stepParams := make(map[string]interface{})
+		stepParams := make(map[string]any)
 
 		if stepUpdateContent != "" {
 			stepParams["content"] = stepUpdateContent
@@ -151,7 +151,7 @@ var stepUpdateCmd = &cobra.Command{
 			stepParams["completed"] = false
 		}
 
-		body := map[string]interface{}{
+		body := map[string]any{
 			"step": stepParams,
 		}
 
@@ -205,7 +205,7 @@ var stepDeleteCmd = &cobra.Command{
 			breadcrumb("step", fmt.Sprintf("fizzy step create --card %s --content \"text\"", cardNumber), "Add step"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]interface{}{
+		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 	},

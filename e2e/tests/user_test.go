@@ -72,7 +72,7 @@ func TestUserShow(t *testing.T) {
 		t.Skip("no users available")
 	}
 
-	firstUser, ok := users[0].(map[string]interface{})
+	firstUser, ok := users[0].(map[string]any)
 	if !ok {
 		t.Fatal("expected user to be a map")
 	}

@@ -158,7 +158,7 @@ func TestCardAttachmentsShow(t *testing.T) {
 
 		// Check first attachment
 		if len(arr) > 0 {
-			attachment, ok := arr[0].(map[string]interface{})
+			attachment, ok := arr[0].(map[string]any)
 			if !ok {
 				t.Fatalf("expected attachment to be a map, got %T", arr[0])
 			}
@@ -200,7 +200,7 @@ func TestCardAttachmentsShow(t *testing.T) {
 		// Verify filenames
 		foundFilenames := make(map[string]bool)
 		for _, item := range arr {
-			attachment := item.(map[string]interface{})
+			attachment := item.(map[string]any)
 			foundFilenames[attachment["filename"].(string)] = true
 		}
 
@@ -388,9 +388,9 @@ func TestCardAttachmentsDownload(t *testing.T) {
 
 		// Check response shows custom saved_to path
 		data := result.GetDataMap()
-		files := data["files"].([]interface{})
+		files := data["files"].([]any)
 		if len(files) > 0 {
-			fileInfo := files[0].(map[string]interface{})
+			fileInfo := files[0].(map[string]any)
 			savedTo := fileInfo["saved_to"].(string)
 			if savedTo != customFilename {
 				t.Errorf("expected saved_to=%q, got %q", customFilename, savedTo)

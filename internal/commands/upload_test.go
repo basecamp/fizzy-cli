@@ -12,7 +12,7 @@ func TestUploadFile(t *testing.T) {
 		mock := NewMockClient()
 		mock.UploadFileResponse = &client.APIResponse{
 			StatusCode: 200,
-			Data: map[string]interface{}{
+			Data: map[string]any{
 				"signed_id": "abc123",
 			},
 		}
