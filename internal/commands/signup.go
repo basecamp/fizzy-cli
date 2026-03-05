@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/basecamp/cli/output"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/charmbracelet/huh"
@@ -65,6 +66,10 @@ func init() {
 
 // runSignup is the interactive wizard that walks through the entire signup flow.
 func runSignup(cmd *cobra.Command, args []string) error {
+	if IsMachineOutput() {
+		return output.ErrUsageHint("signup requires an interactive terminal — use subcommands (start, verify, complete) for programmatic access", "Run without --agent/--json/--quiet or in a TTY")
+	}
+
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI signup!")
 	fmt.Println()
