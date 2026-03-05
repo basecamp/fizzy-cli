@@ -113,8 +113,8 @@ func runSkill(cmd *cobra.Command, args []string) error {
 		selectedPath = normalizeSkillPath(selectedPath)
 	}
 
-	// Expand home directory
-	expandedPath := expandPath(selectedPath)
+	// Expand home directory and clean the path
+	expandedPath := filepath.Clean(expandPath(selectedPath))
 
 	// Check if file already exists
 	if fileExists(expandedPath) {
@@ -142,7 +142,7 @@ func runSkill(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Fizzy skill installed successfully!")
 	fmt.Println()
-	fmt.Printf("Location: %s\n", expandedPath)
+	fmt.Printf("Location: %s\n", filepath.Clean(expandedPath))
 
 	return nil
 }
