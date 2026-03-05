@@ -78,7 +78,11 @@ func FromHTTPStatus(status int, message string) *CLIError {
 	case 422:
 		return NewValidationError(message)
 	case 429:
-		return output.ErrRateLimit(0)
+		e := output.ErrRateLimit(0)
+		if message != "" {
+			e.Message = message
+		}
+		return e
 	default:
 		return &output.Error{
 			Code:       output.CodeAPI,

@@ -225,6 +225,7 @@ func captureResponse() {
 		return
 	}
 	lastRawOutput = testBuf.String()
+	lastResult.Response = nil
 	var resp output.Response
 	if json.Unmarshal(testBuf.Bytes(), &resp) == nil {
 		lastResult.Response = &resp
@@ -233,7 +234,7 @@ func captureResponse() {
 }
 
 // printSuccess prints a success response.
-func printSuccess(data interface{}) {
+func printSuccess(data any) {
 	_ = out.OK(data)
 	captureResponse()
 }
@@ -250,7 +251,7 @@ func breadcrumb(action, cmd, description string) Breadcrumb {
 }
 
 // printSuccessWithBreadcrumbs prints a success response with breadcrumbs.
-func printSuccessWithBreadcrumbs(data interface{}, summary string, breadcrumbs []Breadcrumb) {
+func printSuccessWithBreadcrumbs(data any, summary string, breadcrumbs []Breadcrumb) {
 	opts := []output.ResponseOption{output.WithBreadcrumbs(breadcrumbs...)}
 	if summary != "" {
 		opts = append(opts, output.WithSummary(summary))
@@ -260,13 +261,13 @@ func printSuccessWithBreadcrumbs(data interface{}, summary string, breadcrumbs [
 }
 
 // printSuccessWithPaginationAndBreadcrumbs prints a success response with pagination and breadcrumbs.
-func printSuccessWithPaginationAndBreadcrumbs(data interface{}, hasNext bool, nextURL string, summary string, breadcrumbs []Breadcrumb) {
+func printSuccessWithPaginationAndBreadcrumbs(data any, hasNext bool, nextURL string, summary string, breadcrumbs []Breadcrumb) {
 	opts := []output.ResponseOption{output.WithBreadcrumbs(breadcrumbs...)}
 	if summary != "" {
 		opts = append(opts, output.WithSummary(summary))
 	}
 	if hasNext || nextURL != "" {
-		opts = append(opts, output.WithContext("pagination", map[string]interface{}{
+		opts = append(opts, output.WithContext("pagination", map[string]any{
 			"has_next": hasNext,
 			"next_url": nextURL,
 		}))
@@ -276,7 +277,7 @@ func printSuccessWithPaginationAndBreadcrumbs(data interface{}, hasNext bool, ne
 }
 
 // printSuccessWithLocationAndBreadcrumbs prints a success response with both location and breadcrumbs.
-func printSuccessWithLocationAndBreadcrumbs(data interface{}, location string, breadcrumbs []Breadcrumb) {
+func printSuccessWithLocationAndBreadcrumbs(data any, location string, breadcrumbs []Breadcrumb) {
 	_ = out.OK(data,
 		output.WithBreadcrumbs(breadcrumbs...),
 		output.WithContext("location", location),
