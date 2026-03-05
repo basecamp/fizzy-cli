@@ -3,6 +3,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -179,6 +180,16 @@ func ensureAPIURL(cfg *Config) {
 	}
 	if strings.TrimSpace(cfg.APIURL) == "" {
 		cfg.APIURL = DefaultAPIURL
+	}
+
+	// Warn about non-HTTPS URLs (except localhost/loopback for development)
+	if strings.HasPrefix(cfg.APIURL, "http://") {
+		if u, err := url.Parse(cfg.APIURL); err == nil {
+			host := u.Hostname() // strips port and IPv6 brackets
+			if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+				fmt.Fprintf(os.Stderr, "Warning: API URL %q uses HTTP. HTTPS is recommended for security.\n", cfg.APIURL)
+			}
+		}
 	}
 }
 

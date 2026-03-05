@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -671,6 +672,94 @@ func TestSetTestConfigDir(t *testing.T) {
 	if paths[0] != expected {
 		t.Errorf("expected path '%s', got '%s'", expected, paths[0])
 	}
+}
+
+func TestHTTPWarning(t *testing.T) {
+	t.Run("warns on non-localhost HTTP URL", func(t *testing.T) {
+		// Capture stderr
+		origStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+		defer func() { os.Stderr = origStderr }()
+
+		cfg := &Config{APIURL: "http://example.com/api"}
+		ensureAPIURL(cfg)
+
+		w.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		if !strings.Contains(buf.String(), "Warning") {
+			t.Error("expected HTTPS warning for http://example.com")
+		}
+	})
+
+	t.Run("no warning for localhost", func(t *testing.T) {
+		origStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+		defer func() { os.Stderr = origStderr }()
+
+		cfg := &Config{APIURL: "http://localhost:3000"}
+		ensureAPIURL(cfg)
+
+		w.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		if strings.Contains(buf.String(), "Warning") {
+			t.Error("should not warn for localhost")
+		}
+	})
+
+	t.Run("no warning for 127.0.0.1", func(t *testing.T) {
+		origStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+		defer func() { os.Stderr = origStderr }()
+
+		cfg := &Config{APIURL: "http://127.0.0.1:3000"}
+		ensureAPIURL(cfg)
+
+		w.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		if strings.Contains(buf.String(), "Warning") {
+			t.Error("should not warn for 127.0.0.1")
+		}
+	})
+
+	t.Run("no warning for IPv6 loopback with port", func(t *testing.T) {
+		origStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+		defer func() { os.Stderr = origStderr }()
+
+		cfg := &Config{APIURL: "http://[::1]:3000"}
+		ensureAPIURL(cfg)
+
+		w.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		if strings.Contains(buf.String(), "Warning") {
+			t.Error("should not warn for [::1]:3000")
+		}
+	})
+
+	t.Run("no warning for HTTPS", func(t *testing.T) {
+		origStderr := os.Stderr
+		r, w, _ := os.Pipe()
+		os.Stderr = w
+		defer func() { os.Stderr = origStderr }()
+
+		cfg := &Config{APIURL: "https://example.com"}
+		ensureAPIURL(cfg)
+
+		w.Close()
+		var buf bytes.Buffer
+		buf.ReadFrom(r)
+		if strings.Contains(buf.String(), "Warning") {
+			t.Error("should not warn for HTTPS")
+		}
+	})
 }
 
 func TestFullConfigPriorityChain(t *testing.T) {

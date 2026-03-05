@@ -1,7 +1,7 @@
 .PHONY: test test-unit test-e2e test-go test-file test-run build clean tidy help \
 	check-toolchain fmt fmt-check vet lint tidy-check race-test vuln secrets \
 	replace-check security check release-check release tools \
-	surface-snapshot surface-check
+	surface-snapshot surface-check sync-skill
 
 BINARY := $(CURDIR)/bin/fizzy
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -175,6 +175,10 @@ tools:
 # Regenerate SURFACE.txt
 surface-snapshot:
 	GENERATE_SURFACE=1 go test ./internal/commands/ -run TestGenerateSurfaceSnapshot -v
+
+# Sync embedded SKILL.md from canonical source
+sync-skill:
+	cp skills/fizzy/SKILL.md internal/skills/SKILL.md
 
 # CI check: SURFACE.txt is up to date
 surface-check:

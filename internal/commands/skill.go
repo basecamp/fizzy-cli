@@ -1,20 +1,17 @@
 package commands
 
 import (
-	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/basecamp/cli/output"
+	"github.com/basecamp/fizzy-cli/internal/skills"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
-const skillSourceURL = "https://raw.githubusercontent.com/basecamp/fizzy-cli/refs/heads/master/skills/fizzy/SKILL.md"
 const skillFilename = "SKILL.md"
 
 // SkillLocation represents a predefined skill installation location
@@ -65,7 +62,7 @@ func init() {
 
 func runSkill(cmd *cobra.Command, args []string) error {
 	if IsMachineOutput() {
-		return output.ErrUsageHint("skill requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
+		return output.ErrUsageHint("skill install requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
 	}
 
 	fmt.Println()
@@ -133,17 +130,9 @@ func runSkill(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Download and install
-	fmt.Print("Downloading skill file... ")
-	content, err := downloadSkillFile()
-	if err != nil {
-		fmt.Println("✗")
-		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("downloading skill file: %v", err)}
-	}
-	fmt.Println("✓")
-
+	// Install embedded skill file
 	fmt.Print("Installing to " + selectedPath + "... ")
-	err = installSkillFile(expandedPath, content)
+	err = installSkillFile(expandedPath, skills.Content)
 	if err != nil {
 		fmt.Println("✗")
 		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("installing skill file: %v", err)}
@@ -216,30 +205,6 @@ func expandPath(path string) string {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
-}
-
-// downloadSkillFile downloads the SKILL.md content from GitHub
-func downloadSkillFile() ([]byte, error) {
-	req, err := http.NewRequestWithContext(context.Background(), "GET", skillSourceURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
-	}
-
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	return content, nil
 }
 
 // installSkillFile writes the skill file to the specified path
