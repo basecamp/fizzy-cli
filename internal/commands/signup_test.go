@@ -514,6 +514,58 @@ func TestSignupPostReturnsHTTPError(t *testing.T) {
 	})
 }
 
+func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
+	t.Run("hosted signup clears previously saved self-hosted URL", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
+		defer os.RemoveAll(tempDir)
+		config.SetTestConfigDir(tempDir)
+		defer config.ResetTestConfigDir()
+
+		// Seed config with a self-hosted URL
+		seedConfig := &config.Config{
+			Token:   "old-token",
+			Account: "old-account",
+			APIURL:  "https://selfhosted.example.com",
+		}
+		seedConfig.Save()
+
+		// Simulate hosted signup (default URL)
+		err := saveSignupConfig("new-token", "new-account", config.DefaultAPIURL)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Reload and verify the stale URL was cleared
+		saved := config.LoadGlobal()
+		if saved.APIURL != "" && saved.APIURL != config.DefaultAPIURL {
+			t.Errorf("expected APIURL to be cleared, got '%s'", saved.APIURL)
+		}
+		if saved.Token != "new-token" {
+			t.Errorf("expected token 'new-token', got '%s'", saved.Token)
+		}
+		if saved.Account != "new-account" {
+			t.Errorf("expected account 'new-account', got '%s'", saved.Account)
+		}
+	})
+
+	t.Run("self-hosted signup preserves custom URL", func(t *testing.T) {
+		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
+		defer os.RemoveAll(tempDir)
+		config.SetTestConfigDir(tempDir)
+		defer config.ResetTestConfigDir()
+
+		err := saveSignupConfig("token", "acct", "https://custom.example.com")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		saved := config.LoadGlobal()
+		if saved.APIURL != "https://custom.example.com" {
+			t.Errorf("expected APIURL 'https://custom.example.com', got '%s'", saved.APIURL)
+		}
+	})
+}
+
 func TestSignupAPIURL(t *testing.T) {
 	t.Run("trims trailing slash", func(t *testing.T) {
 		SetTestConfig("", "", "https://example.com/")

@@ -696,6 +696,8 @@ func saveSignupConfig(token, account, apiURL string) error {
 	globalCfg.Account = account
 	if apiURL != config.DefaultAPIURL {
 		globalCfg.APIURL = apiURL
+	} else {
+		globalCfg.APIURL = ""
 	}
 
 	return globalCfg.Save()
