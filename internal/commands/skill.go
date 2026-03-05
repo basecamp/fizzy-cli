@@ -123,7 +123,7 @@ func runSkill(cmd *cobra.Command, args []string) error {
 	if fileExists(expandedPath) {
 		var overwrite bool
 		err = huh.NewConfirm().
-			Title(fmt.Sprintf("File already exists at %s. Overwrite?", selectedPath)).
+			Title(fmt.Sprintf("File already exists at %s. Overwrite?", sanitizeLogValue(selectedPath))).
 			Value(&overwrite).
 			Run()
 
@@ -134,7 +134,7 @@ func runSkill(cmd *cobra.Command, args []string) error {
 	}
 
 	// Install embedded skill file
-	fmt.Print("Installing to " + selectedPath + "... ")
+	fmt.Print("Installing to " + sanitizeLogValue(selectedPath) + "... ")
 	err = installSkillFile(expandedPath, skills.Content)
 	if err != nil {
 		fmt.Println("✗")
