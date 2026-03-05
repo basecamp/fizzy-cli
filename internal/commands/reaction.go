@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -21,13 +20,13 @@ var reactionListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List reactions",
 	Long:  "Lists reactions on a card, or on a comment if --comment is provided.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if reactionListCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		// Build URL based on whether --comment was provided
@@ -41,7 +40,7 @@ var reactionListCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Get(path)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -57,15 +56,15 @@ var reactionListCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		var breadcrumbs []response.Breadcrumb
+		var breadcrumbs []Breadcrumb
 		if reactionListComment != "" {
-			breadcrumbs = []response.Breadcrumb{
+			breadcrumbs = []Breadcrumb{
 				breadcrumb("react", fmt.Sprintf("fizzy reaction create --card %s --comment %s --content \"👍\"", reactionListCard, reactionListComment), "Add reaction"),
 				breadcrumb("comment", fmt.Sprintf("fizzy comment show %s --card %s", reactionListComment, reactionListCard), "View comment"),
 				breadcrumb("show", fmt.Sprintf("fizzy card show %s", reactionListCard), "View card"),
 			}
 		} else {
-			breadcrumbs = []response.Breadcrumb{
+			breadcrumbs = []Breadcrumb{
 				breadcrumb("react", fmt.Sprintf("fizzy reaction create --card %s --content \"👍\"", reactionListCard), "Add reaction"),
 				breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", reactionListCard), "View comments"),
 				breadcrumb("show", fmt.Sprintf("fizzy card show %s", reactionListCard), "View card"),
@@ -73,6 +72,7 @@ var reactionListCmd = &cobra.Command{
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -85,16 +85,16 @@ var reactionCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Add a reaction",
 	Long:  "Adds a reaction to a card, or to a comment if --comment is provided.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if reactionCreateCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 		if reactionCreateContent == "" {
-			exitWithError(newRequiredFlagError("content"))
+			return newRequiredFlagError("content")
 		}
 
 		body := map[string]any{
@@ -112,29 +112,29 @@ var reactionCreateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Post(path, body)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		var breadcrumbs []response.Breadcrumb
+		var breadcrumbs []Breadcrumb
 		if reactionCreateComment != "" {
-			breadcrumbs = []response.Breadcrumb{
+			breadcrumbs = []Breadcrumb{
 				breadcrumb("reactions", fmt.Sprintf("fizzy reaction list --card %s --comment %s", reactionCreateCard, reactionCreateComment), "List reactions"),
 				breadcrumb("comment", fmt.Sprintf("fizzy comment show %s --card %s", reactionCreateComment, reactionCreateCard), "View comment"),
 			}
 		} else {
-			breadcrumbs = []response.Breadcrumb{
+			breadcrumbs = []Breadcrumb{
 				breadcrumb("reactions", fmt.Sprintf("fizzy reaction list --card %s", reactionCreateCard), "List reactions"),
 				breadcrumb("show", fmt.Sprintf("fizzy card show %s", reactionCreateCard), "View card"),
 			}
 		}
 
-		// Reaction create returns just success, no location or data
 		data := resp.Data
 		if data == nil {
 			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -147,13 +147,13 @@ var reactionDeleteCmd = &cobra.Command{
 	Short: "Remove a reaction",
 	Long:  "Removes a reaction from a card, or from a comment if --comment is provided.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if reactionDeleteCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		// Build URL based on whether --comment was provided
@@ -167,18 +167,18 @@ var reactionDeleteCmd = &cobra.Command{
 		client := getClient()
 		_, err := client.Delete(path)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		var breadcrumbs []response.Breadcrumb
+		var breadcrumbs []Breadcrumb
 		if reactionDeleteComment != "" {
-			breadcrumbs = []response.Breadcrumb{
+			breadcrumbs = []Breadcrumb{
 				breadcrumb("reactions", fmt.Sprintf("fizzy reaction list --card %s --comment %s", reactionDeleteCard, reactionDeleteComment), "List reactions"),
 				breadcrumb("comment", fmt.Sprintf("fizzy comment show %s --card %s", reactionDeleteComment, reactionDeleteCard), "View comment"),
 			}
 		} else {
-			breadcrumbs = []response.Breadcrumb{
+			breadcrumbs = []Breadcrumb{
 				breadcrumb("reactions", fmt.Sprintf("fizzy reaction list --card %s", reactionDeleteCard), "List reactions"),
 				breadcrumb("show", fmt.Sprintf("fizzy card show %s", reactionDeleteCard), "View card"),
 			}
@@ -187,6 +187,7 @@ var reactionDeleteCmd = &cobra.Command{
 		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 

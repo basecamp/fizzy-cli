@@ -15,16 +15,15 @@ func TestCardPin(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			cardPinCmd.Run(cardPinCmd, []string{"42"})
-		})
+		err := cardPinCmd.RunE(cardPinCmd, []string{"42"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if len(mock.PostCalls) != 1 {
 			t.Fatalf("expected 1 post call, got %d", len(mock.PostCalls))
@@ -36,34 +35,24 @@ func TestCardPin(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			cardPinCmd.Run(cardPinCmd, []string{"42"})
-		})
-
-		if result.ExitCode != errors.ExitAuthFailure {
-			t.Errorf("expected exit code %d, got %d", errors.ExitAuthFailure, result.ExitCode)
-		}
+		err := cardPinCmd.RunE(cardPinCmd, []string{"42"})
+		assertExitCode(t, err, errors.ExitAuthFailure)
 	})
 
 	t.Run("handles not found error", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostError = errors.NewNotFoundError("Card not found")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			cardPinCmd.Run(cardPinCmd, []string{"999"})
-		})
-
-		if result.ExitCode != errors.ExitNotFound {
-			t.Errorf("expected exit code %d, got %d", errors.ExitNotFound, result.ExitCode)
-		}
+		err := cardPinCmd.RunE(cardPinCmd, []string{"999"})
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
 
@@ -75,16 +64,15 @@ func TestCardUnpin(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			cardUnpinCmd.Run(cardUnpinCmd, []string{"42"})
-		})
+		err := cardUnpinCmd.RunE(cardUnpinCmd, []string{"42"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if len(mock.DeleteCalls) != 1 {
 			t.Fatalf("expected 1 delete call, got %d", len(mock.DeleteCalls))
@@ -96,34 +84,24 @@ func TestCardUnpin(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			cardUnpinCmd.Run(cardUnpinCmd, []string{"42"})
-		})
-
-		if result.ExitCode != errors.ExitAuthFailure {
-			t.Errorf("expected exit code %d, got %d", errors.ExitAuthFailure, result.ExitCode)
-		}
+		err := cardUnpinCmd.RunE(cardUnpinCmd, []string{"42"})
+		assertExitCode(t, err, errors.ExitAuthFailure)
 	})
 
 	t.Run("handles not found error", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Card not found")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			cardUnpinCmd.Run(cardUnpinCmd, []string{"999"})
-		})
-
-		if result.ExitCode != errors.ExitNotFound {
-			t.Errorf("expected exit code %d, got %d", errors.ExitNotFound, result.ExitCode)
-		}
+		err := cardUnpinCmd.RunE(cardUnpinCmd, []string{"999"})
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
 
@@ -142,14 +120,13 @@ func TestPinList(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			pinListCmd.Run(pinListCmd, []string{})
-		})
+		err := pinListCmd.RunE(pinListCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 		if len(mock.GetCalls) != 1 {
@@ -174,12 +151,11 @@ func TestPinList(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			pinListCmd.Run(pinListCmd, []string{})
-		})
+		err := pinListCmd.RunE(pinListCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if result.Response.Summary != "0 pinned cards" {
 			t.Errorf("expected summary '0 pinned cards', got '%s'", result.Response.Summary)
@@ -188,48 +164,33 @@ func TestPinList(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			pinListCmd.Run(pinListCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitAuthFailure {
-			t.Errorf("expected exit code %d, got %d", errors.ExitAuthFailure, result.ExitCode)
-		}
+		err := pinListCmd.RunE(pinListCmd, []string{})
+		assertExitCode(t, err, errors.ExitAuthFailure)
 	})
 
 	t.Run("requires account", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			pinListCmd.Run(pinListCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := pinListCmd.RunE(pinListCmd, []string{})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("handles API error", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetError = errors.NewError("Server error")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			pinListCmd.Run(pinListCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitError {
-			t.Errorf("expected exit code %d, got %d", errors.ExitError, result.ExitCode)
-		}
+		err := pinListCmd.RunE(pinListCmd, []string{})
+		assertExitCode(t, err, errors.ExitError)
 	})
 }

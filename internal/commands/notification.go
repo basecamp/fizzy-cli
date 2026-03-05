@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -22,9 +21,9 @@ var notificationListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List notifications",
 	Long:  "Lists your notifications.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
@@ -35,7 +34,7 @@ var notificationListCmd = &cobra.Command{
 
 		resp, err := client.GetWithPagination(path, notificationListAll)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary with unread count
@@ -59,7 +58,7 @@ var notificationListCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("read", "fizzy notification read <id>", "Mark as read"),
 			breadcrumb("read-all", "fizzy notification read-all", "Mark all as read"),
 			breadcrumb("show", "fizzy card show <card_number>", "View card"),
@@ -75,6 +74,7 @@ var notificationListCmd = &cobra.Command{
 		}
 
 		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -83,19 +83,19 @@ var notificationReadCmd = &cobra.Command{
 	Short: "Mark notification as read",
 	Long:  "Marks a notification as read.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
 		resp, err := client.Post("/notifications/"+args[0]+"/reading.json", nil)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
@@ -104,6 +104,7 @@ var notificationReadCmd = &cobra.Command{
 			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -112,19 +113,19 @@ var notificationUnreadCmd = &cobra.Command{
 	Short: "Mark notification as unread",
 	Long:  "Marks a notification as unread.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
 		resp, err := client.Delete("/notifications/" + args[0] + "/reading.json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
@@ -133,6 +134,7 @@ var notificationUnreadCmd = &cobra.Command{
 			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -140,23 +142,24 @@ var notificationReadAllCmd = &cobra.Command{
 	Use:   "read-all",
 	Short: "Mark all notifications as read",
 	Long:  "Marks all notifications as read.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
 		resp, err := client.Post("/notifications/bulk_reading.json", nil)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -167,9 +170,9 @@ var notificationTrayCmd = &cobra.Command{
 	Use:   "tray",
 	Short: "Show notification tray",
 	Long:  "Shows your notification tray (up to 100 unread notifications). Use --include-read to also include read notifications.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
@@ -180,7 +183,7 @@ var notificationTrayCmd = &cobra.Command{
 
 		resp, err := client.Get(path)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -199,13 +202,14 @@ var notificationTrayCmd = &cobra.Command{
 		summary := fmt.Sprintf("%d notifications (%d unread)", count, unreadCount)
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("read", "fizzy notification read <id>", "Mark as read"),
 			breadcrumb("read-all", "fizzy notification read-all", "Mark all as read"),
 			breadcrumb("list", "fizzy notification list", "List all notifications"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		return nil
 	},
 }
 

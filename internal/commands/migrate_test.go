@@ -9,7 +9,7 @@ import (
 func TestMigrateBoardValidation(t *testing.T) {
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("", "account", "https://api.example.com") // No token
 		defer ResetTestMode()
 
@@ -20,18 +20,13 @@ func TestMigrateBoardValidation(t *testing.T) {
 			migrateBoardTo = ""
 		}()
 
-		RunTestCommand(func() {
-			migrateBoardCmd.Run(migrateBoardCmd, []string{"board-id"})
-		})
-
-		if result.ExitCode != errors.ExitAuthFailure {
-			t.Errorf("expected exit code %d, got %d", errors.ExitAuthFailure, result.ExitCode)
-		}
+		err := migrateBoardCmd.RunE(migrateBoardCmd, []string{"board-id"})
+		assertExitCode(t, err, errors.ExitAuthFailure)
 	})
 
 	t.Run("requires --from flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
@@ -42,18 +37,13 @@ func TestMigrateBoardValidation(t *testing.T) {
 			migrateBoardTo = ""
 		}()
 
-		RunTestCommand(func() {
-			migrateBoardCmd.Run(migrateBoardCmd, []string{"board-id"})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := migrateBoardCmd.RunE(migrateBoardCmd, []string{"board-id"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("requires --to flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
@@ -64,18 +54,13 @@ func TestMigrateBoardValidation(t *testing.T) {
 			migrateBoardTo = ""
 		}()
 
-		RunTestCommand(func() {
-			migrateBoardCmd.Run(migrateBoardCmd, []string{"board-id"})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := migrateBoardCmd.RunE(migrateBoardCmd, []string{"board-id"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("rejects same source and target account", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
@@ -86,13 +71,8 @@ func TestMigrateBoardValidation(t *testing.T) {
 			migrateBoardTo = ""
 		}()
 
-		RunTestCommand(func() {
-			migrateBoardCmd.Run(migrateBoardCmd, []string{"board-id"})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := migrateBoardCmd.RunE(migrateBoardCmd, []string{"board-id"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 

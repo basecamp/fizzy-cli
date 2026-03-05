@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/basecamp/fizzy-cli/internal/errors"
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -28,38 +27,39 @@ var commentAttachmentsShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "List attachments in comments",
 	Long:  "Lists all attachments embedded in comment bodies for a card.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentAttachmentsShowCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		client := getClient()
 		path := "/cards/" + commentAttachmentsShowCard + "/comments.json"
 		resp, err := client.GetWithPagination(path, true)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		comments, ok := resp.Data.([]any)
 		if !ok {
-			exitWithError(errors.NewError("Invalid comments response"))
+			return errors.NewError("Invalid comments response")
 		}
 
 		attachments := extractCommentAttachments(comments)
 
 		summary := fmt.Sprintf("%d attachments across %d comments on card #%s", len(attachments), len(comments), commentAttachmentsShowCard)
 
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("download", fmt.Sprintf("fizzy comment attachments download --card %s", commentAttachmentsShowCard), "Download attachments"),
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", commentAttachmentsShowCard), "List comments"),
 			breadcrumb("card-attachments", fmt.Sprintf("fizzy card attachments show %s", commentAttachmentsShowCard), "Card attachments"),
 		}
 
 		printSuccessWithBreadcrumbs(attachments, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -80,31 +80,31 @@ When downloading multiple attachments, -o sets a prefix (e.g. -o test produces t
 
 Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachments and their indices.`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentAttachmentsDownloadCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		client := getClient()
 		path := "/cards/" + commentAttachmentsDownloadCard + "/comments.json"
 		resp, err := client.GetWithPagination(path, true)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		comments, ok := resp.Data.([]any)
 		if !ok {
-			exitWithError(errors.NewError("Invalid comments response"))
+			return errors.NewError("Invalid comments response")
 		}
 
 		attachments := extractCommentAttachments(comments)
 
 		if len(attachments) == 0 {
-			exitWithError(errors.NewNotFoundError("No attachments found in comments on this card"))
+			return errors.NewNotFoundError("No attachments found in comments on this card")
 		}
 
 		// Determine which attachments to download
@@ -112,10 +112,10 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 		if len(args) == 1 {
 			attachmentIndex, err := strconv.Atoi(args[0])
 			if err != nil {
-				exitWithError(errors.NewInvalidArgsError("attachment index must be a number"))
+				return errors.NewInvalidArgsError("attachment index must be a number")
 			}
 			if attachmentIndex < 1 || attachmentIndex > len(attachments) {
-				exitWithError(errors.NewInvalidArgsError("attachment index must be between 1 and " + strconv.Itoa(len(attachments))))
+				return errors.NewInvalidArgsError("attachment index must be between 1 and " + strconv.Itoa(len(attachments)))
 			}
 			toDownload = []CommentAttachment{attachments[attachmentIndex-1]}
 		} else {
@@ -128,7 +128,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			outputPath := buildOutputPath(commentAttachmentsDownloadOutput, attachment.Filename, i+1, len(toDownload))
 
 			if err := client.DownloadFile(attachment.DownloadURL, outputPath); err != nil {
-				exitWithError(err)
+				return err
 			}
 
 			results = append(results, map[string]any{
@@ -143,6 +143,7 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			"downloaded": len(results),
 			"files":      results,
 		})
+		return nil
 	},
 }
 

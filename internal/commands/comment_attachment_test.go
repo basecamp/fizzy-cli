@@ -161,15 +161,14 @@ func TestCommentAttachmentsShowCommand(t *testing.T) {
 		defer ResetTestMode()
 
 		commentAttachmentsShowCard = "172"
-		RunTestCommand(func() {
-			commentAttachmentsShowCmd.Run(commentAttachmentsShowCmd, []string{})
-		})
+		err := commentAttachmentsShowCmd.RunE(commentAttachmentsShowCmd, []string{})
 		commentAttachmentsShowCard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Errorf("expected success, got error")
 		}
 		if mock.GetWithPaginationCalls[0].Path != "/cards/172/comments.json" {
@@ -179,18 +178,14 @@ func TestCommentAttachmentsShowCommand(t *testing.T) {
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		commentAttachmentsShowCard = ""
-		RunTestCommand(func() {
-			commentAttachmentsShowCmd.Run(commentAttachmentsShowCmd, []string{})
-		})
+		err := commentAttachmentsShowCmd.RunE(commentAttachmentsShowCmd, []string{})
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -232,12 +227,13 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		defer ResetTestMode()
 
 		commentAttachmentsDownloadCard = "172"
-		RunTestCommand(func() {
-			commentAttachmentsDownloadCmd.Run(commentAttachmentsDownloadCmd, []string{})
-		})
+		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{})
 		commentAttachmentsDownloadCard = ""
 
-		if !result.Response.Success {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !result.Response.OK {
 			t.Errorf("expected success, got error: %v", result.Response)
 		}
 		if len(mock.DownloadFileCalls) != 2 {
@@ -257,12 +253,13 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		defer ResetTestMode()
 
 		commentAttachmentsDownloadCard = "172"
-		RunTestCommand(func() {
-			commentAttachmentsDownloadCmd.Run(commentAttachmentsDownloadCmd, []string{"1"})
-		})
+		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{"1"})
 		commentAttachmentsDownloadCard = ""
 
-		if !result.Response.Success {
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !result.Response.OK {
 			t.Errorf("expected success, got error: %v", result.Response)
 		}
 		if len(mock.DownloadFileCalls) != 1 {
@@ -292,13 +289,14 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		defer ResetTestMode()
 
 		commentAttachmentsDownloadCard = "172"
-		RunTestCommand(func() {
-			commentAttachmentsDownloadCmd.Run(commentAttachmentsDownloadCmd, []string{})
-		})
+		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{})
 		commentAttachmentsDownloadCard = ""
 
-		if result.Response.Success {
-			t.Error("expected error, got success")
+		// Command returns error for no attachments
+		if err == nil {
+			if result.Response.OK {
+				t.Error("expected error, got success")
+			}
 		}
 	})
 
@@ -314,13 +312,13 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		defer ResetTestMode()
 
 		commentAttachmentsDownloadCard = "172"
-		RunTestCommand(func() {
-			commentAttachmentsDownloadCmd.Run(commentAttachmentsDownloadCmd, []string{"abc"})
-		})
+		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{"abc"})
 		commentAttachmentsDownloadCard = ""
 
-		if result.Response.Success {
-			t.Error("expected error for non-numeric index")
+		if err == nil {
+			if result.Response.OK {
+				t.Error("expected error for non-numeric index")
+			}
 		}
 	})
 
@@ -336,29 +334,25 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 		defer ResetTestMode()
 
 		commentAttachmentsDownloadCard = "172"
-		RunTestCommand(func() {
-			commentAttachmentsDownloadCmd.Run(commentAttachmentsDownloadCmd, []string{"5"})
-		})
+		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{"5"})
 		commentAttachmentsDownloadCard = ""
 
-		if result.Response.Success {
-			t.Error("expected error for out of range index")
+		if err == nil {
+			if result.Response.OK {
+				t.Error("expected error for out of range index")
+			}
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		commentAttachmentsDownloadCard = ""
-		RunTestCommand(func() {
-			commentAttachmentsDownloadCmd.Run(commentAttachmentsDownloadCmd, []string{})
-		})
+		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{})
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }

@@ -18,17 +18,12 @@ func TestUserList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			userListCmd.Run(userListCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := userListCmd.RunE(userListCmd, []string{})
+		assertExitCode(t, err, 0)
 		if mock.GetWithPaginationCalls[0].Path != "/users.json" {
 			t.Errorf("expected path '/users.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
@@ -46,17 +41,12 @@ func TestUserShow(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			userShowCmd.Run(userShowCmd, []string{"user-1"})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := userShowCmd.RunE(userShowCmd, []string{"user-1"})
+		assertExitCode(t, err, 0)
 		if mock.GetCalls[0].Path != "/users/user-1.json" {
 			t.Errorf("expected path '/users/user-1.json', got '%s'", mock.GetCalls[0].Path)
 		}
@@ -71,19 +61,15 @@ func TestUserUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		userUpdateName = "New Name"
-		RunTestCommand(func() {
-			userUpdateCmd.Run(userUpdateCmd, []string{"user-1"})
-		})
+		err := userUpdateCmd.RunE(userUpdateCmd, []string{"user-1"})
 		userUpdateName = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if len(mock.PatchCalls) != 1 {
 			t.Fatalf("expected 1 patch call, got %d", len(mock.PatchCalls))
 		}
@@ -105,19 +91,15 @@ func TestUserUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		userUpdateAvatar = "/path/to/avatar.jpg"
-		RunTestCommand(func() {
-			userUpdateCmd.Run(userUpdateCmd, []string{"user-1"})
-		})
+		err := userUpdateCmd.RunE(userUpdateCmd, []string{"user-1"})
 		userUpdateAvatar = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if len(mock.PatchMultipartCalls) != 1 {
 			t.Fatalf("expected 1 PatchMultipart call, got %d", len(mock.PatchMultipartCalls))
 		}
@@ -133,21 +115,17 @@ func TestUserUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		userUpdateName = "New Name"
 		userUpdateAvatar = "/path/to/avatar.jpg"
-		RunTestCommand(func() {
-			userUpdateCmd.Run(userUpdateCmd, []string{"user-1"})
-		})
+		err := userUpdateCmd.RunE(userUpdateCmd, []string{"user-1"})
 		userUpdateName = ""
 		userUpdateAvatar = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if len(mock.PatchMultipartCalls) != 1 {
 			t.Fatalf("expected 1 PatchMultipart call, got %d", len(mock.PatchMultipartCalls))
 		}
@@ -159,19 +137,15 @@ func TestUserUpdate(t *testing.T) {
 
 	t.Run("requires at least one flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		userUpdateName = ""
 		userUpdateAvatar = ""
-		RunTestCommand(func() {
-			userUpdateCmd.Run(userUpdateCmd, []string{"user-1"})
-		})
+		err := userUpdateCmd.RunE(userUpdateCmd, []string{"user-1"})
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -183,17 +157,12 @@ func TestUserDeactivate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			userDeactivateCmd.Run(userDeactivateCmd, []string{"user-1"})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := userDeactivateCmd.RunE(userDeactivateCmd, []string{"user-1"})
+		assertExitCode(t, err, 0)
 		if len(mock.DeleteCalls) != 1 {
 			t.Fatalf("expected 1 delete call, got %d", len(mock.DeleteCalls))
 		}
@@ -206,16 +175,11 @@ func TestUserDeactivate(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("User not found")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			userDeactivateCmd.Run(userDeactivateCmd, []string{"non-existent-user"})
-		})
-
-		if result.ExitCode != errors.ExitNotFound {
-			t.Errorf("expected exit code %d, got %d", errors.ExitNotFound, result.ExitCode)
-		}
+		err := userDeactivateCmd.RunE(userDeactivateCmd, []string{"non-existent-user"})
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }

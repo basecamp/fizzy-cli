@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -22,9 +21,9 @@ var userListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List users",
 	Long:  "Lists all users in your account.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
@@ -35,7 +34,7 @@ var userListCmd = &cobra.Command{
 
 		resp, err := client.GetWithPagination(path, userListAll)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -51,7 +50,7 @@ var userListCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", "fizzy user show <id>", "View user details"),
 			breadcrumb("assign", "fizzy card assign <number> --user <user_id>", "Assign user to card"),
 		}
@@ -66,6 +65,7 @@ var userListCmd = &cobra.Command{
 		}
 
 		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -74,9 +74,9 @@ var userShowCmd = &cobra.Command{
 	Short: "Show a user",
 	Long:  "Shows details of a specific user.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		userID := args[0]
@@ -84,16 +84,17 @@ var userShowCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Get("/users/" + userID + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("people", "fizzy user list", "List users"),
 			breadcrumb("assign", fmt.Sprintf("fizzy card assign <number> --user %s", userID), "Assign to card"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -106,16 +107,16 @@ var userUpdateCmd = &cobra.Command{
 	Short: "Update a user",
 	Long:  "Updates a user's details. Requires admin or owner permissions.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		userID := args[0]
 		path := "/users/" + userID + ".json"
 
 		if userUpdateName == "" && userUpdateAvatar == "" {
-			exitWithError(newRequiredFlagError("name or --avatar"))
+			return newRequiredFlagError("name or --avatar")
 		}
 
 		apiClient := getClient()
@@ -127,10 +128,10 @@ var userUpdateCmd = &cobra.Command{
 			}
 			resp, err := apiClient.PatchMultipart(path, "user[avatar]", userUpdateAvatar, fields)
 			if err != nil {
-				exitWithError(err)
+				return err
 			}
 
-			breadcrumbs := []response.Breadcrumb{
+			breadcrumbs := []Breadcrumb{
 				breadcrumb("show", fmt.Sprintf("fizzy user show %s", userID), "View user"),
 				breadcrumb("people", "fizzy user list", "List users"),
 			}
@@ -140,7 +141,7 @@ var userUpdateCmd = &cobra.Command{
 				data = map[string]any{}
 			}
 			printSuccessWithBreadcrumbs(data, "", breadcrumbs)
-			return
+			return nil
 		}
 
 		body := map[string]any{
@@ -150,11 +151,11 @@ var userUpdateCmd = &cobra.Command{
 		}
 		resp, err := apiClient.Patch(path, body)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy user show %s", userID), "View user"),
 			breadcrumb("people", "fizzy user list", "List users"),
 		}
@@ -164,6 +165,7 @@ var userUpdateCmd = &cobra.Command{
 			data = map[string]any{}
 		}
 		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -172,9 +174,9 @@ var userDeactivateCmd = &cobra.Command{
 	Short: "Deactivate a user",
 	Long:  "Deactivates a user, removing their access to the account. Requires admin or owner permissions.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		userID := args[0]
@@ -182,16 +184,17 @@ var userDeactivateCmd = &cobra.Command{
 		client := getClient()
 		_, err := client.Delete("/users/" + userID + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("people", "fizzy user list", "List users"),
 		}
 
 		printSuccessWithBreadcrumbs(map[string]any{
 			"deactivated": true,
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 

@@ -1,97 +1,69 @@
 // Package errors defines error types and exit codes for the Fizzy CLI.
+// Types and constants are thin re-exports from the shared output package.
 package errors
 
-import "fmt"
+import (
+	"fmt"
 
-// Exit codes used by the CLI.
-const (
-	ExitSuccess     = 0
-	ExitError       = 1
-	ExitInvalidArgs = 2
-	ExitAuthFailure = 3
-	ExitForbidden   = 4
-	ExitNotFound    = 5
-	ExitValidation  = 6
-	ExitNetwork     = 7
+	"github.com/basecamp/cli/output"
 )
 
-// CLIError represents an error with an associated exit code.
-type CLIError struct {
-	Code     string
-	Message  string
-	Status   int
-	ExitCode int
-}
+// CLIError is a type alias for output.Error.
+// Breaking change: ExitCode is now a method, not a field.
+type CLIError = output.Error
 
-func (e *CLIError) Error() string {
-	return e.Message
-}
+// Exit codes aligned to the shared rubric.
+const (
+	ExitSuccess   = output.ExitOK        // 0
+	ExitUsage     = output.ExitUsage     // 1
+	ExitNotFound  = output.ExitNotFound  // 2
+	ExitAuth      = output.ExitAuth      // 3
+	ExitForbidden = output.ExitForbidden // 4
+	ExitRateLimit = output.ExitRateLimit // 5
+	ExitNetwork   = output.ExitNetwork   // 6
+	ExitAPI       = output.ExitAPI       // 7
+	ExitAmbiguous = output.ExitAmbiguous // 8
 
-// NewError creates a general error.
+	// Deprecated aliases — kept for compilation, values change.
+	ExitError       = output.ExitAPI   // was 1, now 7
+	ExitInvalidArgs = output.ExitUsage // was 2, now 1
+	ExitAuthFailure = output.ExitAuth  // was 3, stays 3
+	ExitValidation  = output.ExitAPI   // was 6, now 7
+)
+
+// NewError creates a general API error.
 func NewError(message string) *CLIError {
-	return &CLIError{
-		Code:     "ERROR",
-		Message:  message,
-		ExitCode: ExitError,
-	}
+	return &output.Error{Code: output.CodeAPI, Message: message}
+}
+
+// NewInvalidArgsError creates a usage/invalid-arguments error.
+func NewInvalidArgsError(message string) *CLIError {
+	return &output.Error{Code: output.CodeUsage, Message: message}
 }
 
 // NewAuthError creates an authentication error.
 func NewAuthError(message string) *CLIError {
-	return &CLIError{
-		Code:     "AUTH_ERROR",
-		Message:  message,
-		Status:   401,
-		ExitCode: ExitAuthFailure,
-	}
+	return &output.Error{Code: output.CodeAuth, Message: message}
 }
 
 // NewForbiddenError creates a permission denied error.
 func NewForbiddenError(message string) *CLIError {
-	return &CLIError{
-		Code:     "FORBIDDEN",
-		Message:  message,
-		Status:   403,
-		ExitCode: ExitForbidden,
-	}
+	return &output.Error{Code: output.CodeForbidden, Message: message, HTTPStatus: 403}
 }
 
 // NewNotFoundError creates a not found error.
 func NewNotFoundError(message string) *CLIError {
-	return &CLIError{
-		Code:     "NOT_FOUND",
-		Message:  message,
-		Status:   404,
-		ExitCode: ExitNotFound,
-	}
+	return &output.Error{Code: output.CodeNotFound, Message: message, HTTPStatus: 404}
 }
 
-// NewValidationError creates a validation error.
+// NewValidationError creates a validation error (mapped to API error).
 func NewValidationError(message string) *CLIError {
-	return &CLIError{
-		Code:     "VALIDATION_ERROR",
-		Message:  message,
-		Status:   422,
-		ExitCode: ExitValidation,
-	}
+	return &output.Error{Code: output.CodeAPI, Message: message, HTTPStatus: 422}
 }
 
 // NewNetworkError creates a network error.
 func NewNetworkError(message string) *CLIError {
-	return &CLIError{
-		Code:     "NETWORK_ERROR",
-		Message:  message,
-		ExitCode: ExitNetwork,
-	}
-}
-
-// NewInvalidArgsError creates an invalid arguments error.
-func NewInvalidArgsError(message string) *CLIError {
-	return &CLIError{
-		Code:     "INVALID_ARGS",
-		Message:  message,
-		ExitCode: ExitInvalidArgs,
-	}
+	return &output.Error{Code: output.CodeNetwork, Message: message}
 }
 
 // FromHTTPStatus creates an appropriate error from an HTTP status code.
@@ -105,12 +77,13 @@ func FromHTTPStatus(status int, message string) *CLIError {
 		return NewNotFoundError(message)
 	case 422:
 		return NewValidationError(message)
+	case 429:
+		return output.ErrRateLimit(0)
 	default:
-		return &CLIError{
-			Code:     "ERROR",
-			Message:  fmt.Sprintf("Request failed: %d %s", status, message),
-			Status:   status,
-			ExitCode: ExitError,
+		return &output.Error{
+			Code:       output.CodeAPI,
+			Message:    fmt.Sprintf("Request failed: %d %s", status, message),
+			HTTPStatus: status,
 		}
 	}
 }

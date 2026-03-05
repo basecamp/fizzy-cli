@@ -22,14 +22,13 @@ func TestBoardList(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardListCmd.Run(boardListCmd, []string{})
-		})
+		err := boardListCmd.RunE(boardListCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 		if len(mock.GetWithPaginationCalls) != 1 {
@@ -48,20 +47,16 @@ func TestBoardList(t *testing.T) {
 			LinkNext:   "https://api.example.com/boards.json?page=2",
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		boardListPage = 2
 		boardListAll = false
-		RunTestCommand(func() {
-			boardListCmd.Run(boardListCmd, []string{})
-		})
+		err := boardListCmd.RunE(boardListCmd, []string{})
 		boardListPage = 0 // reset
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 	})
 
 	t.Run("handles double-digit page numbers", func(t *testing.T) {
@@ -71,20 +66,16 @@ func TestBoardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		boardListPage = 12
 		boardListAll = false
-		RunTestCommand(func() {
-			boardListCmd.Run(boardListCmd, []string{})
-		})
-		boardListPage = 0
+		err := boardListCmd.RunE(boardListCmd, []string{})
+		boardListPage = 0 // reset
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if mock.GetWithPaginationCalls[0].Path != "/boards.json?page=12" {
 			t.Errorf("expected path '/boards.json?page=12', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
@@ -92,32 +83,22 @@ func TestBoardList(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("", "account", "https://api.example.com") // No token
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardListCmd.Run(boardListCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitAuthFailure {
-			t.Errorf("expected exit code %d, got %d", errors.ExitAuthFailure, result.ExitCode)
-		}
+		err := boardListCmd.RunE(boardListCmd, []string{})
+		assertExitCode(t, err, errors.ExitAuthFailure)
 	})
 
 	t.Run("requires account", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "", "https://api.example.com") // No account
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardListCmd.Run(boardListCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := boardListCmd.RunE(boardListCmd, []string{})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -136,14 +117,13 @@ func TestBoardShow(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardShowCmd.Run(boardShowCmd, []string{"123"})
-		})
+		err := boardShowCmd.RunE(boardShowCmd, []string{"123"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 		if len(mock.GetCalls) != 1 {
@@ -158,17 +138,12 @@ func TestBoardShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetError = errors.NewNotFoundError("Board not found")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardShowCmd.Run(boardShowCmd, []string{"999"})
-		})
-
-		if result.ExitCode != errors.ExitNotFound {
-			t.Errorf("expected exit code %d, got %d", errors.ExitNotFound, result.ExitCode)
-		}
+		err := boardShowCmd.RunE(boardShowCmd, []string{"999"})
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
 
@@ -193,15 +168,15 @@ func TestBoardCreate(t *testing.T) {
 		defer ResetTestMode()
 
 		boardCreateName = "New Board"
-		RunTestCommand(func() {
-			boardCreateCmd.Run(boardCreateCmd, []string{})
-		})
+		err := boardCreateCmd.RunE(boardCreateCmd, []string{})
 		boardCreateName = "" // reset
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 		if len(mock.PostCalls) != 1 {
@@ -227,18 +202,13 @@ func TestBoardCreate(t *testing.T) {
 
 	t.Run("requires name flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		boardCreateName = ""
-		RunTestCommand(func() {
-			boardCreateCmd.Run(boardCreateCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := boardCreateCmd.RunE(boardCreateCmd, []string{})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("creates board with options", func(t *testing.T) {
@@ -252,24 +222,23 @@ func TestBoardCreate(t *testing.T) {
 			Data:       map[string]any{"id": "789"},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		boardCreateName = "Private Board"
 		boardCreateAllAccess = "false"
 		boardCreateAutoPostponePeriod = 7
-		RunTestCommand(func() {
-			boardCreateCmd.Run(boardCreateCmd, []string{})
-		})
+		err := boardCreateCmd.RunE(boardCreateCmd, []string{})
 		boardCreateName = ""
 		boardCreateAllAccess = ""
 		boardCreateAutoPostponePeriod = 0
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		body := mock.PostCalls[0].Body.(map[string]any)
 		boardParams := body["board"].(map[string]any)
 		if boardParams["all_access"] != false {
@@ -292,18 +261,18 @@ func TestBoardUpdate(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		boardUpdateName = "Updated Name"
-		RunTestCommand(func() {
-			boardUpdateCmd.Run(boardUpdateCmd, []string{"123"})
-		})
+		err := boardUpdateCmd.RunE(boardUpdateCmd, []string{"123"})
 		boardUpdateName = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if len(mock.PatchCalls) != 1 {
 			t.Errorf("expected 1 Patch call, got %d", len(mock.PatchCalls))
@@ -317,19 +286,15 @@ func TestBoardUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchError = errors.NewValidationError("Name is too long")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		boardUpdateName = "Updated"
-		RunTestCommand(func() {
-			boardUpdateCmd.Run(boardUpdateCmd, []string{"123"})
-		})
+		err := boardUpdateCmd.RunE(boardUpdateCmd, []string{"123"})
 		boardUpdateName = ""
 
-		if result.ExitCode != errors.ExitValidation {
-			t.Errorf("expected exit code %d, got %d", errors.ExitValidation, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitValidation)
 	})
 }
 
@@ -341,16 +306,15 @@ func TestBoardDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardDeleteCmd.Run(boardDeleteCmd, []string{"123"})
-		})
+		err := boardDeleteCmd.RunE(boardDeleteCmd, []string{"123"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if len(mock.DeleteCalls) != 1 {
 			t.Errorf("expected 1 Delete call, got %d", len(mock.DeleteCalls))
@@ -364,16 +328,11 @@ func TestBoardDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Board not found")
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			boardDeleteCmd.Run(boardDeleteCmd, []string{"999"})
-		})
-
-		if result.ExitCode != errors.ExitNotFound {
-			t.Errorf("expected exit code %d, got %d", errors.ExitNotFound, result.ExitCode)
-		}
+		err := boardDeleteCmd.RunE(boardDeleteCmd, []string{"999"})
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }

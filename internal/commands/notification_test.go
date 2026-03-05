@@ -16,17 +16,12 @@ func TestNotificationList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			notificationListCmd.Run(notificationListCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := notificationListCmd.RunE(notificationListCmd, []string{})
+		assertExitCode(t, err, 0)
 		if mock.GetWithPaginationCalls[0].Path != "/notifications.json" {
 			t.Errorf("expected path '/notifications.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
@@ -41,17 +36,12 @@ func TestNotificationRead(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			notificationReadCmd.Run(notificationReadCmd, []string{"notif-1"})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := notificationReadCmd.RunE(notificationReadCmd, []string{"notif-1"})
+		assertExitCode(t, err, 0)
 		if mock.PostCalls[0].Path != "/notifications/notif-1/reading.json" {
 			t.Errorf("expected path '/notifications/notif-1/reading.json', got '%s'", mock.PostCalls[0].Path)
 		}
@@ -66,17 +56,12 @@ func TestNotificationUnread(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			notificationUnreadCmd.Run(notificationUnreadCmd, []string{"notif-1"})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := notificationUnreadCmd.RunE(notificationUnreadCmd, []string{"notif-1"})
+		assertExitCode(t, err, 0)
 		if mock.DeleteCalls[0].Path != "/notifications/notif-1/reading.json" {
 			t.Errorf("expected path '/notifications/notif-1/reading.json', got '%s'", mock.DeleteCalls[0].Path)
 		}
@@ -94,17 +79,12 @@ func TestNotificationTray(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			notificationTrayCmd.Run(notificationTrayCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := notificationTrayCmd.RunE(notificationTrayCmd, []string{})
+		assertExitCode(t, err, 0)
 		if mock.GetCalls[0].Path != "/notifications/tray.json" {
 			t.Errorf("expected path '/notifications/tray.json', got '%s'", mock.GetCalls[0].Path)
 		}
@@ -120,19 +100,15 @@ func TestNotificationTray(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		notificationTrayIncludeRead = true
-		RunTestCommand(func() {
-			notificationTrayCmd.Run(notificationTrayCmd, []string{})
-		})
+		err := notificationTrayCmd.RunE(notificationTrayCmd, []string{})
 		notificationTrayIncludeRead = false
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if mock.GetCalls[0].Path != "/notifications/tray.json?include_read=true" {
 			t.Errorf("expected path '/notifications/tray.json?include_read=true', got '%s'", mock.GetCalls[0].Path)
 		}
@@ -147,17 +123,12 @@ func TestNotificationReadAll(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			notificationReadAllCmd.Run(notificationReadAllCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := notificationReadAllCmd.RunE(notificationReadAllCmd, []string{})
+		assertExitCode(t, err, 0)
 		if mock.PostCalls[0].Path != "/notifications/bulk_reading.json" {
 			t.Errorf("expected path '/notifications/bulk_reading.json', got '%s'", mock.PostCalls[0].Path)
 		}

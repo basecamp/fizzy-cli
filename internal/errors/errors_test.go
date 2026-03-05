@@ -2,6 +2,8 @@ package errors
 
 import (
 	"testing"
+
+	"github.com/basecamp/cli/output"
 )
 
 func TestExitCodes(t *testing.T) {
@@ -11,13 +13,35 @@ func TestExitCodes(t *testing.T) {
 		expected int
 	}{
 		{"ExitSuccess", ExitSuccess, 0},
-		{"ExitError", ExitError, 1},
-		{"ExitInvalidArgs", ExitInvalidArgs, 2},
-		{"ExitAuthFailure", ExitAuthFailure, 3},
+		{"ExitUsage", ExitUsage, 1},
+		{"ExitNotFound", ExitNotFound, 2},
+		{"ExitAuth", ExitAuth, 3},
 		{"ExitForbidden", ExitForbidden, 4},
-		{"ExitNotFound", ExitNotFound, 5},
-		{"ExitValidation", ExitValidation, 6},
-		{"ExitNetwork", ExitNetwork, 7},
+		{"ExitRateLimit", ExitRateLimit, 5},
+		{"ExitNetwork", ExitNetwork, 6},
+		{"ExitAPI", ExitAPI, 7},
+		{"ExitAmbiguous", ExitAmbiguous, 8},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.code != tt.expected {
+				t.Errorf("expected %d, got %d", tt.expected, tt.code)
+			}
+		})
+	}
+}
+
+func TestDeprecatedAliases(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     int
+		expected int
+	}{
+		{"ExitError", ExitError, output.ExitAPI},
+		{"ExitInvalidArgs", ExitInvalidArgs, output.ExitUsage},
+		{"ExitAuthFailure", ExitAuthFailure, output.ExitAuth},
+		{"ExitValidation", ExitValidation, output.ExitAPI},
 	}
 
 	for _, tt := range tests {
@@ -31,7 +55,7 @@ func TestExitCodes(t *testing.T) {
 
 func TestCLIError_Error(t *testing.T) {
 	err := &CLIError{
-		Code:    "TEST_ERROR",
+		Code:    "test_error",
 		Message: "test message",
 	}
 
@@ -40,113 +64,117 @@ func TestCLIError_Error(t *testing.T) {
 	}
 }
 
+func TestCLIError_ExitCode(t *testing.T) {
+	err := &CLIError{Code: output.CodeAuth, Message: "unauthorized"}
+	if err.ExitCode() != ExitAuth {
+		t.Errorf("expected exit code %d, got %d", ExitAuth, err.ExitCode())
+	}
+}
+
 func TestNewError(t *testing.T) {
 	err := NewError("something went wrong")
 
-	if err.Code != "ERROR" {
-		t.Errorf("expected code 'ERROR', got '%s'", err.Code)
+	if err.Code != output.CodeAPI {
+		t.Errorf("expected code %q, got %q", output.CodeAPI, err.Code)
 	}
 	if err.Message != "something went wrong" {
-		t.Errorf("expected message 'something went wrong', got '%s'", err.Message)
+		t.Errorf("expected message 'something went wrong', got %q", err.Message)
 	}
-	if err.ExitCode != ExitError {
-		t.Errorf("expected exit code %d, got %d", ExitError, err.ExitCode)
+	if err.ExitCode() != ExitAPI {
+		t.Errorf("expected exit code %d, got %d", ExitAPI, err.ExitCode())
 	}
 }
 
 func TestNewAuthError(t *testing.T) {
 	err := NewAuthError("invalid token")
 
-	if err.Code != "AUTH_ERROR" {
-		t.Errorf("expected code 'AUTH_ERROR', got '%s'", err.Code)
+	if err.Code != output.CodeAuth {
+		t.Errorf("expected code %q, got %q", output.CodeAuth, err.Code)
 	}
 	if err.Message != "invalid token" {
-		t.Errorf("expected message 'invalid token', got '%s'", err.Message)
+		t.Errorf("expected message 'invalid token', got %q", err.Message)
 	}
-	if err.Status != 401 {
-		t.Errorf("expected status 401, got %d", err.Status)
-	}
-	if err.ExitCode != ExitAuthFailure {
-		t.Errorf("expected exit code %d, got %d", ExitAuthFailure, err.ExitCode)
+	if err.ExitCode() != ExitAuth {
+		t.Errorf("expected exit code %d, got %d", ExitAuth, err.ExitCode())
 	}
 }
 
 func TestNewForbiddenError(t *testing.T) {
 	err := NewForbiddenError("access denied")
 
-	if err.Code != "FORBIDDEN" {
-		t.Errorf("expected code 'FORBIDDEN', got '%s'", err.Code)
+	if err.Code != output.CodeForbidden {
+		t.Errorf("expected code %q, got %q", output.CodeForbidden, err.Code)
 	}
 	if err.Message != "access denied" {
-		t.Errorf("expected message 'access denied', got '%s'", err.Message)
+		t.Errorf("expected message 'access denied', got %q", err.Message)
 	}
-	if err.Status != 403 {
-		t.Errorf("expected status 403, got %d", err.Status)
+	if err.HTTPStatus != 403 {
+		t.Errorf("expected HTTP status 403, got %d", err.HTTPStatus)
 	}
-	if err.ExitCode != ExitForbidden {
-		t.Errorf("expected exit code %d, got %d", ExitForbidden, err.ExitCode)
+	if err.ExitCode() != ExitForbidden {
+		t.Errorf("expected exit code %d, got %d", ExitForbidden, err.ExitCode())
 	}
 }
 
 func TestNewNotFoundError(t *testing.T) {
 	err := NewNotFoundError("resource not found")
 
-	if err.Code != "NOT_FOUND" {
-		t.Errorf("expected code 'NOT_FOUND', got '%s'", err.Code)
+	if err.Code != output.CodeNotFound {
+		t.Errorf("expected code %q, got %q", output.CodeNotFound, err.Code)
 	}
 	if err.Message != "resource not found" {
-		t.Errorf("expected message 'resource not found', got '%s'", err.Message)
+		t.Errorf("expected message 'resource not found', got %q", err.Message)
 	}
-	if err.Status != 404 {
-		t.Errorf("expected status 404, got %d", err.Status)
+	if err.HTTPStatus != 404 {
+		t.Errorf("expected HTTP status 404, got %d", err.HTTPStatus)
 	}
-	if err.ExitCode != ExitNotFound {
-		t.Errorf("expected exit code %d, got %d", ExitNotFound, err.ExitCode)
+	if err.ExitCode() != ExitNotFound {
+		t.Errorf("expected exit code %d, got %d", ExitNotFound, err.ExitCode())
 	}
 }
 
 func TestNewValidationError(t *testing.T) {
 	err := NewValidationError("invalid input")
 
-	if err.Code != "VALIDATION_ERROR" {
-		t.Errorf("expected code 'VALIDATION_ERROR', got '%s'", err.Code)
+	if err.Code != output.CodeAPI {
+		t.Errorf("expected code %q, got %q", output.CodeAPI, err.Code)
 	}
 	if err.Message != "invalid input" {
-		t.Errorf("expected message 'invalid input', got '%s'", err.Message)
+		t.Errorf("expected message 'invalid input', got %q", err.Message)
 	}
-	if err.Status != 422 {
-		t.Errorf("expected status 422, got %d", err.Status)
+	if err.HTTPStatus != 422 {
+		t.Errorf("expected HTTP status 422, got %d", err.HTTPStatus)
 	}
-	if err.ExitCode != ExitValidation {
-		t.Errorf("expected exit code %d, got %d", ExitValidation, err.ExitCode)
+	if err.ExitCode() != ExitAPI {
+		t.Errorf("expected exit code %d, got %d", ExitAPI, err.ExitCode())
 	}
 }
 
 func TestNewNetworkError(t *testing.T) {
 	err := NewNetworkError("connection failed")
 
-	if err.Code != "NETWORK_ERROR" {
-		t.Errorf("expected code 'NETWORK_ERROR', got '%s'", err.Code)
+	if err.Code != output.CodeNetwork {
+		t.Errorf("expected code %q, got %q", output.CodeNetwork, err.Code)
 	}
 	if err.Message != "connection failed" {
-		t.Errorf("expected message 'connection failed', got '%s'", err.Message)
+		t.Errorf("expected message 'connection failed', got %q", err.Message)
 	}
-	if err.ExitCode != ExitNetwork {
-		t.Errorf("expected exit code %d, got %d", ExitNetwork, err.ExitCode)
+	if err.ExitCode() != ExitNetwork {
+		t.Errorf("expected exit code %d, got %d", ExitNetwork, err.ExitCode())
 	}
 }
 
 func TestNewInvalidArgsError(t *testing.T) {
 	err := NewInvalidArgsError("missing required flag")
 
-	if err.Code != "INVALID_ARGS" {
-		t.Errorf("expected code 'INVALID_ARGS', got '%s'", err.Code)
+	if err.Code != output.CodeUsage {
+		t.Errorf("expected code %q, got %q", output.CodeUsage, err.Code)
 	}
 	if err.Message != "missing required flag" {
-		t.Errorf("expected message 'missing required flag', got '%s'", err.Message)
+		t.Errorf("expected message 'missing required flag', got %q", err.Message)
 	}
-	if err.ExitCode != ExitInvalidArgs {
-		t.Errorf("expected exit code %d, got %d", ExitInvalidArgs, err.ExitCode)
+	if err.ExitCode() != ExitUsage {
+		t.Errorf("expected exit code %d, got %d", ExitUsage, err.ExitCode())
 	}
 }
 
@@ -158,12 +186,13 @@ func TestFromHTTPStatus(t *testing.T) {
 		expectedCode string
 		expectedExit int
 	}{
-		{"401 Unauthorized", 401, "Unauthorized", "AUTH_ERROR", ExitAuthFailure},
-		{"403 Forbidden", 403, "Forbidden", "FORBIDDEN", ExitForbidden},
-		{"404 Not Found", 404, "Not Found", "NOT_FOUND", ExitNotFound},
-		{"422 Unprocessable", 422, "Validation failed", "VALIDATION_ERROR", ExitValidation},
-		{"500 Server Error", 500, "Internal Server Error", "ERROR", ExitError},
-		{"502 Bad Gateway", 502, "Bad Gateway", "ERROR", ExitError},
+		{"401 Unauthorized", 401, "Unauthorized", output.CodeAuth, ExitAuth},
+		{"403 Forbidden", 403, "Forbidden", output.CodeForbidden, ExitForbidden},
+		{"404 Not Found", 404, "Not Found", output.CodeNotFound, ExitNotFound},
+		{"422 Unprocessable", 422, "Validation failed", output.CodeAPI, ExitAPI},
+		{"429 Rate Limited", 429, "Too Many Requests", output.CodeRateLimit, ExitRateLimit},
+		{"500 Server Error", 500, "Internal Server Error", output.CodeAPI, ExitAPI},
+		{"502 Bad Gateway", 502, "Bad Gateway", output.CodeAPI, ExitAPI},
 	}
 
 	for _, tt := range tests {
@@ -171,10 +200,10 @@ func TestFromHTTPStatus(t *testing.T) {
 			err := FromHTTPStatus(tt.status, tt.message)
 
 			if err.Code != tt.expectedCode {
-				t.Errorf("expected code '%s', got '%s'", tt.expectedCode, err.Code)
+				t.Errorf("expected code %q, got %q", tt.expectedCode, err.Code)
 			}
-			if err.ExitCode != tt.expectedExit {
-				t.Errorf("expected exit code %d, got %d", tt.expectedExit, err.ExitCode)
+			if err.ExitCode() != tt.expectedExit {
+				t.Errorf("expected exit code %d, got %d", tt.expectedExit, err.ExitCode())
 			}
 		})
 	}

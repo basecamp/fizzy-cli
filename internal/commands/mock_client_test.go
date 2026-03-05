@@ -1,6 +1,9 @@
 package commands
 
 import (
+	stderrors "errors"
+	"testing"
+
 	"github.com/basecamp/fizzy-cli/internal/client"
 	"github.com/basecamp/fizzy-cli/internal/errors"
 )
@@ -235,3 +238,27 @@ func (m *MockClient) WithValidationError(message string) *MockClient {
 
 // Ensure MockClient implements client.API
 var _ client.API = (*MockClient)(nil)
+
+// assertExitCode checks that an error has the expected exit code.
+// For exit code 0, it asserts that err is nil.
+func assertExitCode(t *testing.T, err error, expected int) {
+	t.Helper()
+	if expected == 0 {
+		if err != nil {
+			t.Errorf("expected no error, got: %v", err)
+		}
+		return
+	}
+	if err == nil {
+		t.Errorf("expected error with exit code %d, got nil", expected)
+		return
+	}
+	var cliErr *errors.CLIError
+	if !stderrors.As(err, &cliErr) {
+		t.Errorf("expected CLIError with exit code %d, got non-CLIError: %v", expected, err)
+		return
+	}
+	if cliErr.ExitCode() != expected {
+		t.Errorf("expected exit code %d, got %d (error: %v)", expected, cliErr.ExitCode(), err)
+	}
+}

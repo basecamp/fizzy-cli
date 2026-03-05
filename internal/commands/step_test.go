@@ -18,19 +18,15 @@ func TestStepShow(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepShowCard = "42"
-		RunTestCommand(func() {
-			stepShowCmd.Run(stepShowCmd, []string{"step-1"})
-		})
+		err := stepShowCmd.RunE(stepShowCmd, []string{"step-1"})
 		stepShowCard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if mock.GetCalls[0].Path != "/cards/42/steps/step-1.json" {
 			t.Errorf("expected path '/cards/42/steps/step-1.json', got '%s'", mock.GetCalls[0].Path)
 		}
@@ -38,18 +34,14 @@ func TestStepShow(t *testing.T) {
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepShowCard = ""
-		RunTestCommand(func() {
-			stepShowCmd.Run(stepShowCmd, []string{"step-1"})
-		})
+		err := stepShowCmd.RunE(stepShowCmd, []string{"step-1"})
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -68,21 +60,17 @@ func TestStepCreate(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepCreateCard = "42"
 		stepCreateContent = "New step"
-		RunTestCommand(func() {
-			stepCreateCmd.Run(stepCreateCmd, []string{})
-		})
+		err := stepCreateCmd.RunE(stepCreateCmd, []string{})
 		stepCreateCard = ""
 		stepCreateContent = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if mock.PostCalls[0].Path != "/cards/42/steps.json" {
 			t.Errorf("expected path '/cards/42/steps.json', got '%s'", mock.PostCalls[0].Path)
 		}
@@ -105,23 +93,19 @@ func TestStepCreate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepCreateCard = "42"
 		stepCreateContent = "Already done"
 		stepCreateCompleted = true
-		RunTestCommand(func() {
-			stepCreateCmd.Run(stepCreateCmd, []string{})
-		})
+		err := stepCreateCmd.RunE(stepCreateCmd, []string{})
 		stepCreateCard = ""
 		stepCreateContent = ""
 		stepCreateCompleted = false
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 
 		body := mock.PostCalls[0].Body.(map[string]any)
 		stepParams := body["step"].(map[string]any)
@@ -132,38 +116,30 @@ func TestStepCreate(t *testing.T) {
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepCreateCard = ""
 		stepCreateContent = "Test"
-		RunTestCommand(func() {
-			stepCreateCmd.Run(stepCreateCmd, []string{})
-		})
+		err := stepCreateCmd.RunE(stepCreateCmd, []string{})
 		stepCreateContent = ""
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("requires content flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepCreateCard = "42"
 		stepCreateContent = ""
-		RunTestCommand(func() {
-			stepCreateCmd.Run(stepCreateCmd, []string{})
-		})
+		err := stepCreateCmd.RunE(stepCreateCmd, []string{})
 		stepCreateCard = ""
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -175,21 +151,17 @@ func TestStepUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepUpdateCard = "42"
 		stepUpdateContent = "Updated content"
-		RunTestCommand(func() {
-			stepUpdateCmd.Run(stepUpdateCmd, []string{"step-1"})
-		})
+		err := stepUpdateCmd.RunE(stepUpdateCmd, []string{"step-1"})
 		stepUpdateCard = ""
 		stepUpdateContent = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if mock.PatchCalls[0].Path != "/cards/42/steps/step-1.json" {
 			t.Errorf("expected path '/cards/42/steps/step-1.json', got '%s'", mock.PatchCalls[0].Path)
 		}
@@ -204,19 +176,15 @@ func TestStepDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		stepDeleteCard = "42"
-		RunTestCommand(func() {
-			stepDeleteCmd.Run(stepDeleteCmd, []string{"step-1"})
-		})
+		err := stepDeleteCmd.RunE(stepDeleteCmd, []string{"step-1"})
 		stepDeleteCard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		if mock.DeleteCalls[0].Path != "/cards/42/steps/step-1.json" {
 			t.Errorf("expected path '/cards/42/steps/step-1.json', got '%s'", mock.DeleteCalls[0].Path)
 		}

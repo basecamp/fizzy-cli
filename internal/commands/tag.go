@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -22,9 +21,9 @@ var tagListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List tags",
 	Long:  "Lists all tags in your account.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
@@ -35,7 +34,7 @@ var tagListCmd = &cobra.Command{
 
 		resp, err := client.GetWithPagination(path, tagListAll)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -51,7 +50,7 @@ var tagListCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("tag", "fizzy card tag <number> --tag <name>", "Tag a card"),
 			breadcrumb("cards", "fizzy card list --tag <id>", "List cards with tag"),
 		}
@@ -66,6 +65,7 @@ var tagListCmd = &cobra.Command{
 		}
 
 		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		return nil
 	},
 }
 

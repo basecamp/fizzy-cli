@@ -17,17 +17,12 @@ func TestTagList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			tagListCmd.Run(tagListCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := tagListCmd.RunE(tagListCmd, []string{})
+		assertExitCode(t, err, 0)
 		if mock.GetWithPaginationCalls[0].Path != "/tags.json" {
 			t.Errorf("expected path '/tags.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}

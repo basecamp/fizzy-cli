@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/basecamp/fizzy-cli/internal/client"
@@ -29,14 +28,14 @@ var setupCmd = &cobra.Command{
 	Use:   "setup",
 	Short: "Interactive setup wizard",
 	Long:  "Configure Fizzy CLI with your API token, account, and default board.",
-	Run:   runSetup,
+	RunE:  runSetup,
 }
 
 func init() {
 	rootCmd.AddCommand(setupCmd)
 }
 
-func runSetup(cmd *cobra.Command, args []string) {
+func runSetup(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI setup!")
 	fmt.Println()
@@ -59,12 +58,12 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			fmt.Println("Setup cancelled.")
-			os.Exit(0)
+			return nil
 		}
 
 		if !reconfigure {
 			fmt.Println("Setup cancelled. Existing configuration unchanged.")
-			os.Exit(0)
+			return nil
 		}
 	}
 
@@ -81,7 +80,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 	if err != nil {
 		fmt.Println("Setup cancelled.")
-		os.Exit(0)
+		return nil
 	}
 
 	apiURL := config.DefaultAPIURL
@@ -103,7 +102,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			fmt.Println("Setup cancelled.")
-			os.Exit(0)
+			return nil
 		}
 	}
 
@@ -128,7 +127,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			fmt.Println("Setup cancelled.")
-			os.Exit(0)
+			return nil
 		}
 
 		// Validate token
@@ -145,7 +144,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 			if !retry {
 				fmt.Println("Setup cancelled.")
-				os.Exit(0)
+				return nil
 			}
 			continue
 		}
@@ -155,7 +154,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 	}
 
 	if len(accounts) == 0 {
-		exitWithError(errors.NewError("No accounts found for this token"))
+		return errors.NewError("No accounts found for this token")
 	}
 
 	// Account selection
@@ -177,7 +176,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			fmt.Println("Setup cancelled.")
-			os.Exit(0)
+			return nil
 		}
 	}
 
@@ -210,7 +209,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 		if err != nil {
 			fmt.Println("Setup cancelled.")
-			os.Exit(0)
+			return nil
 		}
 	}
 
@@ -227,7 +226,7 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 	if err != nil {
 		fmt.Println("Setup cancelled.")
-		os.Exit(0)
+		return nil
 	}
 
 	// Build and save config
@@ -249,13 +248,13 @@ func runSetup(cmd *cobra.Command, args []string) {
 		}
 
 		if err := existingConfig.Save(); err != nil {
-			exitWithError(err)
+			return err
 		}
 		fmt.Println()
 		fmt.Println("✓ Configuration saved to ~/.config/fizzy/config.yaml")
 	} else {
 		if err := newConfig.SaveLocal(); err != nil {
-			exitWithError(err)
+			return err
 		}
 		fmt.Println()
 		fmt.Println("✓ Configuration saved to .fizzy.yaml")
@@ -265,6 +264,8 @@ func runSetup(cmd *cobra.Command, args []string) {
 
 	fmt.Println()
 	fmt.Println("You're all set! Try: fizzy board list")
+
+	return nil
 }
 
 // validateToken validates the token by calling the identity endpoint.

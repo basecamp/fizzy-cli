@@ -17,18 +17,13 @@ func TestUploadFile(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		// Test with an existing file (mock_client_test.go exists for sure)
-		RunTestCommand(func() {
-			uploadFileCmd.Run(uploadFileCmd, []string{"mock_client_test.go"})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err := uploadFileCmd.RunE(uploadFileCmd, []string{"mock_client_test.go"})
+		assertExitCode(t, err, 0)
 		if len(mock.UploadFileCalls) != 1 {
 			t.Errorf("expected 1 UploadFile call, got %d", len(mock.UploadFileCalls))
 		}
@@ -39,16 +34,11 @@ func TestUploadFile(t *testing.T) {
 
 	t.Run("returns error for missing file", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			uploadFileCmd.Run(uploadFileCmd, []string{"/nonexistent/file.png"})
-		})
-
-		if result.ExitCode != errors.ExitError {
-			t.Errorf("expected exit code %d, got %d", errors.ExitError, result.ExitCode)
-		}
+		err := uploadFileCmd.RunE(uploadFileCmd, []string{"/nonexistent/file.png"})
+		assertExitCode(t, err, errors.ExitError)
 	})
 }

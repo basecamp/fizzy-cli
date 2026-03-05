@@ -2,9 +2,7 @@ package commands
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -22,13 +20,13 @@ var stepShowCmd = &cobra.Command{
 	Short: "Show a step",
 	Long:  "Shows details of a specific step.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if stepShowCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		stepID := args[0]
@@ -37,16 +35,17 @@ var stepShowCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Get("/cards/" + cardNumber + "/steps/" + stepID + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("update", fmt.Sprintf("fizzy step update %s --card %s", stepID, cardNumber), "Update step"),
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -59,16 +58,16 @@ var stepCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a step",
 	Long:  "Creates a new step (to-do item) on a card.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if stepCreateCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 		if stepCreateContent == "" {
-			exitWithError(newRequiredFlagError("content"))
+			return newRequiredFlagError("content")
 		}
 
 		stepParams := map[string]any{
@@ -87,11 +86,11 @@ var stepCreateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Post("/cards/"+cardNumber+"/steps.json", body)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 			breadcrumb("step", fmt.Sprintf("fizzy step create --card %s --content \"text\"", cardNumber), "Add another step"),
 		}
@@ -100,22 +99,15 @@ var stepCreateCmd = &cobra.Command{
 		if resp.Location != "" {
 			followResp, err := client.FollowLocation(resp.Location)
 			if err == nil && followResp != nil {
-				respObj := response.SuccessWithBreadcrumbs(followResp.Data, "", breadcrumbs)
-				respObj.Location = resp.Location
-				if lastResult != nil {
-					lastResult.Response = respObj
-					lastResult.ExitCode = 0
-					panic(testExitSignal{})
-				}
-				respObj.Print()
-				os.Exit(0)
-				return
+				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				return nil
 			}
 			printSuccessWithLocation(resp.Location)
-			return
+			return nil
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -130,13 +122,13 @@ var stepUpdateCmd = &cobra.Command{
 	Short: "Update a step",
 	Long:  "Updates an existing step.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if stepUpdateCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		stepParams := make(map[string]any)
@@ -161,16 +153,17 @@ var stepUpdateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Patch("/cards/"+cardNumber+"/steps/"+stepID+".json", body)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy step show %s --card %s", stepID, cardNumber), "View step"),
 			breadcrumb("card", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -182,13 +175,13 @@ var stepDeleteCmd = &cobra.Command{
 	Short: "Delete a step",
 	Long:  "Deletes a step from a card.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if stepDeleteCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		cardNumber := stepDeleteCard
@@ -196,11 +189,11 @@ var stepDeleteCmd = &cobra.Command{
 		client := getClient()
 		_, err := client.Delete("/cards/" + cardNumber + "/steps/" + args[0] + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 			breadcrumb("step", fmt.Sprintf("fizzy step create --card %s --content \"text\"", cardNumber), "Add step"),
 		}
@@ -208,6 +201,7 @@ var stepDeleteCmd = &cobra.Command{
 		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 

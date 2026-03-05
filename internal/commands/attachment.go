@@ -39,20 +39,20 @@ var attachmentsShowCmd = &cobra.Command{
 
 Use --include-comments to also include attachments from comments on the card.`,
 	Args: cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
 		resp, err := client.Get("/cards/" + args[0] + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		cardData, ok := resp.Data.(map[string]any)
 		if !ok {
-			exitWithError(errors.NewError("Invalid card response"))
+			return errors.NewError("Invalid card response")
 		}
 
 		descriptionHTML, _ := cardData["description_html"].(string)
@@ -73,6 +73,7 @@ Use --include-comments to also include attachments from comments on the card.`,
 		}
 
 		printSuccess(attachments)
+		return nil
 	},
 }
 
@@ -92,9 +93,9 @@ Use --include-comments to also download attachments from comments on the card.
 
 Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and their indices.`,
 	Args: cobra.RangeArgs(1, 2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		cardNumber := args[0]
@@ -102,12 +103,12 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 		client := getClient()
 		resp, err := client.Get("/cards/" + cardNumber + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		cardData, ok := resp.Data.(map[string]any)
 		if !ok {
-			exitWithError(errors.NewError("Invalid card response"))
+			return errors.NewError("Invalid card response")
 		}
 
 		descriptionHTML, _ := cardData["description_html"].(string)
@@ -127,7 +128,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 		}
 
 		if len(attachments) == 0 {
-			exitWithError(errors.NewNotFoundError("No attachments found on this card"))
+			return errors.NewNotFoundError("No attachments found on this card")
 		}
 
 		// Determine which attachments to download
@@ -136,10 +137,10 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 			// Download specific attachment
 			attachmentIndex, err := strconv.Atoi(args[1])
 			if err != nil {
-				exitWithError(errors.NewInvalidArgsError("attachment index must be a number"))
+				return errors.NewInvalidArgsError("attachment index must be a number")
 			}
 			if attachmentIndex < 1 || attachmentIndex > len(attachments) {
-				exitWithError(errors.NewInvalidArgsError("attachment index must be between 1 and " + strconv.Itoa(len(attachments))))
+				return errors.NewInvalidArgsError("attachment index must be between 1 and " + strconv.Itoa(len(attachments)))
 			}
 			toDownload = []Attachment{attachments[attachmentIndex-1]}
 		} else {
@@ -153,7 +154,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 			outputPath := buildOutputPath(attachmentDownloadOutput, attachment.Filename, i+1, len(toDownload))
 
 			if err := client.DownloadFile(attachment.DownloadURL, outputPath); err != nil {
-				exitWithError(err)
+				return err
 			}
 
 			results = append(results, map[string]any{
@@ -167,6 +168,7 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 			"downloaded": len(results),
 			"files":      results,
 		})
+		return nil
 	},
 }
 

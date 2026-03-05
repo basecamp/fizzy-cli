@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -15,24 +14,25 @@ var identityShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show your identity and accessible accounts",
 	Long:  "Displays your user identity and all accounts you have access to.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuth(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
 		// Identity endpoint doesn't use account prefix
 		resp, err := client.Get(cfg.APIURL + "/my/identity.json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("status", "fizzy auth status", "Auth status"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 

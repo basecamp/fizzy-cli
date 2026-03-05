@@ -47,7 +47,7 @@ Example:
   fizzy migrate board 12345 --from personal --to team-acme
   fizzy migrate board 12345 --from personal --to team-acme --include-comments --include-steps`,
 	Args: cobra.ExactArgs(1),
-	Run:  runMigrateBoard,
+	RunE: runMigrateBoard,
 }
 
 type migrationStats struct {
@@ -63,20 +63,20 @@ type migrationStats struct {
 	cardMapping     map[int]int // source card number -> target card number
 }
 
-func runMigrateBoard(cmd *cobra.Command, args []string) {
+func runMigrateBoard(cmd *cobra.Command, args []string) error {
 	if err := requireAuth(); err != nil {
-		exitWithError(err)
+		return err
 	}
 
 	// Validate flags
 	if migrateBoardFrom == "" {
-		exitWithError(errors.NewInvalidArgsError("--from flag is required"))
+		return errors.NewInvalidArgsError("--from flag is required")
 	}
 	if migrateBoardTo == "" {
-		exitWithError(errors.NewInvalidArgsError("--to flag is required"))
+		return errors.NewInvalidArgsError("--to flag is required")
 	}
 	if migrateBoardFrom == migrateBoardTo {
-		exitWithError(errors.NewInvalidArgsError("--from and --to accounts must be different"))
+		return errors.NewInvalidArgsError("--from and --to accounts must be different")
 	}
 
 	sourceBoardID := args[0]
@@ -91,14 +91,14 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 	// 1. Verify access to both accounts
 	fmt.Fprintf(os.Stderr, "Verifying access to accounts...\n")
 	if err := verifyAccountAccess(migrateBoardFrom, migrateBoardTo); err != nil {
-		exitWithError(err)
+		return err
 	}
 
 	// 2. Get source board
 	fmt.Fprintf(os.Stderr, "Fetching source board...\n")
 	sourceBoard, err := getBoard(sourceClient, sourceBoardID)
 	if err != nil {
-		exitWithError(errors.NewError(fmt.Sprintf("Failed to fetch source board: %v", err)))
+		return errors.NewError(fmt.Sprintf("Failed to fetch source board: %v", err))
 	}
 
 	boardName := getStringField(sourceBoard, "name")
@@ -108,14 +108,14 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 	fmt.Fprintf(os.Stderr, "Fetching source columns...\n")
 	sourceColumns, err := getColumns(sourceClient, sourceBoardID)
 	if err != nil {
-		exitWithError(errors.NewError(fmt.Sprintf("Failed to fetch source columns: %v", err)))
+		return errors.NewError(fmt.Sprintf("Failed to fetch source columns: %v", err))
 	}
 
 	// 4. Get all cards from source board
 	fmt.Fprintf(os.Stderr, "Fetching source cards...\n")
 	sourceCards, err := getAllCards(sourceClient, sourceBoardID)
 	if err != nil {
-		exitWithError(errors.NewError(fmt.Sprintf("Failed to fetch source cards: %v", err)))
+		return errors.NewError(fmt.Sprintf("Failed to fetch source cards: %v", err))
 	}
 
 	fmt.Fprintf(os.Stderr, "Found %d cards to migrate\n", len(sourceCards))
@@ -131,14 +131,14 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 			"from_account": migrateBoardFrom,
 			"to_account":   migrateBoardTo,
 		})
-		return
+		return nil
 	}
 
 	// 5. Create target board
 	fmt.Fprintf(os.Stderr, "Creating target board...\n")
 	targetBoardID, err := createBoard(targetClient, boardName)
 	if err != nil {
-		exitWithError(errors.NewError(fmt.Sprintf("Failed to create target board: %v", err)))
+		return errors.NewError(fmt.Sprintf("Failed to create target board: %v", err))
 	}
 	stats.boardCreated = true
 	stats.targetBoardID = targetBoardID
@@ -210,6 +210,8 @@ func runMigrateBoard(cmd *cobra.Command, args []string) {
 		"images_migrated":  stats.imagesMigrated,
 		"card_mapping":     stats.cardMapping,
 	})
+
+	return nil
 }
 
 func createClientForAccount(account string) client.API {

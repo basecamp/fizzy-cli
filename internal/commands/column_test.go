@@ -23,13 +23,13 @@ func TestColumnList(t *testing.T) {
 		defer ResetTestMode()
 
 		columnListBoard = "123"
-		RunTestCommand(func() {
-			columnListCmd.Run(columnListCmd, []string{})
-		})
+		err := columnListCmd.RunE(columnListCmd, []string{})
 		columnListBoard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if mock.GetCalls[0].Path != "/boards/123/columns.json" {
 			t.Errorf("expected path '/boards/123/columns.json', got '%s'", mock.GetCalls[0].Path)
@@ -59,18 +59,13 @@ func TestColumnList(t *testing.T) {
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnListBoard = ""
-		RunTestCommand(func() {
-			columnListCmd.Run(columnListCmd, []string{})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := columnListCmd.RunE(columnListCmd, []string{})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("uses configured board when flag omitted", func(t *testing.T) {
@@ -80,18 +75,17 @@ func TestColumnList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		cfg.Board = "123"
 		defer ResetTestMode()
 
 		columnListBoard = ""
-		RunTestCommand(func() {
-			columnListCmd.Run(columnListCmd, []string{})
-		})
+		err := columnListCmd.RunE(columnListCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if mock.GetCalls[0].Path != "/boards/123/columns.json" {
 			t.Errorf("expected path '/boards/123/columns.json', got '%s'", mock.GetCalls[0].Path)
@@ -110,18 +104,18 @@ func TestColumnShow(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnShowBoard = "123"
-		RunTestCommand(func() {
-			columnShowCmd.Run(columnShowCmd, []string{"col-1"})
-		})
+		err := columnShowCmd.RunE(columnShowCmd, []string{"col-1"})
 		columnShowBoard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if mock.GetCalls[0].Path != "/boards/123/columns/col-1.json" {
 			t.Errorf("expected path '/boards/123/columns/col-1.json', got '%s'", mock.GetCalls[0].Path)
@@ -130,18 +124,13 @@ func TestColumnShow(t *testing.T) {
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnShowBoard = ""
-		RunTestCommand(func() {
-			columnShowCmd.Run(columnShowCmd, []string{"col-1"})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := columnShowCmd.RunE(columnShowCmd, []string{"col-1"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("shows pseudo columns without board", func(t *testing.T) {
@@ -151,14 +140,12 @@ func TestColumnShow(t *testing.T) {
 		defer ResetTestMode()
 
 		columnShowBoard = ""
-		RunTestCommand(func() {
-			columnShowCmd.Run(columnShowCmd, []string{"done"})
-		})
+		err := columnShowCmd.RunE(columnShowCmd, []string{"done"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-
 		data, ok := result.Response.Data.(map[string]any)
 		if !ok {
 			t.Fatalf("expected map response data, got %T", result.Response.Data)
@@ -184,20 +171,20 @@ func TestColumnCreate(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnCreateBoard = "123"
 		columnCreateName = "New Column"
-		RunTestCommand(func() {
-			columnCreateCmd.Run(columnCreateCmd, []string{})
-		})
+		err := columnCreateCmd.RunE(columnCreateCmd, []string{})
 		columnCreateBoard = ""
 		columnCreateName = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if mock.PostCalls[0].Path != "/boards/123/columns.json" {
 			t.Errorf("expected path '/boards/123/columns.json', got '%s'", mock.PostCalls[0].Path)
@@ -212,38 +199,30 @@ func TestColumnCreate(t *testing.T) {
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnCreateBoard = ""
 		columnCreateName = "Test"
-		RunTestCommand(func() {
-			columnCreateCmd.Run(columnCreateCmd, []string{})
-		})
+		err := columnCreateCmd.RunE(columnCreateCmd, []string{})
 		columnCreateName = ""
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("requires name flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnCreateBoard = "123"
 		columnCreateName = ""
-		RunTestCommand(func() {
-			columnCreateCmd.Run(columnCreateCmd, []string{})
-		})
+		err := columnCreateCmd.RunE(columnCreateCmd, []string{})
 		columnCreateBoard = ""
 
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 
 	t.Run("includes optional color", func(t *testing.T) {
@@ -257,24 +236,23 @@ func TestColumnCreate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnCreateBoard = "123"
 		columnCreateName = "Test"
 		columnCreateColor = "blue"
-		RunTestCommand(func() {
-			columnCreateCmd.Run(columnCreateCmd, []string{})
-		})
+		err := columnCreateCmd.RunE(columnCreateCmd, []string{})
 		columnCreateBoard = ""
 		columnCreateName = ""
 		columnCreateColor = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 		body := mock.PostCalls[0].Body.(map[string]any)
 		columnParams := body["column"].(map[string]any)
 		if columnParams["color"] != "blue" {
@@ -294,20 +272,20 @@ func TestColumnUpdate(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnUpdateBoard = "123"
 		columnUpdateName = "Updated Column"
-		RunTestCommand(func() {
-			columnUpdateCmd.Run(columnUpdateCmd, []string{"col-1"})
-		})
+		err := columnUpdateCmd.RunE(columnUpdateCmd, []string{"col-1"})
 		columnUpdateBoard = ""
 		columnUpdateName = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if mock.PatchCalls[0].Path != "/boards/123/columns/col-1.json" {
 			t.Errorf("expected path '/boards/123/columns/col-1.json', got '%s'", mock.PatchCalls[0].Path)
@@ -316,18 +294,13 @@ func TestColumnUpdate(t *testing.T) {
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnUpdateBoard = ""
-		RunTestCommand(func() {
-			columnUpdateCmd.Run(columnUpdateCmd, []string{"col-1"})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := columnUpdateCmd.RunE(columnUpdateCmd, []string{"col-1"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -339,18 +312,18 @@ func TestColumnDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnDeleteBoard = "123"
-		RunTestCommand(func() {
-			columnDeleteCmd.Run(columnDeleteCmd, []string{"col-1"})
-		})
+		err := columnDeleteCmd.RunE(columnDeleteCmd, []string{"col-1"})
 		columnDeleteBoard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		assertExitCode(t, err, 0)
+
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 		if mock.DeleteCalls[0].Path != "/boards/123/columns/col-1.json" {
 			t.Errorf("expected path '/boards/123/columns/col-1.json', got '%s'", mock.DeleteCalls[0].Path)
@@ -359,17 +332,12 @@ func TestColumnDelete(t *testing.T) {
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		columnDeleteBoard = ""
-		RunTestCommand(func() {
-			columnDeleteCmd.Run(columnDeleteCmd, []string{"col-1"})
-		})
-
-		if result.ExitCode != errors.ExitInvalidArgs {
-			t.Errorf("expected exit code %d, got %d", errors.ExitInvalidArgs, result.ExitCode)
-		}
+		err := columnDeleteCmd.RunE(columnDeleteCmd, []string{"col-1"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }

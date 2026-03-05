@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -24,13 +23,13 @@ var commentListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List comments for a card",
 	Long:  "Lists all comments for a specific card.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentListCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		client := getClient()
@@ -41,7 +40,7 @@ var commentListCmd = &cobra.Command{
 
 		resp, err := client.GetWithPagination(path, commentListAll)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -57,7 +56,7 @@ var commentListCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("add", fmt.Sprintf("fizzy comment create --card %s --body \"text\"", commentListCard), "Add comment"),
 			breadcrumb("react", fmt.Sprintf("fizzy reaction create --card %s --comment <id> --content \"👍\"", commentListCard), "Add reaction"),
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", commentListCard), "View card"),
@@ -65,6 +64,7 @@ var commentListCmd = &cobra.Command{
 
 		hasNext := resp.LinkNext != ""
 		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -76,13 +76,13 @@ var commentShowCmd = &cobra.Command{
 	Short: "Show a comment",
 	Long:  "Shows details of a specific comment.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentShowCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		commentID := args[0]
@@ -91,17 +91,18 @@ var commentShowCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Get("/cards/" + cardNumber + "/comments/" + commentID + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("update", fmt.Sprintf("fizzy comment update %s --card %s", commentID, cardNumber), "Edit comment"),
 			breadcrumb("react", fmt.Sprintf("fizzy reaction create --card %s --comment %s --content \"👍\"", cardNumber, commentID), "Add reaction"),
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -115,13 +116,13 @@ var commentCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a comment",
 	Long:  "Creates a new comment on a card.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentCreateCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		// Determine body content
@@ -129,13 +130,13 @@ var commentCreateCmd = &cobra.Command{
 		if commentCreateBodyFile != "" {
 			content, err := os.ReadFile(commentCreateBodyFile)
 			if err != nil {
-				exitWithError(err)
+				return err
 			}
 			body = markdownToHTML(string(content))
 		} else if commentCreateBody != "" {
 			body = markdownToHTML(commentCreateBody)
 		} else {
-			exitWithError(newRequiredFlagError("body or body_file"))
+			return newRequiredFlagError("body or body_file")
 		}
 
 		commentParams := map[string]any{
@@ -154,11 +155,11 @@ var commentCreateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Post("/cards/"+cardNumber+"/comments.json", reqBody)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
@@ -167,22 +168,15 @@ var commentCreateCmd = &cobra.Command{
 		if resp.Location != "" {
 			followResp, err := client.FollowLocation(resp.Location)
 			if err == nil && followResp != nil {
-				respObj := response.SuccessWithBreadcrumbs(followResp.Data, "", breadcrumbs)
-				respObj.Location = resp.Location
-				if lastResult != nil {
-					lastResult.Response = respObj
-					lastResult.ExitCode = 0
-					panic(testExitSignal{})
-				}
-				respObj.Print()
-				os.Exit(0)
-				return
+				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				return nil
 			}
 			printSuccessWithLocation(resp.Location)
-			return
+			return nil
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -196,13 +190,13 @@ var commentUpdateCmd = &cobra.Command{
 	Short: "Update a comment",
 	Long:  "Updates an existing comment.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentUpdateCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		commentParams := make(map[string]any)
@@ -210,7 +204,7 @@ var commentUpdateCmd = &cobra.Command{
 		if commentUpdateBodyFile != "" {
 			content, err := os.ReadFile(commentUpdateBodyFile)
 			if err != nil {
-				exitWithError(err)
+				return err
 			}
 			commentParams["body"] = markdownToHTML(string(content))
 		} else if commentUpdateBody != "" {
@@ -227,16 +221,17 @@ var commentUpdateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Patch("/cards/"+cardNumber+"/comments/"+commentID+".json", reqBody)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy comment show %s --card %s", commentID, cardNumber), "View comment"),
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -248,13 +243,13 @@ var commentDeleteCmd = &cobra.Command{
 	Short: "Delete a comment",
 	Long:  "Deletes a comment from a card.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if commentDeleteCard == "" {
-			exitWithError(newRequiredFlagError("card"))
+			return newRequiredFlagError("card")
 		}
 
 		cardNumber := commentDeleteCard
@@ -262,11 +257,11 @@ var commentDeleteCmd = &cobra.Command{
 		client := getClient()
 		_, err := client.Delete("/cards/" + cardNumber + "/comments/" + args[0] + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
@@ -274,6 +269,7 @@ var commentDeleteCmd = &cobra.Command{
 		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 

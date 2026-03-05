@@ -2,7 +2,6 @@ package commands
 
 import (
 	"github.com/basecamp/fizzy-cli/internal/config"
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -17,7 +16,7 @@ var authLoginCmd = &cobra.Command{
 	Short: "Save API token to config file",
 	Long:  "Saves the provided API token to ~/.config/fizzy/config.yaml for future use.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		token := args[0]
 
 		// Load existing config or create new
@@ -25,11 +24,11 @@ var authLoginCmd = &cobra.Command{
 		globalCfg.Token = token
 
 		if err := globalCfg.Save(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("status", "fizzy auth status", "Check auth status"),
 			breadcrumb("identity", "fizzy identity show", "View identity"),
 			breadcrumb("boards", "fizzy board list", "List boards"),
@@ -39,6 +38,7 @@ var authLoginCmd = &cobra.Command{
 			"authenticated": true,
 			"message":       "Token saved to config file",
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -46,13 +46,13 @@ var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove saved credentials",
 	Long:  "Removes the config file containing saved credentials.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := config.Delete(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("login", "fizzy auth login <token>", "Log in again"),
 		}
 
@@ -60,6 +60,7 @@ var authLogoutCmd = &cobra.Command{
 			"authenticated": false,
 			"message":       "Logged out successfully",
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -67,7 +68,7 @@ var authStatusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show authentication status",
 	Long:  "Shows whether you are currently authenticated.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		effectiveCfg := cfg
 		if effectiveCfg == nil {
 			effectiveCfg = config.Load()
@@ -88,12 +89,13 @@ var authStatusCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("identity", "fizzy identity show", "View identity"),
 			breadcrumb("logout", "fizzy auth logout", "Log out"),
 		}
 
 		printSuccessWithBreadcrumbs(status, "", breadcrumbs)
+		return nil
 	},
 }
 

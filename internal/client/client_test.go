@@ -238,36 +238,36 @@ func TestErrorResponses(t *testing.T) {
 			name:         "401 Unauthorized",
 			statusCode:   401,
 			responseBody: `{"error": "Invalid token"}`,
-			expectedCode: "AUTH_ERROR",
-			expectedExit: errors.ExitAuthFailure,
+			expectedCode: "auth_required",
+			expectedExit: errors.ExitAuth,
 		},
 		{
 			name:         "403 Forbidden",
 			statusCode:   403,
 			responseBody: `{"error": "Access denied"}`,
-			expectedCode: "FORBIDDEN",
+			expectedCode: "forbidden",
 			expectedExit: errors.ExitForbidden,
 		},
 		{
 			name:         "404 Not Found",
 			statusCode:   404,
 			responseBody: `{"error": "Resource not found"}`,
-			expectedCode: "NOT_FOUND",
+			expectedCode: "not_found",
 			expectedExit: errors.ExitNotFound,
 		},
 		{
 			name:         "422 Validation Error",
 			statusCode:   422,
 			responseBody: `{"error": "Validation failed"}`,
-			expectedCode: "VALIDATION_ERROR",
-			expectedExit: errors.ExitValidation,
+			expectedCode: "api_error",
+			expectedExit: errors.ExitAPI,
 		},
 		{
 			name:         "500 Server Error",
 			statusCode:   500,
 			responseBody: `{"error": "Internal server error"}`,
-			expectedCode: "ERROR",
-			expectedExit: errors.ExitError,
+			expectedCode: "api_error",
+			expectedExit: errors.ExitAPI,
 		},
 	}
 
@@ -294,8 +294,8 @@ func TestErrorResponses(t *testing.T) {
 			if cliErr.Code != tt.expectedCode {
 				t.Errorf("expected code '%s', got '%s'", tt.expectedCode, cliErr.Code)
 			}
-			if cliErr.ExitCode != tt.expectedExit {
-				t.Errorf("expected exit code %d, got %d", tt.expectedExit, cliErr.ExitCode)
+			if cliErr.ExitCode() != tt.expectedExit {
+				t.Errorf("expected exit code %d, got %d", tt.expectedExit, cliErr.ExitCode())
 			}
 		})
 	}
@@ -613,11 +613,11 @@ func TestNetworkError(t *testing.T) {
 		t.Fatalf("expected CLIError, got %T", err)
 	}
 
-	if cliErr.Code != "NETWORK_ERROR" {
+	if cliErr.Code != "network" {
 		t.Errorf("expected code 'NETWORK_ERROR', got '%s'", cliErr.Code)
 	}
-	if cliErr.ExitCode != errors.ExitNetwork {
-		t.Errorf("expected exit code %d, got %d", errors.ExitNetwork, cliErr.ExitCode)
+	if cliErr.ExitCode() != errors.ExitNetwork {
+		t.Errorf("expected exit code %d, got %d", errors.ExitNetwork, cliErr.ExitCode())
 	}
 }
 
@@ -740,7 +740,7 @@ func TestDownloadFile(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected CLIError, got %T", err)
 		}
-		if cliErr.Code != "ERROR" {
+		if cliErr.Code != "api_error" {
 			t.Errorf("expected code 'ERROR', got '%s'", cliErr.Code)
 		}
 
@@ -765,7 +765,7 @@ func TestDownloadFile(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected CLIError, got %T", err)
 		}
-		if cliErr.Code != "NETWORK_ERROR" {
+		if cliErr.Code != "network" {
 			t.Errorf("expected code 'NETWORK_ERROR', got '%s'", cliErr.Code)
 		}
 	})
@@ -787,7 +787,7 @@ func TestDownloadFile(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected CLIError, got %T", err)
 		}
-		if cliErr.Code != "ERROR" {
+		if cliErr.Code != "api_error" {
 			t.Errorf("expected code 'ERROR', got '%s'", cliErr.Code)
 		}
 	})

@@ -25,14 +25,13 @@ func TestAuthLogin(t *testing.T) {
 		result := SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authLoginCmd.Run(authLoginCmd, []string{"test-token-123"})
-		})
+		err = authLoginCmd.RunE(authLoginCmd, []string{"test-token-123"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 
@@ -72,16 +71,11 @@ func TestAuthLogin(t *testing.T) {
 		os.WriteFile(filepath.Join(tempDir, "config.yaml"), existingData, 0600)
 
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authLoginCmd.Run(authLoginCmd, []string{"new-token"})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err = authLoginCmd.RunE(authLoginCmd, []string{"new-token"})
+		assertExitCode(t, err, 0)
 
 		// Verify existing values preserved
 		data, _ := os.ReadFile(filepath.Join(tempDir, "config.yaml"))
@@ -113,16 +107,11 @@ func TestAuthLogout(t *testing.T) {
 		os.WriteFile(configPath, []byte("token: test-token"), 0600)
 
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authLogoutCmd.Run(authLogoutCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err = authLogoutCmd.RunE(authLogoutCmd, []string{})
+		assertExitCode(t, err, 0)
 
 		// Verify config file was removed
 		if _, err := os.Stat(configPath); !os.IsNotExist(err) {
@@ -141,16 +130,11 @@ func TestAuthLogout(t *testing.T) {
 		defer config.ResetTestConfigDir()
 
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authLogoutCmd.Run(authLogoutCmd, []string{})
-		})
-
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		err = authLogoutCmd.RunE(authLogoutCmd, []string{})
+		assertExitCode(t, err, 0)
 	})
 }
 
@@ -173,14 +157,13 @@ func TestAuthStatus(t *testing.T) {
 		result := SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authStatusCmd.Run(authStatusCmd, []string{})
-		})
+		err = authStatusCmd.RunE(authStatusCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 
@@ -214,14 +197,12 @@ func TestAuthStatus(t *testing.T) {
 		result := SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authStatusCmd.Run(authStatusCmd, []string{})
-		})
+		err = authStatusCmd.RunE(authStatusCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-
 		data, ok := result.Response.Data.(map[string]any)
 		if !ok {
 			t.Fatal("expected map response data")
@@ -249,14 +230,12 @@ func TestAuthStatus(t *testing.T) {
 		result := SetTestMode(mock)
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			authStatusCmd.Run(authStatusCmd, []string{})
-		})
+		err = authStatusCmd.RunE(authStatusCmd, []string{})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-
 		data := result.Response.Data.(map[string]any)
 		if data["api_url"] != "https://custom.fizzy.do" {
 			t.Errorf("expected api_url='https://custom.fizzy.do', got %v", data["api_url"])

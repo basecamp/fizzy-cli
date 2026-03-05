@@ -5,10 +5,11 @@ import "github.com/spf13/cobra"
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		printSuccess(map[string]any{
 			"version": rootCmd.Version,
 		})
+		return nil
 	},
 }
 

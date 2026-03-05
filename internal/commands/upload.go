@@ -18,25 +18,26 @@ var uploadFileCmd = &cobra.Command{
 	Short: "Upload a file",
 	Long:  "Uploads a file and returns a signed_id for use in rich text fields.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		filePath := args[0]
 
 		// Check if file exists
 		if _, err := os.Stat(filePath); os.IsNotExist(err) {
-			exitWithError(errors.NewError("File not found: " + filePath))
+			return errors.NewError("File not found: " + filePath)
 		}
 
 		client := getClient()
 		resp, err := client.UploadFile(filePath)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		printSuccess(resp.Data)
+		return nil
 	},
 }
 

@@ -2,11 +2,8 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
-	"github.com/basecamp/fizzy-cli/internal/errors"
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -24,9 +21,9 @@ var boardListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all boards",
 	Long:  "Lists all boards you have access to.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
@@ -37,7 +34,7 @@ var boardListCmd = &cobra.Command{
 
 		resp, err := client.GetWithPagination(path, boardListAll)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -53,7 +50,7 @@ var boardListCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", "fizzy board show <id>", "View board details"),
 			breadcrumb("cards", "fizzy card list --board <id>", "List cards on board"),
 			breadcrumb("columns", "fizzy column list --board <id>", "List board columns"),
@@ -69,6 +66,7 @@ var boardListCmd = &cobra.Command{
 		}
 
 		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -77,9 +75,9 @@ var boardShowCmd = &cobra.Command{
 	Short: "Show a board",
 	Long:  "Shows details of a specific board.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		boardID := args[0]
@@ -87,7 +85,7 @@ var boardShowCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Get("/boards/" + boardID + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -99,13 +97,14 @@ var boardShowCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 			breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
 			breadcrumb("create-card", fmt.Sprintf("fizzy card create --board %s --title \"title\"", boardID), "Create card"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		return nil
 	},
 }
 
@@ -118,13 +117,13 @@ var boardCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a board",
 	Long:  "Creates a new board.",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		if boardCreateName == "" {
-			exitWithError(newRequiredFlagError("name"))
+			return newRequiredFlagError("name")
 		}
 
 		boardParams := map[string]any{
@@ -145,7 +144,7 @@ var boardCreateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Post("/boards.json", body)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Create returns location header - follow it to get the created resource
@@ -161,32 +160,25 @@ var boardCreateCmd = &cobra.Command{
 				}
 
 				// Build breadcrumbs
-				var breadcrumbs []response.Breadcrumb
+				var breadcrumbs []Breadcrumb
 				if boardID != "" {
-					breadcrumbs = []response.Breadcrumb{
+					breadcrumbs = []Breadcrumb{
 						breadcrumb("show", fmt.Sprintf("fizzy board show %s", boardID), "View board details"),
 						breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 						breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
 					}
 				}
 
-				respObj := response.SuccessWithBreadcrumbs(followResp.Data, "", breadcrumbs)
-				respObj.Location = resp.Location
-				if lastResult != nil {
-					lastResult.Response = respObj
-					lastResult.ExitCode = 0
-					panic(testExitSignal{})
-				}
-				respObj.Print()
-				os.Exit(0)
-				return
+				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				return nil
 			}
 			// If follow fails, just return success with location
 			printSuccessWithLocation(resp.Location)
-			return
+			return nil
 		}
 
 		printSuccess(resp.Data)
+		return nil
 	},
 }
 
@@ -200,9 +192,9 @@ var boardUpdateCmd = &cobra.Command{
 	Short: "Update a board",
 	Long:  "Updates an existing board.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		boardID := args[0]
@@ -226,16 +218,17 @@ var boardUpdateCmd = &cobra.Command{
 		client := getClient()
 		resp, err := client.Patch("/boards/"+boardID+".json", body)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy board show %s", boardID), "View board"),
 			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 		}
 
 		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -244,19 +237,19 @@ var boardDeleteCmd = &cobra.Command{
 	Short: "Delete a board",
 	Long:  "Deletes a board.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		client := getClient()
 		_, err := client.Delete("/boards/" + args[0] + ".json")
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("boards", "fizzy board list", "List boards"),
 			breadcrumb("create", "fizzy board create --name \"name\"", "Create new board"),
 		}
@@ -264,6 +257,7 @@ var boardDeleteCmd = &cobra.Command{
 		printSuccessWithBreadcrumbs(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
+		return nil
 	},
 }
 
@@ -292,9 +286,4 @@ func init() {
 
 	// Delete
 	boardCmd.AddCommand(boardDeleteCmd)
-}
-
-// Helper function for required flag errors
-func newRequiredFlagError(flag string) error {
-	return errors.NewInvalidArgsError("required flag --" + flag + " not provided")
 }

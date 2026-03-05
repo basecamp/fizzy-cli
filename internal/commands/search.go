@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/basecamp/fizzy-cli/internal/response"
 	"github.com/spf13/cobra"
 )
 
@@ -23,9 +22,9 @@ var searchCmd = &cobra.Command{
 	Short: "Search cards",
 	Long:  "Searches cards by text. Multiple words are treated as separate terms (AND).",
 	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		query := strings.Join(args, " ")
@@ -67,7 +66,7 @@ var searchCmd = &cobra.Command{
 
 		resp, err := client.GetWithPagination(path, searchAll)
 		if err != nil {
-			exitWithError(err)
+			return err
 		}
 
 		// Build summary
@@ -83,13 +82,14 @@ var searchCmd = &cobra.Command{
 		}
 
 		// Build breadcrumbs
-		breadcrumbs := []response.Breadcrumb{
+		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", "fizzy card show <number>", "View card details"),
 			breadcrumb("narrow", fmt.Sprintf("fizzy search \"%s\" --board <id>", query), "Filter by board"),
 		}
 
 		hasNext := resp.LinkNext != ""
 		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		return nil
 	},
 }
 

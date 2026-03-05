@@ -21,14 +21,13 @@ func TestSearch(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			searchCmd.Run(searchCmd, []string{"bug"})
-		})
+		err := searchCmd.RunE(searchCmd, []string{"bug"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
-		if !result.Response.Success {
+		if !result.Response.OK {
 			t.Error("expected success response")
 		}
 		path := mock.GetWithPaginationCalls[0].Path
@@ -44,17 +43,13 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			searchCmd.Run(searchCmd, []string{"login error"})
-		})
+		err := searchCmd.RunE(searchCmd, []string{"login error"})
+		assertExitCode(t, err, 0)
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
 		path := mock.GetWithPaginationCalls[0].Path
 		if path != "/cards.json?terms[]=login&terms[]=error" {
 			t.Errorf("expected path with multiple terms, got '%s'", path)
@@ -68,19 +63,15 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		searchBoard = "123"
-		RunTestCommand(func() {
-			searchCmd.Run(searchCmd, []string{"bug"})
-		})
+		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		searchBoard = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		path := mock.GetWithPaginationCalls[0].Path
 		if path != "/cards.json?terms[]=bug&board_ids[]=123" {
 			t.Errorf("expected path with board filter, got '%s'", path)
@@ -94,19 +85,15 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		searchSort = "newest"
-		RunTestCommand(func() {
-			searchCmd.Run(searchCmd, []string{"bug"})
-		})
+		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		searchSort = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		path := mock.GetWithPaginationCalls[0].Path
 		if path != "/cards.json?terms[]=bug&sorted_by=newest" {
 			t.Errorf("expected path with sort, got '%s'", path)
@@ -120,19 +107,15 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer ResetTestMode()
 
 		searchIndexedBy = "closed"
-		RunTestCommand(func() {
-			searchCmd.Run(searchCmd, []string{"bug"})
-		})
+		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		searchIndexedBy = ""
 
-		if result.ExitCode != 0 {
-			t.Errorf("expected exit code 0, got %d", result.ExitCode)
-		}
+		assertExitCode(t, err, 0)
 		path := mock.GetWithPaginationCalls[0].Path
 		if path != "/cards.json?terms[]=bug&indexed_by=closed" {
 			t.Errorf("expected path with indexed_by, got '%s'", path)
@@ -141,16 +124,11 @@ func TestSearch(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		SetTestMode(mock)
 		SetTestConfig("", "account", "https://api.example.com")
 		defer ResetTestMode()
 
-		RunTestCommand(func() {
-			searchCmd.Run(searchCmd, []string{"bug"})
-		})
-
-		if result.ExitCode != errors.ExitAuthFailure {
-			t.Errorf("expected exit code %d, got %d", errors.ExitAuthFailure, result.ExitCode)
-		}
+		err := searchCmd.RunE(searchCmd, []string{"bug"})
+		assertExitCode(t, err, errors.ExitAuthFailure)
 	})
 }
