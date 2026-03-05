@@ -3,7 +3,7 @@ module github.com/basecamp/fizzy-cli
 go 1.26
 
 require (
-	github.com/basecamp/cli v0.0.0-20260304232616-05b991dbdf42
+	github.com/basecamp/cli v0.1.1
 	github.com/charmbracelet/huh v0.8.0
 	github.com/spf13/cobra v1.10.2
 	github.com/yuin/goldmark v1.7.16
