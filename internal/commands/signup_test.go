@@ -716,6 +716,29 @@ func TestGetCookieValue(t *testing.T) {
 	})
 }
 
+func TestSignupCompleteRejectsEmptyToken(t *testing.T) {
+	t.Run("rejects empty session token", func(t *testing.T) {
+		resetSignupFlags()
+		server := newTestSignupServer(t, testSignupServerOpts{accessToken: "fizzy_test"})
+		defer server.Close()
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		SetTestConfig("", "", server.URL)
+		defer ResetTestMode()
+
+		restoreStdin := pipeSessionToken("")
+		defer restoreStdin()
+
+		signupCompleteCmd.Flags().Set("account", "123456")
+		err := signupCompleteCmd.RunE(signupCompleteCmd, []string{})
+
+		if err == nil {
+			t.Error("expected error for empty session token")
+		}
+	})
+}
+
 func TestReadSessionTokenFromStdin(t *testing.T) {
 	t.Run("reads token from piped stdin", func(t *testing.T) {
 		restoreStdin := pipeSessionToken("eyJ-session-token-value")
