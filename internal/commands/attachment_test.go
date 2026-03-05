@@ -240,10 +240,12 @@ func TestCardAttachmentsCommand(t *testing.T) {
 				}
 
 				// Check that attachments were parsed
-				if attachments, ok := result.Response.Data.([]Attachment); ok {
+				if attachments, ok := result.Response.Data.([]any); ok {
 					if len(attachments) != tt.expectedCount {
 						t.Errorf("expected %d attachments, got %d", tt.expectedCount, len(attachments))
 					}
+				} else if tt.expectedCount > 0 {
+					t.Errorf("expected []any data with %d items, got %T", tt.expectedCount, result.Response.Data)
 				}
 			} else {
 				if result.Response.OK {
