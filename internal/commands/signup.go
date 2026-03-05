@@ -139,7 +139,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	// Step 3: Request magic link
 	fmt.Print("Sending magic link... ")
-	_, _, err = signupPost(httpClient, apiURL+"/session.json", map[string]any{
+	_, resp, err := signupPost(httpClient, apiURL+"/session.json", map[string]any{
 		"email_address": email,
 	})
 	if err != nil {
@@ -147,7 +147,13 @@ func runSignup(cmd *cobra.Command, args []string) error {
 		return errors.NewError(fmt.Sprintf("Failed to send magic link: %v", err))
 	}
 	fmt.Println("✓")
-	fmt.Println("Check your email for a 6-digit code.")
+
+	// Development servers include the magic link code in a response header
+	if devCode := resp.Header.Get("X-Magic-Link-Code"); devCode != "" {
+		fmt.Printf("Development code: %s\n", devCode)
+	} else {
+		fmt.Println("Check your email for a 6-digit code.")
+	}
 	fmt.Println()
 
 	// Step 4: Code verification loop
@@ -289,14 +295,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 9: Save config
-	globalCfg := config.LoadGlobal()
-	globalCfg.Token = token
-	globalCfg.Account = selectedAccountSlug
-	if apiURL != config.DefaultAPIURL {
-		globalCfg.APIURL = apiURL
-	}
-
-	if err := globalCfg.Save(); err != nil {
+	if err := saveSignupConfig(token, selectedAccountSlug, apiURL); err != nil {
 		return err
 	}
 
@@ -462,14 +461,7 @@ func runSignupComplete(cmd *cobra.Command, args []string) error {
 	}
 
 	// Save config
-	globalCfg := config.LoadGlobal()
-	globalCfg.Token = token
-	globalCfg.Account = accountSlug
-	if apiURL != config.DefaultAPIURL {
-		globalCfg.APIURL = apiURL
-	}
-
-	if err := globalCfg.Save(); err != nil {
+	if err := saveSignupConfig(token, accountSlug, apiURL); err != nil {
 		return err
 	}
 
@@ -661,4 +653,27 @@ func readSessionToken() (string, error) {
 		return "", err
 	}
 	return "", nil
+}
+
+// saveSignupConfig saves the token (to credstore if available, else YAML) and
+// account/API URL to the global config file, matching the auth login behavior.
+func saveSignupConfig(token, account, apiURL string) error {
+	globalCfg := config.LoadGlobal()
+
+	if creds != nil {
+		if err := credsSaveToken(token); err == nil {
+			globalCfg.Token = ""
+		} else {
+			globalCfg.Token = token
+		}
+	} else {
+		globalCfg.Token = token
+	}
+
+	globalCfg.Account = account
+	if apiURL != config.DefaultAPIURL {
+		globalCfg.APIURL = apiURL
+	}
+
+	return globalCfg.Save()
 }
