@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/basecamp/fizzy-cli/internal/errors"
 )
@@ -280,6 +281,7 @@ func TestErrorResponses(t *testing.T) {
 			defer server.Close()
 
 			c := New(server.URL, "test-token", "")
+			c.Sleeper = func(d time.Duration) {} // no-op for fast tests
 			_, err := c.Get("/resource.json")
 
 			if err == nil {
@@ -602,6 +604,7 @@ func TestUploadFile_FileNotFound(t *testing.T) {
 
 func TestNetworkError(t *testing.T) {
 	c := New("http://localhost:1", "token", "") // Invalid port
+	c.Sleeper = func(d time.Duration) {}        // no-op for fast tests
 	_, err := c.Get("/resource.json")
 
 	if err == nil {
@@ -649,6 +652,147 @@ func TestUserAgentHeader(t *testing.T) {
 
 	c := New(server.URL, "test-token", "")
 	c.Get("/resource.json")
+}
+
+func TestRetryOn429(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts <= 2 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(429)
+			w.Write([]byte(`{"error":"rate limited"}`))
+			return
+		}
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"id": "1"})
+	}))
+	defer server.Close()
+
+	var sleepCalls []time.Duration
+	c := New(server.URL, "test-token", "")
+	c.Sleeper = func(d time.Duration) { sleepCalls = append(sleepCalls, d) }
+
+	resp, err := c.Get("/resource.json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	if attempts != 3 {
+		t.Errorf("expected 3 attempts, got %d", attempts)
+	}
+	if len(sleepCalls) != 2 {
+		t.Errorf("expected 2 sleep calls, got %d", len(sleepCalls))
+	}
+	if sleepCalls[0] != time.Second {
+		t.Errorf("expected 1s retry delay from Retry-After header, got %v", sleepCalls[0])
+	}
+}
+
+func TestRetryOn5xx(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts <= 1 {
+			w.WriteHeader(503)
+			w.Write([]byte(`{"error":"unavailable"}`))
+			return
+		}
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"id": "1"})
+	}))
+	defer server.Close()
+
+	var sleepCalls []time.Duration
+	c := New(server.URL, "test-token", "")
+	c.Sleeper = func(d time.Duration) { sleepCalls = append(sleepCalls, d) }
+
+	resp, err := c.Get("/resource.json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	if attempts != 2 {
+		t.Errorf("expected 2 attempts, got %d", attempts)
+	}
+	if len(sleepCalls) != 1 {
+		t.Errorf("expected 1 sleep call, got %d", len(sleepCalls))
+	}
+}
+
+func TestNoRetryPostOn5xx(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.WriteHeader(500)
+		w.Write([]byte(`{"error":"server error"}`))
+	}))
+	defer server.Close()
+
+	c := New(server.URL, "test-token", "")
+	c.Sleeper = func(d time.Duration) {}
+
+	_, err := c.Post("/resource.json", map[string]string{"name": "test"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if attempts != 1 {
+		t.Errorf("expected 1 attempt (no retry for POST on 5xx), got %d", attempts)
+	}
+}
+
+func TestRetryPostOn429(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts <= 1 {
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(429)
+			w.Write([]byte(`{"error":"rate limited"}`))
+			return
+		}
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(map[string]string{"id": "1"})
+	}))
+	defer server.Close()
+
+	c := New(server.URL, "test-token", "")
+	c.Sleeper = func(d time.Duration) {}
+
+	resp, err := c.Post("/resource.json", map[string]string{"name": "test"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected 200, got %d", resp.StatusCode)
+	}
+	if attempts != 2 {
+		t.Errorf("expected 2 attempts (retry POST on 429), got %d", attempts)
+	}
+}
+
+func TestParseRetryAfter(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    string
+		expected time.Duration
+	}{
+		{"empty", "", time.Second},
+		{"seconds", "5", 5 * time.Second},
+		{"invalid", "not-a-number", time.Second},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := parseRetryAfter(tt.value)
+			if d != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, d)
+			}
+		})
+	}
 }
 
 func TestDownloadFile(t *testing.T) {
@@ -755,6 +899,7 @@ func TestDownloadFile(t *testing.T) {
 		destPath := filepath.Join(tempDir, "network-error.txt")
 
 		c := New("http://localhost:1", "test-token", "") // Invalid port
+		c.Sleeper = func(d time.Duration) {}             // no-op for fast tests
 		err := c.DownloadFile("/file.txt", destPath)
 
 		if err == nil {

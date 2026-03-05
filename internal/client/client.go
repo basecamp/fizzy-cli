@@ -15,9 +15,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/basecamp/cli/output"
 	"github.com/basecamp/fizzy-cli/internal/errors"
 )
 
@@ -28,6 +30,9 @@ type Client struct {
 	Account    string
 	HTTPClient *http.Client
 	Verbose    bool
+	// Sleeper is called for retry delays. Defaults to time.Sleep.
+	// Override in tests with a no-op or recording function.
+	Sleeper func(time.Duration)
 }
 
 // APIResponse represents a response from the API.
@@ -125,7 +130,7 @@ func (c *Client) PatchMultipart(path, fileField, filePath string, fields map[str
 	c.setHeaders(req)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doWithRetry(req)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
@@ -149,7 +154,7 @@ func (c *Client) PatchMultipart(path, fileField, filePath string, fields map[str
 	}
 
 	if resp.StatusCode >= 400 {
-		return apiResp, c.errorFromResponse(resp.StatusCode, respBody)
+		return apiResp, c.errorFromResponse(resp.StatusCode, respBody, resp.Header)
 	}
 
 	return apiResp, nil
@@ -191,7 +196,7 @@ func (c *Client) request(method, path string, body any) (*APIResponse, error) {
 		fmt.Fprintf(os.Stderr, "> %s %s\n", method, requestURL)
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doWithRetry(req)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
@@ -216,7 +221,7 @@ func (c *Client) request(method, path string, body any) (*APIResponse, error) {
 	// Check for error status codes before parsing JSON,
 	// since error responses may not be JSON (e.g. HTML 401 pages)
 	if resp.StatusCode >= 400 {
-		return apiResp, c.errorFromResponse(resp.StatusCode, respBody)
+		return apiResp, c.errorFromResponse(resp.StatusCode, respBody, resp.Header)
 	}
 
 	// Parse JSON body if present
@@ -235,16 +240,116 @@ func (c *Client) setHeaders(req *http.Request) {
 	req.Header.Set("User-Agent", "fizzy-cli/1.0")
 }
 
-func (c *Client) errorFromResponse(status int, body []byte) error {
+func (c *Client) sleep(d time.Duration) {
+	if c.Sleeper != nil {
+		c.Sleeper(d)
+	} else {
+		time.Sleep(d)
+	}
+}
+
+const maxRetries = 3
+
+// doWithRetry wraps HTTPClient.Do with retry logic for 429 and 5xx responses.
+// Only retries GET/DELETE/PUT on 5xx; POST/PATCH only retry on 429.
+func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
+	idempotent := req.Method == "GET" || req.Method == "DELETE" || req.Method == "PUT"
+
+	for attempt := range maxRetries + 1 {
+		resp, err := c.HTTPClient.Do(req)
+
+		// Network error — retry idempotent methods with backoff
+		if err != nil {
+			if attempt < maxRetries && idempotent {
+				c.sleep(time.Duration(1<<uint(attempt)) * time.Second)
+				resetBody(req)
+				continue
+			}
+			return nil, err
+		}
+
+		// 429: always retry (server explicitly says "try again")
+		if resp.StatusCode == 429 {
+			if attempt < maxRetries {
+				delay := parseRetryAfter(resp.Header.Get("Retry-After"))
+				_ = resp.Body.Close()
+				c.sleep(delay)
+				resetBody(req)
+				continue
+			}
+		}
+
+		// 5xx: retry idempotent methods with exponential backoff
+		if resp.StatusCode >= 500 && idempotent && attempt < maxRetries {
+			_ = resp.Body.Close()
+			c.sleep(time.Duration(1<<uint(attempt)) * time.Second)
+			resetBody(req)
+			continue
+		}
+
+		return resp, nil
+	}
+
+	// unreachable, but the compiler needs it
+	return c.HTTPClient.Do(req)
+}
+
+// resetBody rewinds the request body for retry. Uses GetBody (set automatically
+// by http.NewRequestWithContext for *bytes.Reader, *bytes.Buffer, *strings.Reader).
+func resetBody(req *http.Request) {
+	if req.GetBody != nil {
+		req.Body, _ = req.GetBody()
+	}
+}
+
+// parseRetryAfter parses the Retry-After header value as seconds.
+// Returns a default of 1 second if the header is missing or unparseable.
+func parseRetryAfter(value string) time.Duration {
+	if value == "" {
+		return time.Second
+	}
+	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+		return time.Duration(seconds) * time.Second
+	}
+	// Try HTTP-date format
+	if t, err := http.ParseTime(value); err == nil {
+		delay := time.Until(t)
+		if delay > 0 {
+			return delay
+		}
+	}
+	return time.Second
+}
+
+func (c *Client) errorFromResponse(status int, body []byte, header http.Header) error {
 	// Try to parse error message from response
 	var errResp struct {
 		Error string `json:"error"`
 	}
+
+	message := http.StatusText(status)
 	if json.Unmarshal(body, &errResp) == nil && errResp.Error != "" {
-		return errors.FromHTTPStatus(status, errResp.Error)
+		message = errResp.Error
 	}
 
-	return errors.FromHTTPStatus(status, http.StatusText(status))
+	if status == 429 {
+		retryAfter := 0
+		if ra := header.Get("Retry-After"); ra != "" {
+			if seconds, err := strconv.Atoi(ra); err == nil {
+				retryAfter = seconds
+			}
+		}
+		e := errors.FromHTTPStatus(429, message)
+		if retryAfter > 0 {
+			e = output.ErrRateLimit(retryAfter)
+			if message != "" && message != http.StatusText(http.StatusTooManyRequests) {
+				e.Message = message
+			}
+		}
+		return e
+	}
+
+	return errors.FromHTTPStatus(status, message)
 }
 
 // parseLinkNext extracts the "next" URL from a Link header.
@@ -385,7 +490,7 @@ func (c *Client) UploadFile(filePath string) (*APIResponse, error) {
 		}
 	}
 
-	uploadResp, err := c.HTTPClient.Do(uploadReq)
+	uploadResp, err := c.doWithRetry(uploadReq)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Upload failed: %v", err))
 	}
@@ -451,7 +556,7 @@ func (c *Client) UploadFileMultipart(path, fieldName, filePath string, extraFiel
 	c.setHeaders(req)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doWithRetry(req)
 	if err != nil {
 		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
@@ -475,7 +580,7 @@ func (c *Client) UploadFileMultipart(path, fieldName, filePath string, extraFiel
 	}
 
 	if resp.StatusCode >= 400 {
-		return apiResp, c.errorFromResponse(resp.StatusCode, respBody)
+		return apiResp, c.errorFromResponse(resp.StatusCode, respBody, resp.Header)
 	}
 
 	return apiResp, nil
@@ -539,7 +644,7 @@ func (c *Client) DownloadFile(urlPath string, destPath string) error {
 		fmt.Fprintf(os.Stderr, "> GET %s\n", requestURL)
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.doWithRetry(req)
 	if err != nil {
 		return errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
 	}
