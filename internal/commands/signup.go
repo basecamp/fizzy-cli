@@ -112,6 +112,8 @@ func runSignup(cmd *cobra.Command, args []string) error {
 			fmt.Println("Signup cancelled.")
 			return nil //nolint:nilerr // user cancelled prompt
 		}
+
+		apiURL = strings.TrimSuffix(apiURL, "/")
 	}
 
 	httpClient := newSignupHTTPClient()
