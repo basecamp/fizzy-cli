@@ -41,9 +41,11 @@ func NewInvalidArgsError(message string) *CLIError {
 	return &output.Error{Code: output.CodeUsage, Message: message}
 }
 
-// NewAuthError creates an authentication error.
+// NewAuthError creates an authentication error with a fizzy-specific hint.
 func NewAuthError(message string) *CLIError {
-	return &output.Error{Code: output.CodeAuth, Message: message}
+	e := output.ErrAuth(message)
+	e.Hint = "Run 'fizzy auth login TOKEN' or set FIZZY_TOKEN"
+	return e
 }
 
 // NewForbiddenError creates a permission denied error.
@@ -61,16 +63,19 @@ func NewValidationError(message string) *CLIError {
 	return &output.Error{Code: output.CodeAPI, Message: message, HTTPStatus: 422}
 }
 
-// NewNetworkError creates a network error.
+// NewNetworkError creates a network error with retryable hint.
 func NewNetworkError(message string) *CLIError {
-	return &output.Error{Code: output.CodeNetwork, Message: message}
+	e := output.ErrNetwork(fmt.Errorf("%s", message))
+	return e
 }
 
 // FromHTTPStatus creates an appropriate error from an HTTP status code.
 func FromHTTPStatus(status int, message string) *CLIError {
 	switch status {
 	case 401:
-		return NewAuthError(message)
+		e := output.ErrAuth(message)
+		e.Hint = "Run 'fizzy auth login TOKEN' or set FIZZY_TOKEN"
+		return e
 	case 403:
 		return NewForbiddenError(message)
 	case 404:
@@ -83,6 +88,14 @@ func FromHTTPStatus(status int, message string) *CLIError {
 			e.Message = message
 		}
 		return e
+	case 502, 503, 504:
+		return &output.Error{
+			Code:       output.CodeAPI,
+			Message:    fmt.Sprintf("Request failed: %d %s", status, message),
+			HTTPStatus: status,
+			Retryable:  true,
+			Hint:       "The server returned a temporary error. Try again in a moment.",
+		}
 	default:
 		return &output.Error{
 			Code:       output.CodeAPI,

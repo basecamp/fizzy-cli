@@ -97,6 +97,9 @@ func TestNewAuthError(t *testing.T) {
 	if err.ExitCode() != ExitAuth {
 		t.Errorf("expected exit code %d, got %d", ExitAuth, err.ExitCode())
 	}
+	if err.Hint == "" {
+		t.Error("auth errors should have a hint")
+	}
 }
 
 func TestNewForbiddenError(t *testing.T) {
@@ -156,11 +159,11 @@ func TestNewNetworkError(t *testing.T) {
 	if err.Code != output.CodeNetwork {
 		t.Errorf("expected code %q, got %q", output.CodeNetwork, err.Code)
 	}
-	if err.Message != "connection failed" {
-		t.Errorf("expected message 'connection failed', got %q", err.Message)
-	}
 	if err.ExitCode() != ExitNetwork {
 		t.Errorf("expected exit code %d, got %d", ExitNetwork, err.ExitCode())
+	}
+	if !err.Retryable {
+		t.Error("network errors should be retryable")
 	}
 }
 
@@ -206,5 +209,19 @@ func TestFromHTTPStatus(t *testing.T) {
 				t.Errorf("expected exit code %d, got %d", tt.expectedExit, err.ExitCode())
 			}
 		})
+	}
+}
+
+func TestFromHTTPStatus401HasHint(t *testing.T) {
+	err := FromHTTPStatus(401, "Unauthorized")
+	if err.Hint == "" {
+		t.Error("401 error should have a hint")
+	}
+}
+
+func TestFromHTTPStatus429IsRetryable(t *testing.T) {
+	err := FromHTTPStatus(429, "Too Many Requests")
+	if !err.Retryable {
+		t.Error("429 error should be retryable")
 	}
 }
