@@ -71,7 +71,7 @@ var reactionListCmd = &cobra.Command{
 			}
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		printList(resp.Data, reactionColumns, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -133,7 +133,7 @@ var reactionCreateCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -184,7 +184,7 @@ var reactionDeleteCmd = &cobra.Command{
 			}
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 		return nil

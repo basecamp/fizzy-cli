@@ -40,6 +40,9 @@ var cardListCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(cardListAll); err != nil {
+			return err
+		}
 
 		boardID := defaultBoard(cardListBoard)
 		columnFilter := strings.TrimSpace(cardListColumn)
@@ -202,7 +205,7 @@ var cardListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy card list --page %d", nextPage), "Next page"))
 		}
 
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, cardColumns, hasNext, resp.LinkNext, cardListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -241,7 +244,7 @@ var cardShowCmd = &cobra.Command{
 			breadcrumb("assign", fmt.Sprintf("fizzy card assign %s --user <user_id>", cardNumber), "Assign user"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		printDetail(resp.Data, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -330,7 +333,7 @@ var cardCreateCmd = &cobra.Command{
 					}
 				}
 
-				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
 				return nil
 			}
 			printSuccessWithLocation(resp.Location)
@@ -399,7 +402,7 @@ var cardUpdateCmd = &cobra.Command{
 			breadcrumb("comment", fmt.Sprintf("fizzy comment create --card %s --body \"text\"", cardNumber), "Add comment"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -426,7 +429,7 @@ var cardDeleteCmd = &cobra.Command{
 			breadcrumb("create", "fizzy card create --board <id> --title \"title\"", "Create new card"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 		return nil
@@ -461,7 +464,7 @@ var cardCloseCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -495,7 +498,7 @@ var cardReopenCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -528,7 +531,7 @@ var cardPostponeCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -582,7 +585,7 @@ var cardMoveCmd = &cobra.Command{
 			breadcrumb("triage", fmt.Sprintf("fizzy card column %s --column <column_id>", cardNumber), "Move to column"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		printMutation(resp.Data, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -625,7 +628,7 @@ var cardColumnCmd = &cobra.Command{
 				if data == nil {
 					data = map[string]any{}
 				}
-				printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+				printMutation(data, "", breadcrumbs)
 				return nil
 			case "not_now":
 				resp, err := client.Post("/cards/"+cardNumber+"/not_now.json", nil)
@@ -636,7 +639,7 @@ var cardColumnCmd = &cobra.Command{
 				if data == nil {
 					data = map[string]any{}
 				}
-				printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+				printMutation(data, "", breadcrumbs)
 				return nil
 			case "closed":
 				resp, err := client.Post("/cards/"+cardNumber+"/closure.json", nil)
@@ -647,7 +650,7 @@ var cardColumnCmd = &cobra.Command{
 				if data == nil {
 					data = map[string]any{}
 				}
-				printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+				printMutation(data, "", breadcrumbs)
 				return nil
 			}
 		}
@@ -665,7 +668,7 @@ var cardColumnCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -700,7 +703,7 @@ var cardUntriageCmd = &cobra.Command{
 				"untriaged": true,
 			}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -744,7 +747,7 @@ var cardAssignCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -775,7 +778,7 @@ var cardSelfAssignCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -819,7 +822,7 @@ var cardTagCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -852,7 +855,7 @@ var cardWatchCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -885,7 +888,7 @@ var cardUnwatchCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -918,7 +921,7 @@ var cardImageRemoveCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -952,7 +955,7 @@ var cardPinCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -986,7 +989,7 @@ var cardUnpinCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -1019,7 +1022,7 @@ var cardGoldenCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -1052,7 +1055,7 @@ var cardUngoldenCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }

@@ -35,7 +35,7 @@ var authLoginCmd = &cobra.Command{
 			breadcrumb("boards", "fizzy board list", "List boards"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"authenticated": true,
 			"message":       "Token saved to config file",
 		}, "", breadcrumbs)
@@ -57,7 +57,7 @@ var authLogoutCmd = &cobra.Command{
 			breadcrumb("login", "fizzy auth login <token>", "Log in again"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"authenticated": false,
 			"message":       "Logged out successfully",
 		}, "", breadcrumbs)
@@ -95,7 +95,7 @@ var authStatusCmd = &cobra.Command{
 			breadcrumb("logout", "fizzy auth logout", "Log out"),
 		}
 
-		printSuccessWithBreadcrumbs(status, "", breadcrumbs)
+		printDetail(status, "", breadcrumbs)
 		return nil
 	},
 }

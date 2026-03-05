@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/basecamp/cli/output"
 	"github.com/basecamp/fizzy-cli/internal/client"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"github.com/basecamp/fizzy-cli/internal/errors"
@@ -36,6 +37,10 @@ func init() {
 }
 
 func runSetup(cmd *cobra.Command, args []string) error {
+	if IsMachineOutput() {
+		return output.ErrUsageHint("setup requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
+	}
+
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI setup!")
 	fmt.Println()

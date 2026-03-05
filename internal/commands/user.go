@@ -25,6 +25,9 @@ var userListCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(userListAll); err != nil {
+			return err
+		}
 
 		client := getClient()
 		path := "/users.json"
@@ -64,7 +67,7 @@ var userListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy user list --page %d", nextPage), "Next page"))
 		}
 
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, userColumns, hasNext, resp.LinkNext, userListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -93,7 +96,7 @@ var userShowCmd = &cobra.Command{
 			breadcrumb("assign", fmt.Sprintf("fizzy card assign <number> --user %s", userID), "Assign to card"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printDetail(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -140,7 +143,7 @@ var userUpdateCmd = &cobra.Command{
 			if data == nil {
 				data = map[string]any{}
 			}
-			printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+			printMutation(data, "", breadcrumbs)
 			return nil
 		}
 
@@ -164,7 +167,7 @@ var userUpdateCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -191,7 +194,7 @@ var userDeactivateCmd = &cobra.Command{
 			breadcrumb("people", "fizzy user list", "List users"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deactivated": true,
 		}, "", breadcrumbs)
 		return nil

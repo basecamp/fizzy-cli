@@ -56,7 +56,7 @@ var columnListCmd = &cobra.Command{
 			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 		}
 
-		printSuccessWithBreadcrumbs(cols, summary, breadcrumbs)
+		printList(cols, columnColumns, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -81,7 +81,7 @@ var columnShowCmd = &cobra.Command{
 			breadcrumbs := []Breadcrumb{
 				breadcrumb("columns", "fizzy column list --board <board_id>", "List columns"),
 			}
-			printSuccessWithBreadcrumbs(pseudoColumnObject(pseudo), "", breadcrumbs)
+			printDetail(pseudoColumnObject(pseudo), "", breadcrumbs)
 			return nil
 		}
 
@@ -102,7 +102,7 @@ var columnShowCmd = &cobra.Command{
 			breadcrumb("update", fmt.Sprintf("fizzy column update %s --board %s", columnID, boardID), "Update column"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printDetail(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -167,7 +167,7 @@ var columnCreateCmd = &cobra.Command{
 					}
 				}
 
-				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
 				return nil
 			}
 			printSuccessWithLocation(resp.Location)
@@ -229,7 +229,7 @@ var columnUpdateCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy column show %s --board %s", columnID, boardID), "View column"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -268,7 +268,7 @@ var columnDeleteCmd = &cobra.Command{
 			breadcrumb("create", fmt.Sprintf("fizzy column create --board %s --name \"name\"", boardID), "Create column"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 		return nil

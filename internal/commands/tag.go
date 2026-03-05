@@ -25,6 +25,9 @@ var tagListCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(tagListAll); err != nil {
+			return err
+		}
 
 		client := getClient()
 		path := "/tags.json"
@@ -64,7 +67,7 @@ var tagListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy tag list --page %d", nextPage), "Next page"))
 		}
 
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, tagColumns, hasNext, resp.LinkNext, tagListAll, summary, breadcrumbs)
 		return nil
 	},
 }

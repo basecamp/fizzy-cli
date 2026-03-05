@@ -25,6 +25,9 @@ var boardListCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(boardListAll); err != nil {
+			return err
+		}
 
 		client := getClient()
 		path := "/boards.json"
@@ -65,7 +68,7 @@ var boardListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy board list --page %d", nextPage), "Next page"))
 		}
 
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, boardColumns, hasNext, resp.LinkNext, boardListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -103,7 +106,7 @@ var boardShowCmd = &cobra.Command{
 			breadcrumb("create-card", fmt.Sprintf("fizzy card create --board %s --title \"title\"", boardID), "Create card"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		printDetail(resp.Data, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -169,7 +172,7 @@ var boardCreateCmd = &cobra.Command{
 					}
 				}
 
-				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
 				return nil
 			}
 			// If follow fails, just return success with location
@@ -227,7 +230,7 @@ var boardUpdateCmd = &cobra.Command{
 			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -254,7 +257,7 @@ var boardDeleteCmd = &cobra.Command{
 			breadcrumb("create", "fizzy board create --name \"name\"", "Create new board"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 		return nil

@@ -64,6 +64,10 @@ func init() {
 }
 
 func runSkill(cmd *cobra.Command, args []string) error {
+	if IsMachineOutput() {
+		return output.ErrUsageHint("skill requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
+	}
+
 	fmt.Println()
 	fmt.Println("Fizzy Skill Installation")
 	fmt.Println()

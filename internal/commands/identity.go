@@ -31,7 +31,7 @@ var identityShowCmd = &cobra.Command{
 			breadcrumb("status", "fizzy auth status", "Auth status"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printDetail(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }

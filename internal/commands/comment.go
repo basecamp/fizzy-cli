@@ -27,6 +27,9 @@ var commentListCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(commentListAll); err != nil {
+			return err
+		}
 
 		if commentListCard == "" {
 			return newRequiredFlagError("card")
@@ -63,7 +66,7 @@ var commentListCmd = &cobra.Command{
 		}
 
 		hasNext := resp.LinkNext != ""
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, commentColumns, hasNext, resp.LinkNext, commentListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -101,7 +104,7 @@ var commentShowCmd = &cobra.Command{
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printDetail(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -168,14 +171,14 @@ var commentCreateCmd = &cobra.Command{
 		if resp.Location != "" {
 			followResp, err := client.FollowLocation(resp.Location)
 			if err == nil && followResp != nil {
-				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
 				return nil
 			}
 			printSuccessWithLocation(resp.Location)
 			return nil
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -230,7 +233,7 @@ var commentUpdateCmd = &cobra.Command{
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -266,7 +269,7 @@ var commentDeleteCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 		return nil

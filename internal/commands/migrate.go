@@ -123,14 +123,14 @@ func runMigrateBoard(cmd *cobra.Command, args []string) error {
 	// Dry run: just show what would be done
 	if migrateBoardDryRun {
 		printDryRunSummary(boardName, sourceColumns, sourceCards)
-		printSuccess(map[string]any{
+		printMutation(map[string]any{
 			"dry_run":      true,
 			"board":        boardName,
 			"columns":      len(sourceColumns),
 			"cards":        len(sourceCards),
 			"from_account": migrateBoardFrom,
 			"to_account":   migrateBoardTo,
-		})
+		}, "", nil)
 		return nil
 	}
 
@@ -198,7 +198,7 @@ func runMigrateBoard(cmd *cobra.Command, args []string) error {
 	// Print summary
 	printMigrationSummary(stats)
 
-	printSuccess(map[string]any{
+	printMutation(map[string]any{
 		"migrated":         true,
 		"board_id":         stats.targetBoardID,
 		"board_name":       stats.targetBoardName,
@@ -209,7 +209,7 @@ func runMigrateBoard(cmd *cobra.Command, args []string) error {
 		"steps_created":    stats.stepsCreated,
 		"images_migrated":  stats.imagesMigrated,
 		"card_mapping":     stats.cardMapping,
-	})
+	}, "", nil)
 
 	return nil
 }

@@ -41,7 +41,7 @@ var pinListCmd = &cobra.Command{
 			breadcrumb("pin", "fizzy card pin <number>", "Pin a card"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		printList(resp.Data, pinColumns, summary, breadcrumbs)
 		return nil
 	},
 }

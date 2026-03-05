@@ -25,6 +25,9 @@ var notificationListCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(notificationListAll); err != nil {
+			return err
+		}
 
 		client := getClient()
 		path := "/notifications.json"
@@ -73,7 +76,7 @@ var notificationListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy notification list --page %d", nextPage), "Next page"))
 		}
 
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, notificationColumns, hasNext, resp.LinkNext, notificationListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -103,7 +106,7 @@ var notificationReadCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -133,7 +136,7 @@ var notificationUnreadCmd = &cobra.Command{
 		if data == nil {
 			data = map[string]any{}
 		}
-		printSuccessWithBreadcrumbs(data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -158,7 +161,7 @@ var notificationReadAllCmd = &cobra.Command{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -208,7 +211,7 @@ var notificationTrayCmd = &cobra.Command{
 			breadcrumb("list", "fizzy notification list", "List all notifications"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, summary, breadcrumbs)
+		printList(resp.Data, notificationColumns, summary, breadcrumbs)
 		return nil
 	},
 }

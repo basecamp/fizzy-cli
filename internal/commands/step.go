@@ -44,7 +44,7 @@ var stepShowCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printDetail(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -99,14 +99,14 @@ var stepCreateCmd = &cobra.Command{
 		if resp.Location != "" {
 			followResp, err := client.FollowLocation(resp.Location)
 			if err == nil && followResp != nil {
-				printSuccessWithLocationAndBreadcrumbs(followResp.Data, resp.Location, breadcrumbs)
+				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
 				return nil
 			}
 			printSuccessWithLocation(resp.Location)
 			return nil
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -162,7 +162,7 @@ var stepUpdateCmd = &cobra.Command{
 			breadcrumb("card", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		printSuccessWithBreadcrumbs(resp.Data, "", breadcrumbs)
+		printMutation(resp.Data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -198,7 +198,7 @@ var stepDeleteCmd = &cobra.Command{
 			breadcrumb("step", fmt.Sprintf("fizzy step create --card %s --content \"text\"", cardNumber), "Add step"),
 		}
 
-		printSuccessWithBreadcrumbs(map[string]any{
+		printMutation(map[string]any{
 			"deleted": true,
 		}, "", breadcrumbs)
 		return nil

@@ -36,7 +36,7 @@ var uploadFileCmd = &cobra.Command{
 			return err
 		}
 
-		printSuccess(resp.Data)
+		printMutation(resp.Data, "", nil)
 		return nil
 	},
 }

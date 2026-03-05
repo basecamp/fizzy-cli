@@ -58,7 +58,7 @@ var commentAttachmentsShowCmd = &cobra.Command{
 			breadcrumb("card-attachments", fmt.Sprintf("fizzy card attachments show %s", commentAttachmentsShowCard), "Card attachments"),
 		}
 
-		printSuccessWithBreadcrumbs(attachments, summary, breadcrumbs)
+		printList(attachments, attachmentColumns, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -139,10 +139,10 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			})
 		}
 
-		printSuccess(map[string]any{
+		printMutation(map[string]any{
 			"downloaded": len(results),
 			"files":      results,
-		})
+		}, "", nil)
 		return nil
 	},
 }

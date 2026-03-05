@@ -72,7 +72,7 @@ Use --include-comments to also include attachments from comments on the card.`,
 			}
 		}
 
-		printSuccess(attachments)
+		printList(attachments, attachmentColumns, "", nil)
 		return nil
 	},
 }
@@ -164,10 +164,10 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 			})
 		}
 
-		printSuccess(map[string]any{
+		printMutation(map[string]any{
 			"downloaded": len(results),
 			"files":      results,
-		})
+		}, "", nil)
 		return nil
 	},
 }

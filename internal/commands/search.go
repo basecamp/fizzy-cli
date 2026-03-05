@@ -26,6 +26,9 @@ var searchCmd = &cobra.Command{
 		if err := requireAuthAndAccount(); err != nil {
 			return err
 		}
+		if err := checkLimitAll(searchAll); err != nil {
+			return err
+		}
 
 		query := strings.Join(args, " ")
 
@@ -88,7 +91,7 @@ var searchCmd = &cobra.Command{
 		}
 
 		hasNext := resp.LinkNext != ""
-		printSuccessWithPaginationAndBreadcrumbs(resp.Data, hasNext, resp.LinkNext, summary, breadcrumbs)
+		printListPaginated(resp.Data, searchColumns, hasNext, resp.LinkNext, searchAll, summary, breadcrumbs)
 		return nil
 	},
 }
