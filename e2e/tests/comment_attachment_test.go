@@ -88,8 +88,8 @@ func TestCommentAttachmentsShow(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		arr := result.GetDataArray()
@@ -157,8 +157,8 @@ func TestCommentAttachmentsShow(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d", harness.ExitSuccess, result.ExitCode)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		arr := result.GetDataArray()
@@ -204,8 +204,8 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 				harness.ExitSuccess, result.ExitCode, result.Stderr, result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Verify file was downloaded
@@ -248,8 +248,8 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 				harness.ExitSuccess, result.ExitCode, result.Stderr, result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		data := result.GetDataMap()
@@ -282,8 +282,8 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 				harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		downloadedFile := filepath.Join(tempDir, customFilename)
@@ -322,8 +322,8 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 				harness.ExitNotFound, result.ExitCode, result.Stdout)
 		}
 
-		if result.Response != nil && result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response != nil && result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 
@@ -337,8 +337,8 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 				harness.ExitInvalidArgs, result.ExitCode, result.Stdout)
 		}
 
-		if result.Response != nil && result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response != nil && result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 
@@ -352,8 +352,8 @@ func TestCommentAttachmentsDownload(t *testing.T) {
 				harness.ExitInvalidArgs, result.ExitCode, result.Stdout)
 		}
 
-		if result.Response != nil && result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response != nil && result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 
@@ -382,8 +382,8 @@ func TestCardAttachmentsIncludeComments(t *testing.T) {
 				harness.ExitSuccess, result.ExitCode, result.Stderr, result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		arr := result.GetDataArray()
@@ -408,8 +408,8 @@ func TestCardAttachmentsIncludeComments(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d", harness.ExitSuccess, result.ExitCode)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		arr := result.GetDataArray()
@@ -440,8 +440,8 @@ func TestCardAttachmentsIncludeComments(t *testing.T) {
 				harness.ExitSuccess, result.ExitCode, result.Stderr, result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		downloadedFile := filepath.Join(tempDir, expectedFilename)

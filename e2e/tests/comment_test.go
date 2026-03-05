@@ -52,8 +52,8 @@ func TestCommentList(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		arr := result.GetDataArray()
@@ -102,8 +102,8 @@ func TestCommentCRUD(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Create returns location - extract ID from it
@@ -167,8 +167,8 @@ func TestCommentCRUD(t *testing.T) {
 			h.Cleanup.AddComment(id, cardNumber)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 	})
 
@@ -187,8 +187,8 @@ func TestCommentCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		id := result.GetDataString("id")
@@ -213,8 +213,8 @@ func TestCommentCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Verify the body was actually updated by fetching the comment
@@ -258,8 +258,8 @@ func TestCommentCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		deleted := result.GetDataBool("deleted")

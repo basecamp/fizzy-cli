@@ -20,8 +20,8 @@ func TestNotificationList(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		arr := result.GetDataArray()
@@ -37,7 +37,7 @@ func TestNotificationList(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d", harness.ExitSuccess, result.ExitCode)
 		}
 
-		if result.Response == nil || !result.Response.Success {
+		if result.Response == nil || !result.Response.OK {
 			t.Error("expected successful response")
 		}
 	})
@@ -86,8 +86,8 @@ func TestNotificationReadUnread(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -102,8 +102,8 @@ func TestNotificationReadUnread(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 }
@@ -122,8 +122,8 @@ func TestNotificationTray(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		arr := result.GetDataArray()
@@ -143,8 +143,8 @@ func TestNotificationTray(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		arr := result.GetDataArray()
@@ -168,8 +168,8 @@ func TestNotificationReadAll(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 }
@@ -189,8 +189,8 @@ func TestNotificationReadNotFound(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 }

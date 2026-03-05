@@ -22,8 +22,8 @@ func TestBoardList(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Data should be an array (may be empty)
@@ -46,8 +46,8 @@ func TestBoardList(t *testing.T) {
 
 		// Pagination may or may not have results depending on data
 		// Just verify the command works
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 	})
 
@@ -63,8 +63,12 @@ func TestBoardList(t *testing.T) {
 		}
 
 		// When using --all, pagination should show no next page
-		if result.Response.Pagination != nil && result.Response.Pagination.HasNext {
-			t.Error("with --all, expected has_next=false")
+		if ctx := result.Response.Context; ctx != nil {
+			if pagination, ok := ctx["pagination"].(map[string]interface{}); ok {
+				if hasNext, _ := pagination["has_next"].(bool); hasNext {
+					t.Error("with --all, expected has_next=false")
+				}
+			}
 		}
 	})
 }
@@ -88,8 +92,8 @@ func TestBoardCRUD(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Create returns location, not data - extract ID from location
@@ -130,8 +134,8 @@ func TestBoardCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		id := result.GetDataString("id")
@@ -156,8 +160,8 @@ func TestBoardCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Note: Update returns success but no data - verify via show
@@ -185,8 +189,8 @@ func TestBoardCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		deleted := result.GetDataBool("deleted")
@@ -216,7 +220,7 @@ func TestBoardCreateWithOptions(t *testing.T) {
 			h.Cleanup.AddBoard(boardID)
 		}
 
-		if result.Response == nil || !result.Response.Success {
+		if result.Response == nil || !result.Response.OK {
 			t.Error("expected successful response")
 		}
 	})
@@ -234,7 +238,7 @@ func TestBoardCreateWithOptions(t *testing.T) {
 			h.Cleanup.AddBoard(boardID)
 		}
 
-		if result.Response == nil || !result.Response.Success {
+		if result.Response == nil || !result.Response.OK {
 			t.Error("expected successful response")
 		}
 	})
@@ -268,14 +272,14 @@ func TestBoardShowNotFound(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 
-		if result.Response.Error == nil {
+		if result.Response.Error == "" {
 			t.Error("expected error in response")
-		} else if result.Response.Error.Code != "NOT_FOUND" {
-			t.Errorf("expected error code NOT_FOUND, got %s", result.Response.Error.Code)
+		} else if result.Response.Code != "not_found" {
+			t.Errorf("expected error code not_found, got %s", result.Response.Code)
 		}
 	})
 }
@@ -294,8 +298,8 @@ func TestBoardDeleteNotFound(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 }

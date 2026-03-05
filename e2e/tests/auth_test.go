@@ -39,8 +39,8 @@ func TestAuthStatus(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		data := result.GetDataMap()
@@ -81,8 +81,8 @@ func TestAuthStatusWithoutToken(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		data := result.GetDataMap()

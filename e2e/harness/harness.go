@@ -33,27 +33,25 @@ type Harness struct {
 }
 
 // Response represents the JSON response envelope from the CLI.
+// Handles both success and error envelopes in a single struct.
 type Response struct {
-	Success    bool           `json:"success"`
-	Data       any            `json:"data,omitempty"`
-	Error      *ErrorDetail   `json:"error,omitempty"`
-	Pagination *Pagination    `json:"pagination,omitempty"`
-	Location   string         `json:"location,omitempty"`
-	Meta       map[string]any `json:"meta,omitempty"`
+	OK          bool                   `json:"ok"`
+	Data        any                    `json:"data,omitempty"`
+	Error       string                 `json:"error,omitempty"`
+	Code        string                 `json:"code,omitempty"`
+	Hint        string                 `json:"hint,omitempty"`
+	Summary     string                 `json:"summary,omitempty"`
+	Notice      string                 `json:"notice,omitempty"`
+	Breadcrumbs []Breadcrumb           `json:"breadcrumbs,omitempty"`
+	Context     map[string]interface{} `json:"context,omitempty"`
+	Meta        map[string]any         `json:"meta,omitempty"`
 }
 
-// ErrorDetail represents an error in the response.
-type ErrorDetail struct {
-	Code    string `json:"code"`
-	Message string `json:"message"`
-	Status  int    `json:"status,omitempty"`
-	Details any    `json:"details,omitempty"`
-}
-
-// Pagination represents pagination info in the response.
-type Pagination struct {
-	HasNext bool   `json:"has_next"`
-	NextURL string `json:"next_url,omitempty"`
+// Breadcrumb represents a suggested next action.
+type Breadcrumb struct {
+	Action      string `json:"action"`
+	Cmd         string `json:"cmd"`
+	Description string `json:"description"`
 }
 
 // Result contains the output from a CLI command execution.
@@ -83,16 +81,23 @@ type Config struct {
 	UserID     string
 }
 
-// Exit codes used by the CLI.
+// Exit codes aligned to the shared rubric.
 const (
-	ExitSuccess     = 0
-	ExitError       = 1
-	ExitInvalidArgs = 2
-	ExitAuthFailure = 3
-	ExitForbidden   = 4
-	ExitNotFound    = 5
-	ExitValidation  = 6
-	ExitNetwork     = 7
+	ExitSuccess   = 0
+	ExitUsage     = 1
+	ExitNotFound  = 2
+	ExitAuth      = 3
+	ExitForbidden = 4
+	ExitRateLimit = 5
+	ExitNetwork   = 6
+	ExitAPI       = 7
+	ExitAmbiguous = 8
+
+	// Deprecated aliases — kept for compilation.
+	ExitError       = ExitAPI
+	ExitInvalidArgs = ExitUsage
+	ExitAuthFailure = ExitAuth
+	ExitValidation  = ExitAPI
 )
 
 // LoadConfig loads test configuration from environment variables.
@@ -290,12 +295,16 @@ func (r *Result) GetDataMap() map[string]any {
 	return data
 }
 
-// GetLocation returns the location URL from the response.
+// GetLocation returns the location URL from the response context.
 func (r *Result) GetLocation() string {
-	if r.Response == nil {
+	if r.Response == nil || r.Response.Context == nil {
 		return ""
 	}
-	return r.Response.Location
+	loc, ok := r.Response.Context["location"].(string)
+	if !ok {
+		return ""
+	}
+	return loc
 }
 
 // GetIDFromLocation extracts the resource ID from the location URL.

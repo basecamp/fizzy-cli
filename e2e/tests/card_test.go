@@ -47,8 +47,8 @@ func TestCardList(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Data should be an array
@@ -69,8 +69,8 @@ func TestCardList(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 	})
 
@@ -126,8 +126,8 @@ func TestCardListWithFilters(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d", harness.ExitSuccess, result.ExitCode)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		arr := result.GetDataArray()
@@ -189,8 +189,8 @@ func TestCardCRUD(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Create returns location - extract number from it
@@ -231,8 +231,8 @@ func TestCardCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		num := result.GetDataInt("number")
@@ -257,8 +257,8 @@ func TestCardCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		title := result.GetDataString("title")
@@ -282,8 +282,8 @@ func TestCardCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		deleted := result.GetDataBool("deleted")
@@ -323,8 +323,8 @@ func TestCardCreateWithDescription(t *testing.T) {
 			h.Cleanup.AddCard(cardNumber)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Verify the description was actually saved by fetching the card
@@ -380,8 +380,8 @@ func TestCardCreateWithDescription(t *testing.T) {
 			h.Cleanup.AddCard(cardNumber)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 	})
 }
@@ -416,8 +416,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -428,8 +428,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -440,8 +440,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -452,8 +452,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -464,8 +464,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -477,8 +477,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -489,8 +489,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -501,8 +501,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -513,8 +513,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Verify card is now golden
@@ -534,8 +534,8 @@ func TestCardActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Verify card is no longer golden
@@ -595,8 +595,8 @@ func TestCardColumn(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -607,8 +607,8 @@ func TestCardColumn(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 }
@@ -628,11 +628,11 @@ func TestCardShowNotFound(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 
-		if result.Response.Error == nil {
+		if result.Response.Error == "" {
 			t.Error("expected error in response")
 		}
 	})
@@ -814,8 +814,8 @@ func TestCardImageRemove(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -852,8 +852,8 @@ func TestCardImageRemove(t *testing.T) {
 				harness.ExitNotFound, result.ExitCode, result.Stdout)
 		}
 
-		if result.Response != nil && result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response != nil && result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 }

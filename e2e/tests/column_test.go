@@ -25,8 +25,8 @@ func TestColumnList(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		arr := result.GetDataArray()
@@ -66,8 +66,8 @@ func TestColumnCRUD(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Create returns location - extract ID from it
@@ -111,8 +111,8 @@ func TestColumnCRUD(t *testing.T) {
 			h.Cleanup.AddColumn(id, boardID)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Verify the name and color were actually saved
@@ -153,8 +153,8 @@ func TestColumnCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		id := result.GetDataString("id")
@@ -179,8 +179,8 @@ func TestColumnCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Note: Update may return success without data - verify via show
@@ -208,8 +208,8 @@ func TestColumnCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		deleted := result.GetDataBool("deleted")
@@ -242,8 +242,8 @@ func TestColumnShowNotFound(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 }

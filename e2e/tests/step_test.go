@@ -32,8 +32,8 @@ func TestStepCRUD(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		// Create returns location - extract ID from it
@@ -76,8 +76,8 @@ func TestStepCRUD(t *testing.T) {
 			h.Cleanup.AddStep(id, cardNumber)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Note: Create returns location, not data - verify via show
@@ -107,8 +107,8 @@ func TestStepCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		id := result.GetDataString("id")
@@ -133,8 +133,8 @@ func TestStepCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		content := result.GetDataString("content")
@@ -158,8 +158,8 @@ func TestStepCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		completed := result.GetDataBool("completed")
@@ -183,8 +183,8 @@ func TestStepCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		completed := result.GetDataBool("completed")
@@ -208,8 +208,8 @@ func TestStepCRUD(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		deleted := result.GetDataBool("deleted")
@@ -261,8 +261,8 @@ func TestStepShowNotFound(t *testing.T) {
 			t.Fatal("expected JSON response")
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 }

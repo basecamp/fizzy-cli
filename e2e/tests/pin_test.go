@@ -38,8 +38,8 @@ func TestPinActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -50,8 +50,8 @@ func TestPinActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 
 		arr := result.GetDataArray()
@@ -83,8 +83,8 @@ func TestPinActions(t *testing.T) {
 			t.Errorf("expected exit code %d, got %d\nstderr: %s", harness.ExitSuccess, result.ExitCode, result.Stderr)
 		}
 
-		if !result.Response.Success {
-			t.Errorf("expected success=true, error: %+v", result.Response.Error)
+		if !result.Response.OK {
+			t.Errorf("expected ok=true, error: %+v", result.Response.Error)
 		}
 	})
 
@@ -127,8 +127,8 @@ func TestPinList(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		// Data should be an array
@@ -149,8 +149,8 @@ func TestPinNotFound(t *testing.T) {
 			t.Error("expected non-zero exit code for non-existent card")
 		}
 
-		if result.Response != nil && result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response != nil && result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 
@@ -161,8 +161,8 @@ func TestPinNotFound(t *testing.T) {
 			t.Error("expected non-zero exit code for non-existent card")
 		}
 
-		if result.Response != nil && result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response != nil && result.Response.OK {
+			t.Error("expected ok=false")
 		}
 	})
 }

@@ -20,8 +20,8 @@ func TestIdentityShow(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if !result.Response.Success {
-			t.Error("expected success=true")
+		if !result.Response.OK {
+			t.Error("expected ok=true")
 		}
 
 		data := result.GetDataMap()
@@ -81,14 +81,14 @@ func TestIdentityShowWithInvalidToken(t *testing.T) {
 			t.Fatalf("expected JSON response, got nil\nstdout: %s", result.Stdout)
 		}
 
-		if result.Response.Success {
-			t.Error("expected success=false")
+		if result.Response.OK {
+			t.Error("expected ok=false")
 		}
 
-		if result.Response.Error == nil {
+		if result.Response.Error == "" {
 			t.Error("expected error in response")
-		} else if result.Response.Error.Code != "AUTH_ERROR" {
-			t.Errorf("expected error code AUTH_ERROR, got %s", result.Response.Error.Code)
+		} else if result.Response.Code != "auth_required" {
+			t.Errorf("expected error code AUTH_ERROR, got %s", result.Response.Code)
 		}
 	})
 }
