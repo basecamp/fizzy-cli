@@ -1,0 +1,23 @@
+internal/commands/banner.go
+  916c2161245f5a16 31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "2e4f054e9d5dd5e81eab4f8b7afbbfffa8a611dd",
+  "prompts": {
+    "916c2161245f5a16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cb16b1e-d081-41a3-a9c4-e3a67e62d8fb",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 3,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
