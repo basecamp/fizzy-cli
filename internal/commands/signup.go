@@ -8,7 +8,6 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -698,8 +697,9 @@ func setSignedCookie(client *http.Client, apiURL, name, value string) {
 
 // validateSignupURL checks that a URL is safe to use for signup HTTP requests.
 // Only http:// and https:// schemes are allowed. Plain http:// is restricted to
-// loopback addresses (localhost, 127.0.0.1, [::1]) to prevent SSRF against
-// internal network services.
+// literal loopback addresses (localhost, 127.0.0.1, [::1]) to prevent SSRF
+// against internal network services. No DNS resolution is performed to avoid
+// TOCTOU races between validation and connection time.
 func validateSignupURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -713,16 +713,6 @@ func validateSignupURL(rawURL string) error {
 		host := u.Hostname()
 		if host == "localhost" || host == "127.0.0.1" || host == "::1" {
 			return nil
-		}
-		// Resolve the hostname to check for loopback IPs
-		resolver := &net.Resolver{}
-		ips, err := resolver.LookupHost(context.Background(), host)
-		if err == nil {
-			for _, ip := range ips {
-				if net.ParseIP(ip).IsLoopback() {
-					return nil
-				}
-			}
 		}
 		return fmt.Errorf("http:// is only allowed for localhost; use https:// for remote hosts")
 	default:
