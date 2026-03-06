@@ -678,16 +678,17 @@ func resolveProfile() error {
 		return nil
 	}
 
+	envProfile := profileEnvVar()
 	resolved, err := profile.Resolve(profile.ResolveOptions{
 		FlagValue:      cfgProfile,
-		EnvVar:         profileEnvVar(),
+		EnvVar:         envProfile,
 		DefaultProfile: defaultName,
 		Profiles:       allProfiles,
 	})
 	if err != nil {
 		// If the user explicitly specified a profile (flag or env), that's a
 		// hard error — don't silently fall back to a different account.
-		if cfgProfile != "" || profileEnvVar() != "" {
+		if cfgProfile != "" || envProfile != "" {
 			return err
 		}
 		// Otherwise (ambiguous default, etc.) — not fatal, just skip profile
