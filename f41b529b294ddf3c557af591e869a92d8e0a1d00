@@ -1,0 +1,23 @@
+internal/commands/auth_test.go
+  a0163b87a4191dda 1198-1377
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "f41b529b294ddf3c557af591e869a92d8e0a1d00",
+  "prompts": {
+    "a0163b87a4191dda": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0675a580-ecc9-4720-bcc4-cc5aeca6df2c",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 180,
+      "overriden_lines": 0
+    }
+  }
+}
