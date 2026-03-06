@@ -300,8 +300,7 @@ func TestSignupComplete(t *testing.T) {
 		})
 		defer server.Close()
 
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
+		tempDir := t.TempDir()
 		config.SetTestConfigDir(tempDir)
 		defer config.ResetTestConfigDir()
 
@@ -362,9 +361,7 @@ func TestSignupComplete(t *testing.T) {
 		})
 		defer server.Close()
 
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		mock := NewMockClient()
@@ -435,9 +432,7 @@ func TestSignupComplete(t *testing.T) {
 		})
 		defer server.Close()
 
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		mock := NewMockClient()
@@ -540,9 +535,7 @@ func TestSignupPostReturnsHTTPError(t *testing.T) {
 
 func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
 	t.Run("hosted signup clears previously saved self-hosted URL", func(t *testing.T) {
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		// Seed config with a self-hosted URL
@@ -573,9 +566,7 @@ func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
 	})
 
 	t.Run("self-hosted signup preserves custom URL", func(t *testing.T) {
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		err := saveSignupConfig("token", "acct", "https://custom.example.com")
