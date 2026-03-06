@@ -723,7 +723,11 @@ func profileEnvVar() string {
 	if v := os.Getenv("FIZZY_PROFILE"); v != "" {
 		return v
 	}
-	return os.Getenv("FIZZY_ACCOUNT")
+	if v := os.Getenv("FIZZY_ACCOUNT"); v != "" {
+		fmt.Fprintln(os.Stderr, "Warning: FIZZY_ACCOUNT is deprecated, use FIZZY_PROFILE instead")
+		return v
+	}
+	return ""
 }
 
 // resolveToken applies token precedence: YAML → credstore (with migration) → env → flag.
