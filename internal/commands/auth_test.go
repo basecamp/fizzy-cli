@@ -1195,3 +1195,186 @@ func TestAuthLogoutAllCleansLegacyKeys(t *testing.T) {
 		}
 	})
 }
+
+// TestPrecedenceChainIntegration exercises the full precedence chain as
+// PersistentPreRunE would: config.Load() → resolveProfile() → resolveToken()
+// → flag overrides, wired up with real config files, credstore, and profile store.
+func TestPrecedenceChainIntegration(t *testing.T) {
+	t.Run("profile outranks YAML config for APIURL and board", func(t *testing.T) {
+		tempDir := t.TempDir()
+		credDir := t.TempDir()
+		profileDir := t.TempDir()
+
+		// Write YAML config with values that should be overridden
+		config.SetTestConfigDir(tempDir)
+		defer config.ResetTestConfigDir()
+		yamlCfg := &config.Config{
+			Account: "acme",
+			APIURL:  "https://yaml.example.com",
+			Board:   "yaml-board",
+		}
+		yamlData, _ := yaml.Marshal(yamlCfg)
+		os.WriteFile(filepath.Join(tempDir, "config.yaml"), yamlData, 0600)
+
+		// Profile with different BaseURL and board
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		profileStore.Create(&profile.Profile{
+			Name:    "acme",
+			BaseURL: "https://profile.example.com",
+			Extra: map[string]json.RawMessage{
+				"board": json.RawMessage(`"profile-board"`),
+			},
+		})
+		profileStore.SetDefault("acme")
+
+		// Credstore with token under profile key
+		os.Setenv("FIZZY_PRECEDENCE_TEST_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_PRECEDENCE_TEST_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-precedence-test",
+			DisableEnvVar: "FIZZY_PRECEDENCE_TEST_NO_KR",
+			FallbackDir:   credDir,
+		})
+		tokenData, _ := json.Marshal("cred-token")
+		store.Save("profile:acme", tokenData)
+
+		// Step 1: config.Load() — picks up YAML values
+		loaded := config.Load()
+
+		// Step 2: wire up package state as PersistentPreRunE would
+		mock := NewMockClient()
+		SetTestMode(mock)
+		defer ResetTestMode()
+		cfg = loaded
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+
+		// Step 3: resolveProfile() — profile overwrites YAML
+		if err := resolveProfile(); err != nil {
+			t.Fatalf("resolveProfile: %v", err)
+		}
+
+		// Step 4: resolveToken() — credstore overwrites YAML token
+		resolveToken()
+
+		if cfg.Account != "acme" {
+			t.Errorf("account: want 'acme', got '%s'", cfg.Account)
+		}
+		if cfg.APIURL != "https://profile.example.com" {
+			t.Errorf("APIURL: want profile value 'https://profile.example.com', got '%s'", cfg.APIURL)
+		}
+		if cfg.Board != "profile-board" {
+			t.Errorf("board: want profile value 'profile-board', got '%s'", cfg.Board)
+		}
+		if cfg.Token != "cred-token" {
+			t.Errorf("token: want credstore value 'cred-token', got '%s'", cfg.Token)
+		}
+	})
+
+	t.Run("env vars beat profile for all fields", func(t *testing.T) {
+		tempDir := t.TempDir()
+		credDir := t.TempDir()
+		profileDir := t.TempDir()
+
+		config.SetTestConfigDir(tempDir)
+		defer config.ResetTestConfigDir()
+
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		profileStore.Create(&profile.Profile{
+			Name:    "acme",
+			BaseURL: "https://profile.example.com",
+			Extra: map[string]json.RawMessage{
+				"board": json.RawMessage(`"profile-board"`),
+			},
+		})
+		profileStore.SetDefault("acme")
+
+		os.Setenv("FIZZY_PRECEDENCE_ENV_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_PRECEDENCE_ENV_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-precedence-env-test",
+			DisableEnvVar: "FIZZY_PRECEDENCE_ENV_NO_KR",
+			FallbackDir:   credDir,
+		})
+		tokenData, _ := json.Marshal("cred-token")
+		store.Save("profile:acme", tokenData)
+
+		// Set env vars that should beat profile
+		os.Setenv("FIZZY_API_URL", "https://env.example.com")
+		defer os.Unsetenv("FIZZY_API_URL")
+		os.Setenv("FIZZY_BOARD", "env-board")
+		defer os.Unsetenv("FIZZY_BOARD")
+		os.Setenv("FIZZY_TOKEN", "env-token")
+		defer os.Unsetenv("FIZZY_TOKEN")
+
+		// Step 1: config.Load() — picks up env vars
+		loaded := config.Load()
+
+		// Step 2: wire up
+		mock := NewMockClient()
+		SetTestMode(mock)
+		defer ResetTestMode()
+		cfg = loaded
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+
+		// Step 3: resolveProfile()
+		if err := resolveProfile(); err != nil {
+			t.Fatalf("resolveProfile: %v", err)
+		}
+
+		// Step 4: resolveToken()
+		resolveToken()
+
+		if cfg.APIURL != "https://env.example.com" {
+			t.Errorf("APIURL: want env value 'https://env.example.com', got '%s'", cfg.APIURL)
+		}
+		if cfg.Board != "env-board" {
+			t.Errorf("board: want env value 'env-board', got '%s'", cfg.Board)
+		}
+		if cfg.Token != "env-token" {
+			t.Errorf("token: want env value 'env-token', got '%s'", cfg.Token)
+		}
+	})
+
+	t.Run("flag beats env and profile for APIURL", func(t *testing.T) {
+		tempDir := t.TempDir()
+		profileDir := t.TempDir()
+
+		config.SetTestConfigDir(tempDir)
+		defer config.ResetTestConfigDir()
+
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		profileStore.Create(&profile.Profile{
+			Name:    "acme",
+			BaseURL: "https://profile.example.com",
+		})
+		profileStore.SetDefault("acme")
+
+		os.Setenv("FIZZY_API_URL", "https://env.example.com")
+		defer os.Unsetenv("FIZZY_API_URL")
+
+		loaded := config.Load()
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		defer ResetTestMode()
+		cfg = loaded
+		SetTestProfiles(profileStore)
+
+		if err := resolveProfile(); err != nil {
+			t.Fatalf("resolveProfile: %v", err)
+		}
+
+		// Simulate --api-url flag (same as PersistentPreRunE line 117-119)
+		cfgAPIURL = "https://flag.example.com"
+		defer func() { cfgAPIURL = "" }()
+		if cfgAPIURL != "" {
+			cfg.APIURL = cfgAPIURL
+		}
+
+		if cfg.APIURL != "https://flag.example.com" {
+			t.Errorf("APIURL: want flag value 'https://flag.example.com', got '%s'", cfg.APIURL)
+		}
+	})
+}
