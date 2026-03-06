@@ -323,10 +323,20 @@ var authSwitchCmd = &cobra.Command{
 			}
 		}
 
+		// Read the target profile's board from Extra
+		var profileBoard string
+		if profiles != nil {
+			if p, err := profiles.Get(profileName); err == nil {
+				if boardRaw, ok := p.Extra["board"]; ok {
+					_ = json.Unmarshal(boardRaw, &profileBoard)
+				}
+			}
+		}
+
 		// Update YAML config for backward compat
 		globalCfg := config.LoadGlobal()
 		globalCfg.Account = profileName
-		globalCfg.Board = "" // Clear board since it's profile-specific
+		globalCfg.Board = profileBoard
 		if err := globalCfg.Save(); err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 		}
@@ -334,6 +344,7 @@ var authSwitchCmd = &cobra.Command{
 		// Update in-memory config
 		if cfg != nil {
 			cfg.Account = profileName
+			cfg.Board = profileBoard
 			if creds != nil {
 				if t, err := credsLoadProfileToken(profileName); err == nil {
 					cfg.Token = t
