@@ -120,16 +120,21 @@ This interactive command installs the [SKILL.md](skills/fizzy/SKILL.md) file to 
 
 ```
 ~/.config/fizzy/              # Global config
-└── config.yaml               #   Token, account, API URL, default board
+├── config.json               #   Named profiles (account, base URL, board)
+├── config.yaml               #   Legacy/fallback settings
+└── credentials/              #   Fallback token storage (when keyring unavailable)
 
 .fizzy.yaml                   # Per-repo (local config overrides global)
 ```
 
 Configuration priority (highest to lowest):
-1. CLI flags (`--token`, `--account`, `--api-url`, `--board`)
-2. Environment variables (`FIZZY_TOKEN`, `FIZZY_ACCOUNT`, `FIZZY_API_URL`, `FIZZY_BOARD`)
-3. Local project config (`.fizzy.yaml`)
-4. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
+1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
+2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
+3. Named profile settings (base URL, board from `config.json`)
+4. Local project config (`.fizzy.yaml`)
+5. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
+
+`FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
 ## Development
 

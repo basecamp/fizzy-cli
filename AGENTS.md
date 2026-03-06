@@ -47,10 +47,13 @@ E2E environment variables:
 ## Configuration
 
 The CLI reads config from multiple sources with this priority:
-1. CLI flags (`--token`, `--account`, `--api-url`, `--board`)
-2. Environment variables (`FIZZY_TOKEN`, `FIZZY_ACCOUNT`, `FIZZY_API_URL`, `FIZZY_BOARD`)
-3. Local project config (`.fizzy.yaml`)
-4. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
+1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
+2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
+3. Named profile settings (base URL, board from `~/.config/fizzy/config.json`)
+4. Local project config (`.fizzy.yaml`)
+5. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
+
+`FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
 ## Authentication
 

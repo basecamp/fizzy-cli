@@ -116,7 +116,7 @@ All commands support:
 | Flag | Description |
 |------|-------------|
 | `--token TOKEN` | API access token |
-| `--account SLUG` | Account slug (for multi-account users) |
+| `--profile NAME` | Named profile (for multi-account users) |
 | `--api-url URL` | API base URL (default: https://app.fizzy.do) |
 | `--json` | JSON envelope output |
 | `--quiet` | Raw JSON data without envelope |
@@ -176,10 +176,11 @@ board: 03foq1hqmyy91tuyz3ghugg6c
 ```
 
 **Priority (highest to lowest):**
-1. CLI flags (`--token`, `--account`, `--api-url`, `--board`)
-2. Environment variables (`FIZZY_TOKEN`, `FIZZY_ACCOUNT`, `FIZZY_API_URL`, `FIZZY_BOARD`)
-3. Local project config (`.fizzy.yaml`)
-4. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
+1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
+2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
+3. Named profile settings (base URL, board from `config.json`)
+4. Local project config (`.fizzy.yaml`)
+5. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
 
 **Check context:**
 ```bash
@@ -189,8 +190,12 @@ cat .fizzy.yaml 2>/dev/null || echo "No project configured"
 **Setup:**
 ```bash
 fizzy setup                              # Interactive wizard
-fizzy auth login TOKEN                   # Save token directly
+fizzy auth login TOKEN                   # Save token for current account
 fizzy auth status                        # Check auth status
+fizzy auth list                          # List all authenticated accounts
+fizzy auth switch ACCOUNT                # Switch active account
+fizzy auth logout                        # Log out current account
+fizzy auth logout --all                  # Log out all accounts
 fizzy identity show                      # Show accounts
 ```
 
@@ -229,7 +234,7 @@ rm /tmp/fizzy-session
 
 **Note:** The user must check their email for the 6-digit code between steps 1 and 2.
 The session token is written to a temp file and piped via stdin to avoid exposing it in shell history or the agent's conversation context.
-Token is saved to the system credential store when available, with ~/.config/fizzy/config.yaml as fallback. Account and API URL are always saved to the config file.
+Token is saved to the system credential store when available, with a config file as fallback. Profile and API URL are saved to `~/.config/fizzy/` (preferred) or `~/.fizzy/`.
 
 ---
 
@@ -935,7 +940,7 @@ Complete field reference for all resources. Use these exact field paths in jq qu
 | `accounts` | array | Array of Account objects |
 | `accounts[].id` | string | Account ID |
 | `accounts[].name` | string | Account name |
-| `accounts[].slug` | string | Account slug (use with --account) |
+| `accounts[].slug` | string | Account slug (use with `signup complete --account` or as profile name) |
 | `accounts[].user` | object | Your User in this account |
 
 ### Key Schema Differences
@@ -995,6 +1000,8 @@ Card descriptions and comments support HTML. For multiple paragraphs with spacin
 **Authentication errors (exit 3):**
 ```bash
 fizzy auth status                        # Check auth
+fizzy auth list                          # Check which accounts are configured
+fizzy auth switch ACCOUNT                # Switch to correct account
 fizzy auth login TOKEN                   # Re-authenticate
 fizzy setup                              # Full interactive setup
 ```
@@ -1005,8 +1012,7 @@ fizzy setup                              # Full interactive setup
 
 **Network errors (exit 6):** Check API URL configuration:
 ```bash
-fizzy auth status                        # Shows configured account
-cat ~/.config/fizzy/config.yaml          # Check api_url setting
+fizzy auth status                        # Shows configured profile and API URL
 ```
 
 ## Learn More
