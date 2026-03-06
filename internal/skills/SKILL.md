@@ -190,13 +190,13 @@ cat .fizzy.yaml 2>/dev/null || echo "No project configured"
 **Setup:**
 ```bash
 fizzy setup                              # Interactive wizard
-fizzy auth login TOKEN                   # Save token for current account
+fizzy auth login TOKEN                   # Save token for current profile
 fizzy auth status                        # Check auth status
-fizzy auth list                          # List all authenticated accounts
-fizzy auth switch ACCOUNT                # Switch active account
-fizzy auth logout                        # Log out current account
-fizzy auth logout --all                  # Log out all accounts
-fizzy identity show                      # Show accounts
+fizzy auth list                          # List all authenticated profiles
+fizzy auth switch PROFILE                # Switch active profile
+fizzy auth logout                        # Log out current profile
+fizzy auth logout --all                  # Log out all profiles
+fizzy identity show                      # Show profiles
 ```
 
 ### Signup (New User or Token Generation)
@@ -1000,8 +1000,8 @@ Card descriptions and comments support HTML. For multiple paragraphs with spacin
 **Authentication errors (exit 3):**
 ```bash
 fizzy auth status                        # Check auth
-fizzy auth list                          # Check which accounts are configured
-fizzy auth switch ACCOUNT                # Switch to correct account
+fizzy auth list                          # Check which profiles are configured
+fizzy auth switch PROFILE                # Switch to correct profile
 fizzy auth login TOKEN                   # Re-authenticate
 fizzy setup                              # Full interactive setup
 ```
