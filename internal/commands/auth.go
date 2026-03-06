@@ -131,37 +131,34 @@ var authLogoutCmd = &cobra.Command{
 }
 
 func authLogoutAll() error {
-	if creds != nil {
-		// Collect all known profile/account names to clean up every key format
-		names := map[string]bool{}
+	// Collect all known profile/account names to clean up every key format
+	names := map[string]bool{}
 
-		if profiles != nil {
-			allProfiles, _, _ := profiles.List()
-			for name := range allProfiles {
-				names[name] = true
-			}
-		}
-
-		// Also include the YAML config's Account in case it's not in the profile store
-		globalCfg := config.LoadGlobal()
-		if globalCfg.Account != "" {
-			names[globalCfg.Account] = true
-		}
-
-		for name := range names {
-			_ = credsDeleteProfileToken(name) // "profile:<name>"
-			_ = creds.Delete("token:" + name) // legacy "token:<account>"
-		}
-		// Legacy bare key
-		_ = creds.Delete("token")
-	}
-
-	// Delete all profiles from the store
 	if profiles != nil {
 		allProfiles, _, _ := profiles.List()
 		for name := range allProfiles {
+			names[name] = true
+		}
+	}
+
+	// Also include the YAML config's Account in case it's not in the profile store
+	globalCfg := config.LoadGlobal()
+	if globalCfg.Account != "" {
+		names[globalCfg.Account] = true
+	}
+
+	for name := range names {
+		if creds != nil {
+			_ = credsDeleteProfileToken(name) // "profile:<name>"
+			_ = creds.Delete("token:" + name) // legacy "token:<account>"
+		}
+		if profiles != nil {
 			_ = profiles.Delete(name)
 		}
+	}
+	if creds != nil {
+		// Legacy bare key
+		_ = creds.Delete("token")
 	}
 
 	// Clear config
