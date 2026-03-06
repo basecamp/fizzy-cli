@@ -803,7 +803,7 @@ func ensureProfile(name, baseURL, board string) {
 	existing, _ := profiles.Get(name)
 
 	newBaseURL := baseURL
-	if newBaseURL == "" || newBaseURL == config.DefaultAPIURL {
+	if newBaseURL == "" {
 		if existing != nil && existing.BaseURL != "" {
 			newBaseURL = existing.BaseURL
 		} else {
