@@ -41,6 +41,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		return output.ErrUsageHint("setup requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
 	}
 
+	printBanner()
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI setup!")
 	fmt.Println()

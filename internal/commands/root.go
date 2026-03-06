@@ -65,6 +65,10 @@ var rootCmd = &cobra.Command{
 
 Use fizzy to manage boards, cards, comments, and more from your terminal.`,
 	Version: "dev",
+	Run: func(cmd *cobra.Command, args []string) {
+		printBanner()
+		cmd.Help() //nolint:errcheck
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Resolve output format from parsed flags (must happen post-parse).
 		format, err := resolveFormat()

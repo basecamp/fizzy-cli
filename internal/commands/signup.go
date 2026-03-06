@@ -73,6 +73,7 @@ func runSignup(cmd *cobra.Command, args []string) error {
 		return output.ErrUsageHint("signup requires an interactive terminal — use subcommands (start, verify, complete) for programmatic access", "Run without --agent/--json/--quiet or in a TTY")
 	}
 
+	printBanner()
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI signup!")
 	fmt.Println()
