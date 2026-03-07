@@ -41,6 +41,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		return output.ErrUsageHint("setup requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
 	}
 
+	printBanner()
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI setup!")
 	fmt.Println()
@@ -255,6 +256,14 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 		// Create/update profile
 		ensureProfile(selectedAccountSlug, apiURL, selectedBoardID)
+		// If user chose "None (skip)", clear any previously saved board
+		if selectedBoardID == "" && profiles != nil {
+			if p, err := profiles.Get(selectedAccountSlug); err == nil {
+				delete(p.Extra, "board")
+				_ = profiles.Delete(selectedAccountSlug)
+				_ = profiles.Create(p)
+			}
+		}
 		if profiles != nil {
 			_ = profiles.SetDefault(selectedAccountSlug)
 		}

@@ -300,8 +300,7 @@ func TestSignupComplete(t *testing.T) {
 		})
 		defer server.Close()
 
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
+		tempDir := t.TempDir()
 		config.SetTestConfigDir(tempDir)
 		defer config.ResetTestConfigDir()
 
@@ -329,6 +328,14 @@ func TestSignupComplete(t *testing.T) {
 			t.Errorf("expected account '123456', got '%s'", account)
 		}
 
+		// Existing user should NOT get welcome message fields
+		if _, ok := data["is_new_user"]; ok {
+			t.Error("expected no is_new_user for existing user signup")
+		}
+		if _, ok := data["welcome_message"]; ok {
+			t.Error("expected no welcome_message for existing user signup")
+		}
+
 		// Verify config was saved
 		configPath := filepath.Join(tempDir, "config.yaml")
 		configData, err := os.ReadFile(configPath)
@@ -354,9 +361,7 @@ func TestSignupComplete(t *testing.T) {
 		})
 		defer server.Close()
 
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		mock := NewMockClient()
@@ -427,9 +432,7 @@ func TestSignupComplete(t *testing.T) {
 		})
 		defer server.Close()
 
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		mock := NewMockClient()
@@ -451,6 +454,19 @@ func TestSignupComplete(t *testing.T) {
 		}
 		if data["account"] != "123456" {
 			t.Errorf("expected account '123456', got '%s'", data["account"])
+		}
+
+		// New user should get welcome message fields
+		isNew, _ := data["is_new_user"].(bool)
+		if !isNew {
+			t.Error("expected is_new_user=true for new user signup")
+		}
+		welcomeMsg, _ := data["welcome_message"].(string)
+		if welcomeMsg == "" {
+			t.Error("expected welcome_message for new user signup")
+		}
+		if !strings.Contains(welcomeMsg, "Jason Fried") {
+			t.Error("expected welcome_message to contain CEO signoff")
 		}
 	})
 }
@@ -519,9 +535,7 @@ func TestSignupPostReturnsHTTPError(t *testing.T) {
 
 func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
 	t.Run("hosted signup clears previously saved self-hosted URL", func(t *testing.T) {
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		// Seed config with a self-hosted URL
@@ -552,9 +566,7 @@ func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
 	})
 
 	t.Run("self-hosted signup preserves custom URL", func(t *testing.T) {
-		tempDir, _ := os.MkdirTemp("", "fizzy-test-*")
-		defer os.RemoveAll(tempDir)
-		config.SetTestConfigDir(tempDir)
+		config.SetTestConfigDir(t.TempDir())
 		defer config.ResetTestConfigDir()
 
 		err := saveSignupConfig("token", "acct", "https://custom.example.com")

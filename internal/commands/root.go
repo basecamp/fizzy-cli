@@ -65,6 +65,10 @@ var rootCmd = &cobra.Command{
 
 Use fizzy to manage boards, cards, comments, and more from your terminal.`,
 	Version: "dev",
+	Run: func(cmd *cobra.Command, args []string) {
+		printBanner()
+		_ = cmd.Help()
+	},
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Resolve output format from parsed flags (must happen post-parse).
 		format, err := resolveFormat()
@@ -666,24 +670,23 @@ func resolveProfile() error {
 	allProfiles, defaultName, err := profiles.List()
 	if err != nil || len(allProfiles) == 0 {
 		// No profiles configured — fall back to env var for account
-		if p := os.Getenv("FIZZY_PROFILE"); p != "" {
-			cfg.Account = p
-		} else if a := os.Getenv("FIZZY_ACCOUNT"); a != "" {
-			cfg.Account = a
+		if v := profileEnvVar(); v != "" {
+			cfg.Account = v
 		}
 		return nil
 	}
 
+	envProfile := profileEnvVar()
 	resolved, err := profile.Resolve(profile.ResolveOptions{
 		FlagValue:      cfgProfile,
-		EnvVar:         profileEnvVar(),
+		EnvVar:         envProfile,
 		DefaultProfile: defaultName,
 		Profiles:       allProfiles,
 	})
 	if err != nil {
 		// If the user explicitly specified a profile (flag or env), that's a
 		// hard error — don't silently fall back to a different account.
-		if cfgProfile != "" || profileEnvVar() != "" {
+		if cfgProfile != "" || envProfile != "" {
 			return err
 		}
 		// Otherwise (ambiguous default, etc.) — not fatal, just skip profile
@@ -719,7 +722,11 @@ func profileEnvVar() string {
 	if v := os.Getenv("FIZZY_PROFILE"); v != "" {
 		return v
 	}
-	return os.Getenv("FIZZY_ACCOUNT")
+	if v := os.Getenv("FIZZY_ACCOUNT"); v != "" {
+		fmt.Fprintln(os.Stderr, "Warning: FIZZY_ACCOUNT is deprecated, use FIZZY_PROFILE instead")
+		return v
+	}
+	return ""
 }
 
 // resolveToken applies token precedence: YAML → credstore (with migration) → env → flag.
@@ -783,29 +790,45 @@ func migrateLegacyToken(profileName string) {
 }
 
 // ensureProfile creates or updates a profile in the store.
-// If the profile already exists, it is replaced with the new settings.
+// If the profile already exists, fields are merged: BaseURL is
+// preserved only when the caller passes an empty string (meaning
+// "keep whatever is there"), and Extra entries are preserved unless
+// explicitly replaced.
 func ensureProfile(name, baseURL, board string) {
 	if profiles == nil {
 		return
 	}
-	if baseURL == "" {
-		baseURL = config.DefaultAPIURL
+
+	existing, _ := profiles.Get(name)
+
+	newBaseURL := baseURL
+	if newBaseURL == "" {
+		if existing != nil && existing.BaseURL != "" {
+			newBaseURL = existing.BaseURL
+		} else {
+			newBaseURL = config.DefaultAPIURL
+		}
+	}
+
+	extra := map[string]json.RawMessage{}
+	if existing != nil {
+		for k, v := range existing.Extra {
+			extra[k] = v
+		}
+	}
+	if board != "" {
+		extra["board"] = func() json.RawMessage { b, _ := json.Marshal(board); return b }()
 	}
 
 	p := &profile.Profile{
 		Name:    name,
-		BaseURL: baseURL,
+		BaseURL: newBaseURL,
 	}
-	if board != "" {
-		p.Extra = map[string]json.RawMessage{
-			"board": func() json.RawMessage { b, _ := json.Marshal(board); return b }(),
-		}
+	if len(extra) > 0 {
+		p.Extra = extra
 	}
 
 	if err := profiles.Create(p); err != nil {
-		// Profile already exists — delete and recreate to update it.
-		// Preserve default status: if this profile was the default, SetDefault
-		// is called by the caller (login/setup/signup/switch) anyway.
 		_ = profiles.Delete(name)
 		_ = profiles.Create(p)
 	}

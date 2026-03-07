@@ -8,7 +8,6 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -67,12 +66,48 @@ func init() {
 	signupCompleteCmd.Flags().String("account", "", "Account slug (required for existing users)")
 }
 
+const welcomeSignature = `
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⠏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⡤⠖⠚⠉⠉
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡼⠁⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡤⠖⠋⠁
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡴⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠞⠉
+⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣠⠖⠋⠀⢀⠀⠀⠀⠉⠉⠉⠉⠉⢉⡽⠋⢉⣉⠉⠉⠉⠉⠉⡉⠉⠉⠉⠉
+⠀⠀⠀⠀⠀⠀⠀⠀⢀⣠⠴⠋⢁⡴⠯⠞⠙⣦⠞⠙⠦⠤⠤⠤⢠⠞⣀⡴⠋⠈⠋⠙⠒⠒⠚⠁
+⠀⠀⠀⠀⢀⣠⠤⠖⠉⠀⠀⠀⠈⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⠏⠞⠁
+⠤⠤⠖⠚⠉⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⡞
+`
+
+const welcomeMessage = `Welcome, and thanks for signing up for Fizzy.
+
+To get you started, try "fizzy board list" to see your boards. You
+should find a Playground board with a few cards designed to help you
+learn Fizzy itself — open each card, go through the simple steps, and
+you'll be an expert in no time.
+
+If you ever need a hand, please contact me directly at
+jason@37signals.com. I'm here for you, we're all here for you.
+
+Thanks again and all the best,`
+
+const welcomeSignoff = `Jason Fried, jason@37signals.com
+CEO & co-founder of 37signals, makers of Fizzy, Basecamp, and HEY`
+
+// printWelcomeMessage prints the CEO welcome message for new users.
+func printWelcomeMessage() {
+	fmt.Println()
+	fmt.Println(welcomeMessage)
+	fmt.Print(welcomeSignature)
+	fmt.Println(welcomeSignoff)
+	fmt.Println()
+}
+
 // runSignup is the interactive wizard that walks through the entire signup flow.
 func runSignup(cmd *cobra.Command, args []string) error {
 	if IsMachineOutput() {
 		return output.ErrUsageHint("signup requires an interactive terminal — use subcommands (start, verify, complete) for programmatic access", "Run without --agent/--json/--quiet or in a TTY")
 	}
 
+	printBanner()
 	fmt.Println()
 	fmt.Println("Welcome to Fizzy CLI signup!")
 	fmt.Println()
@@ -311,8 +346,13 @@ func runSignup(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 	fmt.Println("✓ Configuration saved.")
-	fmt.Println()
-	fmt.Println("You're all set! Try: fizzy board list")
+
+	if requiresCompletion {
+		printWelcomeMessage()
+	} else {
+		fmt.Println()
+		fmt.Println("You're all set! Try: fizzy board list")
+	}
 	return nil
 }
 
@@ -478,15 +518,24 @@ func runSignupComplete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	result := map[string]any{
+		"token":   token,
+		"account": accountSlug,
+	}
+
+	summary := "Configuration saved."
+
+	if name != "" {
+		result["welcome_message"] = welcomeMessage + welcomeSignature + welcomeSignoff
+		result["is_new_user"] = true
+	}
+
 	breadcrumbs := []Breadcrumb{
 		breadcrumb("boards", "fizzy board list", "List boards"),
 		breadcrumb("setup", "fizzy setup", "Full interactive setup"),
 	}
 
-	printSuccessWithBreadcrumbs(map[string]any{
-		"token":   token,
-		"account": accountSlug,
-	}, "Configuration saved.", breadcrumbs)
+	printSuccessWithBreadcrumbs(result, summary, breadcrumbs)
 	return nil
 }
 
@@ -543,7 +592,7 @@ func signupPost(client *http.Client, reqURL string, body any) (map[string]any, h
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "fizzy-cli/1.0")
+	req.Header.Set("User-Agent", fmt.Sprintf("fizzy-cli/%s", rootCmd.Version))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -599,7 +648,7 @@ func signupGet(client *http.Client, reqURL string) (map[string]any, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "fizzy-cli/1.0")
+	req.Header.Set("User-Agent", fmt.Sprintf("fizzy-cli/%s", rootCmd.Version))
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -648,8 +697,9 @@ func setSignedCookie(client *http.Client, apiURL, name, value string) {
 
 // validateSignupURL checks that a URL is safe to use for signup HTTP requests.
 // Only http:// and https:// schemes are allowed. Plain http:// is restricted to
-// loopback addresses (localhost, 127.0.0.1, [::1]) to prevent SSRF against
-// internal network services.
+// literal loopback addresses (localhost, 127.0.0.1, [::1]) to prevent SSRF
+// against internal network services. No DNS resolution is performed to avoid
+// TOCTOU races between validation and connection time.
 func validateSignupURL(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -663,16 +713,6 @@ func validateSignupURL(rawURL string) error {
 		host := u.Hostname()
 		if host == "localhost" || host == "127.0.0.1" || host == "::1" {
 			return nil
-		}
-		// Resolve the hostname to check for loopback IPs
-		resolver := &net.Resolver{}
-		ips, err := resolver.LookupHost(context.Background(), host)
-		if err == nil {
-			for _, ip := range ips {
-				if net.ParseIP(ip).IsLoopback() {
-					return nil
-				}
-			}
 		}
 		return fmt.Errorf("http:// is only allowed for localhost; use https:// for remote hosts")
 	default:

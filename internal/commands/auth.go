@@ -131,37 +131,34 @@ var authLogoutCmd = &cobra.Command{
 }
 
 func authLogoutAll() error {
-	if creds != nil {
-		// Collect all known profile/account names to clean up every key format
-		names := map[string]bool{}
+	// Collect all known profile/account names to clean up every key format
+	names := map[string]bool{}
 
-		if profiles != nil {
-			allProfiles, _, _ := profiles.List()
-			for name := range allProfiles {
-				names[name] = true
-			}
-		}
-
-		// Also include the YAML config's Account in case it's not in the profile store
-		globalCfg := config.LoadGlobal()
-		if globalCfg.Account != "" {
-			names[globalCfg.Account] = true
-		}
-
-		for name := range names {
-			_ = credsDeleteProfileToken(name) // "profile:<name>"
-			_ = creds.Delete("token:" + name) // legacy "token:<account>"
-		}
-		// Legacy bare key
-		_ = creds.Delete("token")
-	}
-
-	// Delete all profiles from the store
 	if profiles != nil {
 		allProfiles, _, _ := profiles.List()
 		for name := range allProfiles {
+			names[name] = true
+		}
+	}
+
+	// Also include the YAML config's Account in case it's not in the profile store
+	globalCfg := config.LoadGlobal()
+	if globalCfg.Account != "" {
+		names[globalCfg.Account] = true
+	}
+
+	for name := range names {
+		if creds != nil {
+			_ = credsDeleteProfileToken(name) // "profile:<name>"
+			_ = creds.Delete("token:" + name) // legacy "token:<account>"
+		}
+		if profiles != nil {
 			_ = profiles.Delete(name)
 		}
+	}
+	if creds != nil {
+		// Legacy bare key
+		_ = creds.Delete("token")
 	}
 
 	// Clear config
@@ -326,10 +323,20 @@ var authSwitchCmd = &cobra.Command{
 			}
 		}
 
+		// Read the target profile's board from Extra
+		var profileBoard string
+		if profiles != nil {
+			if p, err := profiles.Get(profileName); err == nil {
+				if boardRaw, ok := p.Extra["board"]; ok {
+					_ = json.Unmarshal(boardRaw, &profileBoard)
+				}
+			}
+		}
+
 		// Update YAML config for backward compat
 		globalCfg := config.LoadGlobal()
 		globalCfg.Account = profileName
-		globalCfg.Board = "" // Clear board since it's profile-specific
+		globalCfg.Board = profileBoard
 		if err := globalCfg.Save(); err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 		}
@@ -337,6 +344,7 @@ var authSwitchCmd = &cobra.Command{
 		// Update in-memory config
 		if cfg != nil {
 			cfg.Account = profileName
+			cfg.Board = profileBoard
 			if creds != nil {
 				if t, err := credsLoadProfileToken(profileName); err == nil {
 					cfg.Token = t

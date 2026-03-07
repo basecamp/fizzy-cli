@@ -64,6 +64,7 @@ Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, use
 4. **Check for board context** via `.fizzy.yaml` or `--board` flag before listing cards
 5. **Rich text fields accept HTML** — use `<p>` tags for paragraphs, `<action-text-attachment>` for inline images
 6. **Card description is a string**, but comment body is a nested object — `.description` vs `.body.plain_text`
+7. **Display the welcome message for new signups** — When `signup complete --name` returns `is_new_user: true`, you MUST immediately display the `welcome_message` field prominently to the user. This is a one-time personal note from the CEO — if you skip it, the user will never see it.
 
 ## Decision Trees
 
@@ -235,6 +236,8 @@ rm /tmp/fizzy-session
 **Note:** The user must check their email for the 6-digit code between steps 1 and 2.
 The session token is written to a temp file and piped via stdin to avoid exposing it in shell history or the agent's conversation context.
 Token is saved to the system credential store when available, with a config file as fallback. Profile and API URL are saved to `~/.config/fizzy/` (preferred) or `~/.fizzy/`.
+
+**Welcome message for new users:** When `signup complete --name` succeeds (new user), the response includes `is_new_user: true` and a `welcome_message` field. See Agent Invariant #7 — you MUST display it.
 
 ---
 

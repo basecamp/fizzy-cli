@@ -1136,6 +1136,67 @@ func TestEnsureProfileUpdatesExisting(t *testing.T) {
 			t.Errorf("expected board 'new-board', got '%s'", board)
 		}
 	})
+
+	t.Run("overwrites self-hosted BaseURL with default on hosted re-signup", func(t *testing.T) {
+		profileDir := t.TempDir()
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		profileStore.Create(&profile.Profile{
+			Name:    "acme",
+			BaseURL: "https://selfhosted.example.com",
+			Extra: map[string]json.RawMessage{
+				"board": json.RawMessage(`"old-board"`),
+			},
+		})
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		SetTestProfiles(profileStore)
+		defer ResetTestMode()
+
+		// Re-signup with default URL should overwrite the self-hosted URL
+		ensureProfile("acme", config.DefaultAPIURL, "")
+
+		p, err := profileStore.Get("acme")
+		if err != nil {
+			t.Fatalf("expected profile to exist: %v", err)
+		}
+		if p.BaseURL != config.DefaultAPIURL {
+			t.Errorf("expected BaseURL '%s', got '%s'", config.DefaultAPIURL, p.BaseURL)
+		}
+		// Board should be preserved since we passed empty
+		var board string
+		if boardRaw, ok := p.Extra["board"]; ok {
+			json.Unmarshal(boardRaw, &board)
+		}
+		if board != "old-board" {
+			t.Errorf("expected board 'old-board' to be preserved, got '%s'", board)
+		}
+	})
+
+	t.Run("preserves existing BaseURL when caller passes empty", func(t *testing.T) {
+		profileDir := t.TempDir()
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		profileStore.Create(&profile.Profile{
+			Name:    "acme",
+			BaseURL: "https://custom.example.com",
+		})
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		SetTestProfiles(profileStore)
+		defer ResetTestMode()
+
+		// Empty baseURL should preserve the existing one
+		ensureProfile("acme", "", "")
+
+		p, err := profileStore.Get("acme")
+		if err != nil {
+			t.Fatalf("expected profile to exist: %v", err)
+		}
+		if p.BaseURL != "https://custom.example.com" {
+			t.Errorf("expected BaseURL 'https://custom.example.com', got '%s'", p.BaseURL)
+		}
+	})
 }
 
 func TestAuthLogoutAllCleansLegacyKeys(t *testing.T) {
