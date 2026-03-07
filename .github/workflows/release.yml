@@ -5,6 +5,12 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+  id-token: write
+  security-events: write
+  pull-requests: read
+
 jobs:
   test:
     uses: ./.github/workflows/test.yml
