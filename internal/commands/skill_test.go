@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -277,9 +278,21 @@ func TestBaselineSkillInstalled(t *testing.T) {
 }
 
 func TestSkillPrintOutputMatchesEmbedded(t *testing.T) {
-	// The skill command in non-interactive mode should print the embedded content
-	if len(skills.Content) == 0 {
-		t.Fatal("embedded skill content is empty")
+	defer ResetTestMode()
+	ResetTestMode()
+	cfgAgent = true
+
+	var buf bytes.Buffer
+	skillCmd.SetOut(&buf)
+	defer skillCmd.SetOut(nil)
+
+	err := runSkill(skillCmd, nil)
+	if err != nil {
+		t.Fatalf("skill print RunE() error = %v", err)
+	}
+
+	if buf.String() != string(skills.Content) {
+		t.Error("skill print output does not match embedded SKILL.md")
 	}
 }
 

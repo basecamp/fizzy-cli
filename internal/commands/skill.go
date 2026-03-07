@@ -206,7 +206,8 @@ func runSkillWizard() error {
 	return nil
 }
 
-// normalizeSkillPath ensures the path ends with SKILL.md and has fizzy directory.
+// normalizeSkillPath appends fizzy/SKILL.md to directory paths.
+// Explicit file paths (any .md) are left as-is.
 func normalizeSkillPath(path string) string {
 	path = strings.TrimSpace(path)
 

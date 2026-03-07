@@ -97,6 +97,8 @@ func runClaudeSetup(cmd *cobra.Command) error {
 
 // setupAgents offers to set up detected coding agents during the setup wizard.
 func setupAgents(cmd *cobra.Command) error {
+	w := cmd.OutOrStdout()
+
 	agents := harness.DetectedAgents()
 	if len(agents) == 0 {
 		return nil
@@ -123,28 +125,28 @@ func setupAgents(cmd *cobra.Command) error {
 
 	if allGood {
 		for _, a := range agents {
-			fmt.Printf("  ✓ %s plugin installed\n", a.Name)
+			fmt.Fprintf(w, "  ✓ %s plugin installed\n", a.Name)
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 		return nil
 	}
 
-	fmt.Println()
-	fmt.Println("Coding Agent Setup")
-	fmt.Println()
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Coding Agent Setup")
+	fmt.Fprintln(w)
 
 	// Show detected agents
 	var names []string
 	for _, a := range agents {
 		names = append(names, a.Name)
 	}
-	fmt.Printf("  Detected: %s\n", joinNames(names))
-	fmt.Println()
+	fmt.Fprintf(w, "  Detected: %s\n", joinNames(names))
+	fmt.Fprintln(w)
 
 	// Build numbered list of what will happen
-	fmt.Println("  This will:")
+	fmt.Fprintln(w, "  This will:")
 	step := 1
-	fmt.Printf("    %d. Install Fizzy agent skill to ~/.agents/skills/fizzy/\n", step)
+	fmt.Fprintf(w, "    %d. Install Fizzy agent skill to ~/.agents/skills/fizzy/\n", step)
 	step++
 	for _, a := range agents {
 		handler, ok := agentSetupHandlers[a.ID]
@@ -152,11 +154,11 @@ func setupAgents(cmd *cobra.Command) error {
 			continue
 		}
 		for _, label := range handler.Labels {
-			fmt.Printf("    %d. %s\n", step, label)
+			fmt.Fprintf(w, "    %d. %s\n", step, label)
 			step++
 		}
 	}
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	var install bool
 	err := huh.NewConfirm().
@@ -165,24 +167,24 @@ func setupAgents(cmd *cobra.Command) error {
 		Run()
 
 	if err != nil || !install {
-		fmt.Println()
-		fmt.Println("  You can set up agents later:")
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "  You can set up agents later:")
 		for _, a := range agents {
 			if _, ok := agentSetupHandlers[a.ID]; ok {
-				fmt.Printf("    fizzy setup %s\n", a.ID)
+				fmt.Fprintf(w, "    fizzy setup %s\n", a.ID)
 			}
 		}
-		fmt.Println()
+		fmt.Fprintln(w)
 		return nil //nolint:nilerr // user cancelled
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 
 	// Install baseline skill
 	if _, err := installSkillFiles(); err != nil {
-		fmt.Printf("  ⚠ Skill install failed: %s\n", err)
+		fmt.Fprintf(w, "  ⚠ Skill install failed: %s\n", err)
 	} else {
-		fmt.Println("  ✓ Agent skill installed")
+		fmt.Fprintln(w, "  ✓ Agent skill installed")
 	}
 
 	// Run each detected agent's handler
@@ -196,7 +198,7 @@ func setupAgents(cmd *cobra.Command) error {
 		}
 	}
 
-	fmt.Println()
+	fmt.Fprintln(w)
 	return nil
 }
 
