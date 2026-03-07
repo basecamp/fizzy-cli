@@ -670,10 +670,8 @@ func resolveProfile() error {
 	allProfiles, defaultName, err := profiles.List()
 	if err != nil || len(allProfiles) == 0 {
 		// No profiles configured — fall back to env var for account
-		if p := os.Getenv("FIZZY_PROFILE"); p != "" {
-			cfg.Account = p
-		} else if a := os.Getenv("FIZZY_ACCOUNT"); a != "" {
-			cfg.Account = a
+		if v := profileEnvVar(); v != "" {
+			cfg.Account = v
 		}
 		return nil
 	}
