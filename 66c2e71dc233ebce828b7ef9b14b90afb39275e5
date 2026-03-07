@@ -1,0 +1,23 @@
+internal/commands/setup.go
+  916c2161245f5a16 259-266
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.8",
+  "base_commit_sha": "66c2e71dc233ebce828b7ef9b14b90afb39275e5",
+  "prompts": {
+    "916c2161245f5a16": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cb16b1e-d081-41a3-a9c4-e3a67e62d8fb",
+        "model": "claude-opus-4-6"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 0,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}
