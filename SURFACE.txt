@@ -450,7 +450,6 @@ FLAG fizzy card create --markdown type=bool
 FLAG fizzy card create --profile type=string
 FLAG fizzy card create --quiet type=bool
 FLAG fizzy card create --styled type=bool
-FLAG fizzy card create --tag-ids type=string
 FLAG fizzy card create --title type=string
 FLAG fizzy card create --token type=string
 FLAG fizzy card create --verbose type=bool

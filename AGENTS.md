@@ -6,15 +6,31 @@
 fizzy-cli/
 ├── cmd/fizzy/           # Main entrypoint
 ├── internal/
-│   ├── client/          # HTTP client wrapper
+│   ├── client/          # Legacy HTTP client (upload, download, multipart, migrate)
 │   ├── commands/        # Command implementations
 │   ├── config/          # Configuration management
 │   ├── errors/          # Error handling and types
-│   └── response/        # Response formatting
+│   └── render/          # Output rendering (styled, markdown, columns)
 ├── e2e/                 # Go integration tests
 ├── skills/              # Agent skills
 └── .claude-plugin/      # Claude Code integration
 ```
+
+## SDK Architecture
+
+Commands use the fizzy-sdk (`github.com/basecamp/fizzy-sdk/go/pkg/fizzy`) for API access:
+
+- **`getSDK()`** returns `*fizzy.AccountClient` — account-scoped SDK client for most commands
+- **`getSDKClient()`** returns `*fizzy.Client` — root client for account-independent operations (e.g. identity)
+- **`getClient()`** (deprecated) returns `client.API` — legacy client, used only for file upload, download, multipart PATCH, and board migration
+
+SDK responses return `json.RawMessage`. Helper functions convert to the `any` types the output layer expects:
+- **`jsonAny(resp.Data)`** — converts single response to `any` (maps become `map[string]any`, arrays become `[]map[string]any`)
+- **`jsonAnySlice(pages)`** — converts `[]json.RawMessage` from `GetAll()` pagination to `[]map[string]any`
+- **`convertSDKError(err)`** — converts SDK errors to `*output.Error`
+- **`toSliceAny(v)`** — normalizes `[]map[string]any` or `[]any` to `[]any` for iteration
+
+Account can be a slug or numeric ID.
 
 ## Fizzy API Reference
 
@@ -38,6 +54,23 @@ make test-run NAME=TestBoardCRUD  # Run a specific test
 ```
 
 Requirements: Go 1.26+, API credentials for e2e tests.
+
+### Unit Test Patterns
+
+Tests use `SetTestModeWithSDK(mock)` which creates an httptest server backed by `MockClient`:
+
+```go
+mock := NewMockClient()
+mock.GetResponse = &client.APIResponse{Data: map[string]any{"id": "1"}}
+SetTestModeWithSDK(mock)
+SetTestConfig("token", "account", "https://api.example.com")
+defer resetTest()
+```
+
+- `mock.OnGet(path, resp)` — route-specific GET responses
+- `mock.WithGetData(data)` — set default GET response data
+- `mock.WithListData(data)` — set GetWithPagination response (used as fallback for GET when GetResponse is default empty map)
+- JSON round-trip through httptest converts `int` → `float64` — use `float64(n)` in assertions
 
 E2E environment variables:
 - `FIZZY_TEST_TOKEN` - API token (required)
