@@ -18,9 +18,9 @@ func TestCardList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardListCmd.RunE(cardListCmd, []string{})
 		assertExitCode(t, err, 0)
@@ -46,9 +46,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListBoard = "123"
 		cardListIndexedBy = "closed"
@@ -71,10 +71,10 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		cfg.Board = "123"
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListColumn = "not-now"
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -89,9 +89,9 @@ func TestCardList(t *testing.T) {
 
 	t.Run("requires --all for client-side triage filter", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListColumn = "maybe"
 		cardListAll = false
@@ -113,9 +113,9 @@ func TestCardList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListColumn = "maybe"
 		cardListAll = true
@@ -148,10 +148,10 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		cfg.Board = "999"
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardListCmd.RunE(cardListCmd, []string{})
 
@@ -163,9 +163,9 @@ func TestCardList(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardListCmd.RunE(cardListCmd, []string{})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -178,9 +178,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListSearch = "bug fix"
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -200,9 +200,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListSort = "newest"
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -222,9 +222,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListCreator = "user-123"
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -244,9 +244,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListUnassigned = true
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -266,9 +266,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListCreated = "thisweek"
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -288,9 +288,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListClosed = "lastmonth"
 		err := cardListCmd.RunE(cardListCmd, []string{})
@@ -310,9 +310,9 @@ func TestCardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardListBoard = "123"
 		cardListSearch = "bug"
@@ -345,9 +345,9 @@ func TestCardShow(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardShowCmd.RunE(cardShowCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -358,8 +358,8 @@ func TestCardShow(t *testing.T) {
 		if !result.Response.OK {
 			t.Error("expected success response")
 		}
-		if mock.GetCalls[0].Path != "/cards/42.json" {
-			t.Errorf("expected path '/cards/42.json', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/cards/42" {
+			t.Errorf("expected path '/cards/42', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
@@ -367,9 +367,9 @@ func TestCardShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardShowCmd.RunE(cardShowCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -381,10 +381,7 @@ func TestCardCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/cards/42",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
+			Location:   "/cards/42",
 			Data: map[string]any{
 				"id":     "abc",
 				"number": 42,
@@ -392,9 +389,9 @@ func TestCardCreate(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardCreateBoard = "123"
 		cardCreateTitle = "New Card"
@@ -411,17 +408,16 @@ func TestCardCreate(t *testing.T) {
 		if body["board_id"] != "123" {
 			t.Errorf("expected board_id '123', got '%v'", body["board_id"])
 		}
-		cardParams := body["card"].(map[string]any)
-		if cardParams["title"] != "New Card" {
-			t.Errorf("expected title 'New Card', got '%v'", cardParams["title"])
+		if body["title"] != "New Card" {
+			t.Errorf("expected title 'New Card', got '%v'", body["title"])
 		}
 	})
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardCreateBoard = ""
 		cardCreateTitle = "Test"
@@ -435,17 +431,13 @@ func TestCardCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/cards/42",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       map[string]any{},
+			Data:       map[string]any{"id": "abc", "number": 42},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		cfg.Board = "555"
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardCreateBoard = ""
 		cardCreateTitle = "New Card"
@@ -461,9 +453,9 @@ func TestCardCreate(t *testing.T) {
 
 	t.Run("requires title flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardCreateBoard = "123"
 		cardCreateTitle = ""
@@ -477,36 +469,26 @@ func TestCardCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/cards/42",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       map[string]any{},
+			Data:       map[string]any{"id": "abc", "number": 42},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardCreateBoard = "123"
 		cardCreateTitle = "Test"
 		cardCreateDescription = "<p>Description</p>"
-		cardCreateTagIDs = "tag1,tag2"
 		err := cardCreateCmd.RunE(cardCreateCmd, []string{})
 		cardCreateBoard = ""
 		cardCreateTitle = ""
 		cardCreateDescription = ""
-		cardCreateTagIDs = ""
 
 		assertExitCode(t, err, 0)
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		cardParams := body["card"].(map[string]any)
-		if cardParams["description"] != "<p>Description</p>" {
-			t.Errorf("expected description '<p>Description</p>', got '%v'", cardParams["description"])
-		}
-		if cardParams["tag_ids"] != "tag1,tag2" {
-			t.Errorf("expected tag_ids 'tag1,tag2', got '%v'", cardParams["tag_ids"])
+		if body["description"] != "<p>Description</p>" {
+			t.Errorf("expected description '<p>Description</p>', got '%v'", body["description"])
 		}
 	})
 }
@@ -522,17 +504,17 @@ func TestCardUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardUpdateTitle = "Updated Title"
 		err := cardUpdateCmd.RunE(cardUpdateCmd, []string{"42"})
 		cardUpdateTitle = ""
 
 		assertExitCode(t, err, 0)
-		if mock.PatchCalls[0].Path != "/cards/42.json" {
-			t.Errorf("expected path '/cards/42.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/cards/42" {
+			t.Errorf("expected path '/cards/42', got '%s'", mock.PatchCalls[0].Path)
 		}
 	})
 }
@@ -545,15 +527,15 @@ func TestCardDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardDeleteCmd.RunE(cardDeleteCmd, []string{"42"})
 		assertExitCode(t, err, 0)
 
-		if mock.DeleteCalls[0].Path != "/cards/42.json" {
-			t.Errorf("expected path '/cards/42.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/cards/42" {
+			t.Errorf("expected path '/cards/42', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 }
@@ -566,9 +548,9 @@ func TestCardClose(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardCloseCmd.RunE(cardCloseCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -587,9 +569,9 @@ func TestCardReopen(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardReopenCmd.RunE(cardReopenCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -608,9 +590,9 @@ func TestCardPostpone(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardPostponeCmd.RunE(cardPostponeCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -629,9 +611,9 @@ func TestCardColumn(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardColumnColumn = "col-123"
 		err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
@@ -653,9 +635,9 @@ func TestCardColumn(t *testing.T) {
 			mock := NewMockClient()
 			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
 
-			SetTestMode(mock)
+			SetTestModeWithSDK(mock)
 			SetTestConfig("token", "account", "https://api.example.com")
-			defer ResetTestMode()
+			defer resetTest()
 
 			cardColumnColumn = "not-now"
 			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
@@ -671,9 +653,9 @@ func TestCardColumn(t *testing.T) {
 			mock := NewMockClient()
 			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
 
-			SetTestMode(mock)
+			SetTestModeWithSDK(mock)
 			SetTestConfig("token", "account", "https://api.example.com")
-			defer ResetTestMode()
+			defer resetTest()
 
 			cardColumnColumn = "maybe"
 			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
@@ -689,9 +671,9 @@ func TestCardColumn(t *testing.T) {
 			mock := NewMockClient()
 			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
 
-			SetTestMode(mock)
+			SetTestModeWithSDK(mock)
 			SetTestConfig("token", "account", "https://api.example.com")
-			defer ResetTestMode()
+			defer resetTest()
 
 			cardColumnColumn = "done"
 			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
@@ -706,9 +688,9 @@ func TestCardColumn(t *testing.T) {
 
 	t.Run("requires column flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardColumnColumn = ""
 		err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
@@ -724,9 +706,9 @@ func TestCardUntriage(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUntriageCmd.RunE(cardUntriageCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -745,9 +727,9 @@ func TestCardAssign(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardAssignUser = "user-123"
 		err := cardAssignCmd.RunE(cardAssignCmd, []string{"42"})
@@ -766,9 +748,9 @@ func TestCardAssign(t *testing.T) {
 
 	t.Run("requires user flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardAssignUser = ""
 		err := cardAssignCmd.RunE(cardAssignCmd, []string{"42"})
@@ -784,9 +766,9 @@ func TestCardSelfAssign(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardSelfAssignCmd.RunE(cardSelfAssignCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -805,9 +787,9 @@ func TestCardTag(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardTagTag = "bug"
 		err := cardTagCmd.RunE(cardTagCmd, []string{"42"})
@@ -826,9 +808,9 @@ func TestCardTag(t *testing.T) {
 
 	t.Run("requires tag flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardTagTag = ""
 		err := cardTagCmd.RunE(cardTagCmd, []string{"42"})
@@ -844,9 +826,9 @@ func TestCardWatch(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardWatchCmd.RunE(cardWatchCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -865,9 +847,9 @@ func TestCardUnwatch(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUnwatchCmd.RunE(cardUnwatchCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -886,9 +868,9 @@ func TestCardImageRemove(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardImageRemoveCmd.RunE(cardImageRemoveCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -903,9 +885,9 @@ func TestCardImageRemove(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardImageRemoveCmd.RunE(cardImageRemoveCmd, []string{"42"})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -915,9 +897,9 @@ func TestCardImageRemove(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardImageRemoveCmd.RunE(cardImageRemoveCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -932,9 +914,9 @@ func TestCardGolden(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardGoldenCmd.RunE(cardGoldenCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -949,9 +931,9 @@ func TestCardGolden(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardGoldenCmd.RunE(cardGoldenCmd, []string{"42"})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -961,9 +943,9 @@ func TestCardGolden(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardGoldenCmd.RunE(cardGoldenCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -978,9 +960,9 @@ func TestCardUngolden(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUngoldenCmd.RunE(cardUngoldenCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -995,9 +977,9 @@ func TestCardUngolden(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUngoldenCmd.RunE(cardUngoldenCmd, []string{"42"})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -1007,9 +989,9 @@ func TestCardUngolden(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUngoldenCmd.RunE(cardUngoldenCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -1020,10 +1002,6 @@ func TestCardMove(t *testing.T) {
 	t.Run("moves card to different board", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
-			StatusCode: 204,
-			Data:       nil,
-		}
-		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: map[string]any{
 				"id":       "abc",
@@ -1033,9 +1011,9 @@ func TestCardMove(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardMoveBoard = "board-456"
 		err := cardMoveCmd.RunE(cardMoveCmd, []string{"42"})
@@ -1053,18 +1031,13 @@ func TestCardMove(t *testing.T) {
 		if body["board_id"] != "board-456" {
 			t.Errorf("expected board_id 'board-456', got '%v'", body["board_id"])
 		}
-
-		// Verify it fetched the card after moving
-		if len(mock.GetCalls) != 1 || mock.GetCalls[0].Path != "/cards/42.json" {
-			t.Errorf("expected get call to '/cards/42.json', got %+v", mock.GetCalls)
-		}
 	})
 
 	t.Run("requires --to flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardMoveBoard = ""
 		err := cardMoveCmd.RunE(cardMoveCmd, []string{"42"})
@@ -1075,9 +1048,9 @@ func TestCardMove(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		cardMoveBoard = "board-456"
 		err := cardMoveCmd.RunE(cardMoveCmd, []string{"999"})

@@ -17,9 +17,9 @@ func TestUploadFile(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		// Test with an existing file (mock_client_test.go exists for sure)
 		err := uploadFileCmd.RunE(uploadFileCmd, []string{"mock_client_test.go"})
@@ -34,9 +34,9 @@ func TestUploadFile(t *testing.T) {
 
 	t.Run("returns error for missing file", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := uploadFileCmd.RunE(uploadFileCmd, []string{"/nonexistent/file.png"})
 		assertExitCode(t, err, errors.ExitError)

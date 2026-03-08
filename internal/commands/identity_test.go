@@ -21,9 +21,9 @@ func TestIdentityShow(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := identityShowCmd.RunE(identityShowCmd, []string{})
 		assertExitCode(t, err, 0)
@@ -31,9 +31,9 @@ func TestIdentityShow(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "", "https://api.example.com") // No token
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := identityShowCmd.RunE(identityShowCmd, []string{})
 		assertExitCode(t, err, errors.ExitAuthFailure)

@@ -21,17 +21,16 @@ var pinListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Get("/my/pins.json")
+		ac := getSDK()
+		data, _, err := ac.Pins().List(cmd.Context())
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
+		items := normalizeAny(data)
+
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d pinned cards", count)
 
 		// Build breadcrumbs
@@ -41,7 +40,7 @@ var pinListCmd = &cobra.Command{
 			breadcrumb("pin", "fizzy card pin <number>", "Pin a card"),
 		}
 
-		printList(resp.Data, pinColumns, summary, breadcrumbs)
+		printList(items, pinColumns, summary, breadcrumbs)
 		return nil
 	},
 }

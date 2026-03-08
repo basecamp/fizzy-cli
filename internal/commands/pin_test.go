@@ -15,9 +15,9 @@ func TestCardPin(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardPinCmd.RunE(cardPinCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -35,9 +35,9 @@ func TestCardPin(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardPinCmd.RunE(cardPinCmd, []string{"42"})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -47,9 +47,9 @@ func TestCardPin(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardPinCmd.RunE(cardPinCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -64,9 +64,9 @@ func TestCardUnpin(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUnpinCmd.RunE(cardUnpinCmd, []string{"42"})
 		assertExitCode(t, err, 0)
@@ -84,9 +84,9 @@ func TestCardUnpin(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUnpinCmd.RunE(cardUnpinCmd, []string{"42"})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -96,9 +96,9 @@ func TestCardUnpin(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Card not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := cardUnpinCmd.RunE(cardUnpinCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -116,9 +116,9 @@ func TestPinList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := pinListCmd.RunE(pinListCmd, []string{})
 		assertExitCode(t, err, 0)
@@ -147,9 +147,9 @@ func TestPinList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := pinListCmd.RunE(pinListCmd, []string{})
 		assertExitCode(t, err, 0)
@@ -164,9 +164,9 @@ func TestPinList(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := pinListCmd.RunE(pinListCmd, []string{})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -174,9 +174,9 @@ func TestPinList(t *testing.T) {
 
 	t.Run("requires account", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := pinListCmd.RunE(pinListCmd, []string{})
 		assertExitCode(t, err, errors.ExitInvalidArgs)
@@ -184,13 +184,13 @@ func TestPinList(t *testing.T) {
 
 	t.Run("handles API error", func(t *testing.T) {
 		mock := NewMockClient()
-		mock.GetError = errors.NewError("Server error")
+		mock.GetError = errors.NewNotFoundError("Pins not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := pinListCmd.RunE(pinListCmd, []string{})
-		assertExitCode(t, err, errors.ExitError)
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }

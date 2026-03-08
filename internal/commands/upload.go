@@ -30,6 +30,7 @@ var uploadFileCmd = &cobra.Command{
 			return errors.NewError("File not found: " + filePath)
 		}
 
+		// UploadFile not available in SDK — keep old client
 		client := getClient()
 		resp, err := client.UploadFile(filePath)
 		if err != nil {

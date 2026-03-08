@@ -1,14 +1,16 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/basecamp/cli/output"
-	"github.com/basecamp/fizzy-cli/internal/client"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-cli/internal/tui"
+	fizzy "github.com/basecamp/fizzy-sdk/go/pkg/fizzy"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
@@ -117,15 +119,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 			Title("Enter your Fizzy URL").
 			Placeholder("https://fizzy.example.com").
 			Value(&apiURL).
-			Validate(func(s string) error {
-				if s == "" {
-					return fmt.Errorf("URL is required")
-				}
-				if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") {
-					return fmt.Errorf("URL must start with http:// or https://")
-				}
-				return nil
-			}).
+			Validate(validateAPIURL).
 			Run()
 
 		if err != nil {
@@ -160,7 +154,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 		// Validate token
 		fmt.Print("Validating token... ")
-		accounts, err = validateToken(apiURL, token)
+		accounts, err = validateToken(cmd, apiURL, token)
 		if err != nil {
 			fmt.Println("✗")
 
@@ -210,7 +204,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 
 	// Fetch boards for selected account
 	fmt.Print("Fetching boards... ")
-	boards, err := fetchBoards(apiURL, token, selectedAccountSlug)
+	boards, err := fetchBoards(cmd, apiURL, token, selectedAccountSlug)
 	if err != nil {
 		fmt.Println("✗")
 		// Non-fatal, just skip board selection
@@ -330,11 +324,12 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// validateToken validates the token by calling the identity endpoint.
+// validateToken validates the token by calling the identity endpoint via the SDK.
 // Returns the list of accounts on success.
-func validateToken(apiURL, token string) ([]Account, error) {
-	c := client.New(apiURL, token, "")
-	resp, err := c.Get(apiURL + "/my/identity.json")
+func validateToken(cmd *cobra.Command, apiURL, token string) ([]Account, error) {
+	sdkCfg := &fizzy.Config{BaseURL: apiURL}
+	testClient := fizzy.NewClient(sdkCfg, &fizzy.StaticTokenProvider{Token: token})
+	_, resp, err := testClient.Identity().GetMyIdentity(cmd.Context())
 	if err != nil {
 		return nil, err
 	}
@@ -342,10 +337,10 @@ func validateToken(apiURL, token string) ([]Account, error) {
 	return parseAccounts(resp.Data)
 }
 
-// parseAccounts extracts account information from the identity response.
-func parseAccounts(data any) ([]Account, error) {
-	dataMap, ok := data.(map[string]any)
-	if !ok {
+// parseAccounts extracts account information from the raw identity response JSON.
+func parseAccounts(data json.RawMessage) ([]Account, error) {
+	var dataMap map[string]json.RawMessage
+	if err := json.Unmarshal(data, &dataMap); err != nil {
 		return nil, fmt.Errorf("unexpected response format")
 	}
 
@@ -354,19 +349,14 @@ func parseAccounts(data any) ([]Account, error) {
 		return nil, fmt.Errorf("no accounts in response")
 	}
 
-	accountsList, ok := accountsRaw.([]any)
-	if !ok {
+	var accountsList []map[string]any
+	if err := json.Unmarshal(accountsRaw, &accountsList); err != nil {
 		return nil, fmt.Errorf("unexpected accounts format")
 	}
 
 	accounts := make([]Account, 0, len(accountsList))
-	for _, acc := range accountsList {
-		accMap, ok := acc.(map[string]any)
-		if !ok {
-			continue
-		}
-
-		id, _ := accMap["id"].(string)
+	for _, accMap := range accountsList {
+		id := fmt.Sprintf("%v", accMap["id"])
 		name, _ := accMap["name"].(string)
 		slug, _ := accMap["slug"].(string)
 
@@ -385,32 +375,33 @@ func parseAccounts(data any) ([]Account, error) {
 	return accounts, nil
 }
 
-// fetchBoards fetches the list of boards for the given account.
-func fetchBoards(apiURL, token, accountSlug string) ([]Board, error) {
-	c := client.New(apiURL, token, accountSlug)
-	resp, err := c.GetWithPagination("/boards.json", true)
+// fetchBoards fetches the list of boards for the given account via the SDK.
+func fetchBoards(cmd *cobra.Command, apiURL, token, accountSlug string) ([]Board, error) {
+	sdkCfg := &fizzy.Config{BaseURL: apiURL}
+	testClient := fizzy.NewClient(sdkCfg, &fizzy.StaticTokenProvider{Token: token})
+	ac := testClient.ForAccount(accountSlug)
+
+	pages, err := ac.GetAll(cmd.Context(), "/boards.json")
 	if err != nil {
 		return nil, err
 	}
 
-	return parseBoards(resp.Data)
+	return parseBoards(pages)
 }
 
-// parseBoards extracts board information from the boards response.
-func parseBoards(data any) ([]Board, error) {
-	boardsList, ok := data.([]any)
-	if !ok {
-		return nil, fmt.Errorf("unexpected boards format")
-	}
-
-	boards := make([]Board, 0, len(boardsList))
-	for _, b := range boardsList {
-		boardMap, ok := b.(map[string]any)
-		if !ok {
+// parseBoards extracts board information from raw JSON board pages.
+func parseBoards(pages []json.RawMessage) ([]Board, error) {
+	boards := make([]Board, 0, len(pages))
+	for _, raw := range pages {
+		var boardMap map[string]any
+		if err := json.Unmarshal(raw, &boardMap); err != nil {
 			continue
 		}
 
-		id, _ := boardMap["id"].(string)
+		var id string
+		if v, ok := boardMap["id"]; ok && v != nil {
+			id = fmt.Sprintf("%v", v)
+		}
 		name, _ := boardMap["name"].(string)
 
 		if id != "" && name != "" {
@@ -422,4 +413,25 @@ func parseBoards(data any) ([]Board, error) {
 	}
 
 	return boards, nil
+}
+
+// validateAPIURL checks that the URL is well-formed and enforces HTTPS for non-localhost URLs.
+func validateAPIURL(s string) error {
+	if s == "" {
+		return fmt.Errorf("URL is required")
+	}
+	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") {
+		return fmt.Errorf("URL must start with http:// or https://")
+	}
+	if strings.HasPrefix(s, "http://") {
+		u, err := url.Parse(s)
+		if err != nil {
+			return fmt.Errorf("invalid URL: %w", err)
+		}
+		host := u.Hostname()
+		if host != "localhost" && host != "127.0.0.1" && host != "::1" && !strings.HasSuffix(host, ".localhost") {
+			return fmt.Errorf("non-localhost URLs must use https://")
+		}
+	}
+	return nil
 }

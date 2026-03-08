@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -44,30 +45,29 @@ Use --include-comments to also include attachments from comments on the card.`,
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Get("/cards/" + args[0] + ".json")
+		ac := getSDK()
+		cardData, _, err := ac.Cards().Get(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		cardData, ok := resp.Data.(map[string]any)
-		if !ok {
+		cardMap := toMap(cardData)
+		if cardMap == nil {
 			return errors.NewError("Invalid card response")
 		}
 
-		descriptionHTML, _ := cardData["description_html"].(string)
+		descriptionHTML, _ := cardMap["description_html"].(string)
 		attachments := parseAttachments(descriptionHTML)
 
 		if attachmentsShowIncludeComments {
-			commentsResp, err := client.GetWithPagination("/cards/"+args[0]+"/comments.json", true)
+			pages, err := ac.GetAll(cmd.Context(), "/cards/"+args[0]+"/comments.json")
 			if err == nil {
-				if comments, ok := commentsResp.Data.([]any); ok {
-					commentAttachments := extractCommentAttachments(comments)
-					// Re-index and append
-					for _, ca := range commentAttachments {
-						ca.Index = len(attachments) + 1
-						attachments = append(attachments, ca.Attachment)
-					}
+				comments := rawPagesToSlice(pages)
+				commentAttachments := extractCommentAttachments(comments)
+				// Re-index and append
+				for _, ca := range commentAttachments {
+					ca.Index = len(attachments) + 1
+					attachments = append(attachments, ca.Attachment)
 				}
 			}
 		}
@@ -100,29 +100,28 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Get("/cards/" + cardNumber + ".json")
+		ac := getSDK()
+		cardData, _, err := ac.Cards().Get(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		cardData, ok := resp.Data.(map[string]any)
-		if !ok {
+		cardMap := toMap(cardData)
+		if cardMap == nil {
 			return errors.NewError("Invalid card response")
 		}
 
-		descriptionHTML, _ := cardData["description_html"].(string)
+		descriptionHTML, _ := cardMap["description_html"].(string)
 		attachments := parseAttachments(descriptionHTML)
 
 		if attachmentsDownloadIncludeComments {
-			commentsResp, err := client.GetWithPagination("/cards/"+cardNumber+"/comments.json", true)
+			pages, err := ac.GetAll(cmd.Context(), "/cards/"+cardNumber+"/comments.json")
 			if err == nil {
-				if comments, ok := commentsResp.Data.([]any); ok {
-					commentAttachments := extractCommentAttachments(comments)
-					for _, ca := range commentAttachments {
-						ca.Index = len(attachments) + 1
-						attachments = append(attachments, ca.Attachment)
-					}
+				comments := rawPagesToSlice(pages)
+				commentAttachments := extractCommentAttachments(comments)
+				for _, ca := range commentAttachments {
+					ca.Index = len(attachments) + 1
+					attachments = append(attachments, ca.Attachment)
 				}
 			}
 		}
@@ -148,7 +147,8 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 			toDownload = attachments
 		}
 
-		// Download the files
+		// Download the files (uses old client for DownloadFile)
+		client := getClient()
 		results := make([]map[string]any, 0, len(toDownload))
 		for i, attachment := range toDownload {
 			outputPath := buildOutputPath(attachmentDownloadOutput, attachment.Filename, i+1, len(toDownload))
@@ -170,6 +170,18 @@ Use 'fizzy card attachments show CARD_NUMBER' to see available attachments and t
 		}, "", nil)
 		return nil
 	},
+}
+
+// rawPagesToSlice converts []json.RawMessage to []any (each element is a map[string]any).
+func rawPagesToSlice(pages []json.RawMessage) []any {
+	result := make([]any, 0, len(pages))
+	for _, raw := range pages {
+		var v any
+		if json.Unmarshal(raw, &v) == nil {
+			result = append(result, v)
+		}
+	}
+	return result
 }
 
 // parseAttachments extracts attachment information from description_html

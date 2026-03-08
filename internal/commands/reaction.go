@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -29,25 +30,25 @@ var reactionListCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		// Build URL based on whether --comment was provided
-		var path string
-		if reactionListComment != "" {
-			path = "/cards/" + reactionListCard + "/comments/" + reactionListComment + "/reactions.json"
-		} else {
-			path = "/cards/" + reactionListCard + "/reactions.json"
-		}
+		ac := getSDK()
+		var data any
 
-		client := getClient()
-		resp, err := client.Get(path)
-		if err != nil {
-			return err
+		if reactionListComment != "" {
+			raw, _, err := ac.Reactions().ListComment(cmd.Context(), reactionListCard, reactionListComment)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			data = normalizeAny(raw)
+		} else {
+			raw, _, err := ac.Reactions().ListCard(cmd.Context(), reactionListCard)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			data = normalizeAny(raw)
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(data)
 		var summary string
 		if reactionListComment != "" {
 			summary = fmt.Sprintf("%d reactions on comment", count)
@@ -71,7 +72,7 @@ var reactionListCmd = &cobra.Command{
 			}
 		}
 
-		printList(resp.Data, reactionColumns, summary, breadcrumbs)
+		printList(data, reactionColumns, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -97,22 +98,23 @@ var reactionCreateCmd = &cobra.Command{
 			return newRequiredFlagError("content")
 		}
 
-		body := map[string]any{
-			"content": reactionCreateContent,
-		}
+		ac := getSDK()
 
-		// Build URL based on whether --comment was provided
-		var path string
+		var result any
 		if reactionCreateComment != "" {
-			path = "/cards/" + reactionCreateCard + "/comments/" + reactionCreateComment + "/reactions.json"
+			req := &generated.CreateCommentReactionRequest{Content: reactionCreateContent}
+			raw, _, err := ac.Reactions().CreateComment(cmd.Context(), reactionCreateCard, reactionCreateComment, req)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			result = normalizeAny(raw)
 		} else {
-			path = "/cards/" + reactionCreateCard + "/reactions.json"
-		}
-
-		client := getClient()
-		resp, err := client.Post(path, body)
-		if err != nil {
-			return err
+			req := &generated.CreateCardReactionRequest{Content: reactionCreateContent}
+			raw, _, err := ac.Reactions().CreateCard(cmd.Context(), reactionCreateCard, req)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			result = normalizeAny(raw)
 		}
 
 		// Build breadcrumbs
@@ -129,11 +131,10 @@ var reactionCreateCmd = &cobra.Command{
 			}
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
+		if result == nil {
+			result = map[string]any{}
 		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(result, "", breadcrumbs)
 		return nil
 	},
 }
@@ -156,18 +157,18 @@ var reactionDeleteCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		// Build URL based on whether --comment was provided
-		var path string
-		if reactionDeleteComment != "" {
-			path = "/cards/" + reactionDeleteCard + "/comments/" + reactionDeleteComment + "/reactions/" + args[0] + ".json"
-		} else {
-			path = "/cards/" + reactionDeleteCard + "/reactions/" + args[0] + ".json"
-		}
+		ac := getSDK()
 
-		client := getClient()
-		_, err := client.Delete(path)
-		if err != nil {
-			return err
+		if reactionDeleteComment != "" {
+			_, err := ac.Reactions().DeleteComment(cmd.Context(), reactionDeleteCard, reactionDeleteComment, args[0])
+			if err != nil {
+				return convertSDKError(err)
+			}
+		} else {
+			_, err := ac.Reactions().DeleteCard(cmd.Context(), reactionDeleteCard, args[0])
+			if err != nil {
+				return convertSDKError(err)
+			}
 		}
 
 		// Build breadcrumbs

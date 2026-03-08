@@ -18,14 +18,37 @@ func TestUserList(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := userListCmd.RunE(userListCmd, []string{})
 		assertExitCode(t, err, 0)
 		if mock.GetWithPaginationCalls[0].Path != "/users.json" {
 			t.Errorf("expected path '/users.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("passes page to GetAll", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{map[string]any{"id": "1"}},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		userListPage = 2
+		userListAll = true
+		err := userListCmd.RunE(userListCmd, []string{})
+		userListPage = 0
+		userListAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/users.json?page=2" {
+			t.Errorf("expected path '/users.json?page=2', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
 	})
 }
@@ -41,14 +64,14 @@ func TestUserShow(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := userShowCmd.RunE(userShowCmd, []string{"user-1"})
 		assertExitCode(t, err, 0)
-		if mock.GetCalls[0].Path != "/users/user-1.json" {
-			t.Errorf("expected path '/users/user-1.json', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/users/user-1" {
+			t.Errorf("expected path '/users/user-1', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 }
@@ -61,9 +84,9 @@ func TestUserUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		userUpdateName = "New Name"
 		err := userUpdateCmd.RunE(userUpdateCmd, []string{"user-1"})
@@ -73,14 +96,13 @@ func TestUserUpdate(t *testing.T) {
 		if len(mock.PatchCalls) != 1 {
 			t.Fatalf("expected 1 patch call, got %d", len(mock.PatchCalls))
 		}
-		if mock.PatchCalls[0].Path != "/users/user-1.json" {
-			t.Errorf("expected path '/users/user-1.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/users/user-1" {
+			t.Errorf("expected path '/users/user-1', got '%s'", mock.PatchCalls[0].Path)
 		}
 
 		body := mock.PatchCalls[0].Body.(map[string]any)
-		userParams := body["user"].(map[string]any)
-		if userParams["name"] != "New Name" {
-			t.Errorf("expected name 'New Name', got '%v'", userParams["name"])
+		if body["name"] != "New Name" {
+			t.Errorf("expected name 'New Name', got '%v'", body["name"])
 		}
 	})
 
@@ -91,9 +113,9 @@ func TestUserUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		userUpdateAvatar = "/path/to/avatar.jpg"
 		err := userUpdateCmd.RunE(userUpdateCmd, []string{"user-1"})
@@ -115,9 +137,9 @@ func TestUserUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		userUpdateName = "New Name"
 		userUpdateAvatar = "/path/to/avatar.jpg"
@@ -137,9 +159,9 @@ func TestUserUpdate(t *testing.T) {
 
 	t.Run("requires at least one flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		userUpdateName = ""
 		userUpdateAvatar = ""
@@ -157,17 +179,17 @@ func TestUserDeactivate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := userDeactivateCmd.RunE(userDeactivateCmd, []string{"user-1"})
 		assertExitCode(t, err, 0)
 		if len(mock.DeleteCalls) != 1 {
 			t.Fatalf("expected 1 delete call, got %d", len(mock.DeleteCalls))
 		}
-		if mock.DeleteCalls[0].Path != "/users/user-1.json" {
-			t.Errorf("expected path '/users/user-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/users/user-1" {
+			t.Errorf("expected path '/users/user-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 
@@ -175,9 +197,9 @@ func TestUserDeactivate(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("User not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := userDeactivateCmd.RunE(userDeactivateCmd, []string{"non-existent-user"})
 		assertExitCode(t, err, errors.ExitNotFound)

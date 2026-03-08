@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -29,22 +30,32 @@ var boardListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
+		ac := getSDK()
+		var items any
+		var linkNext string
+
 		path := "/boards.json"
 		if boardListPage > 0 {
 			path += "?page=" + strconv.Itoa(boardListPage)
 		}
 
-		resp, err := client.GetWithPagination(path, boardListAll)
-		if err != nil {
-			return err
+		if boardListAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			data, resp, err := ac.Boards().List(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d boards", count)
 		if boardListAll {
 			summary += " (all)"
@@ -59,7 +70,7 @@ var boardListCmd = &cobra.Command{
 			breadcrumb("columns", "fizzy column list --board <id>", "List board columns"),
 		}
 
-		hasNext := resp.LinkNext != ""
+		hasNext := linkNext != ""
 		if hasNext {
 			nextPage := boardListPage + 1
 			if boardListPage == 0 {
@@ -68,7 +79,7 @@ var boardListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy board list --page %d", nextPage), "Next page"))
 		}
 
-		printListPaginated(resp.Data, boardColumns, hasNext, resp.LinkNext, boardListAll, summary, breadcrumbs)
+		printListPaginated(items, boardColumns, hasNext, linkNext, boardListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -85,28 +96,27 @@ var boardShowCmd = &cobra.Command{
 
 		boardID := args[0]
 
-		client := getClient()
-		resp, err := client.Get("/boards/" + boardID + ".json")
+		data, _, err := getSDK().Boards().Get(cmd.Context(), boardID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		// Build summary
+		items := normalizeAny(data)
+
 		summary := "Board"
-		if board, ok := resp.Data.(map[string]any); ok {
-			if name, ok := board["name"].(string); ok {
+		if board, ok := items.(map[string]any); ok {
+			if name, ok := board["name"].(string); ok && name != "" {
 				summary = fmt.Sprintf("Board: %s", name)
 			}
 		}
 
-		// Build breadcrumbs
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 			breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
 			breadcrumb("create-card", fmt.Sprintf("fizzy card create --board %s --title \"title\"", boardID), "Create card"),
 		}
 
-		printDetail(resp.Data, summary, breadcrumbs)
+		printDetail(items, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -129,58 +139,44 @@ var boardCreateCmd = &cobra.Command{
 			return newRequiredFlagError("name")
 		}
 
-		boardParams := map[string]any{
-			"name": boardCreateName,
+		req := &generated.CreateBoardRequest{
+			Name: boardCreateName,
 		}
-
 		if boardCreateAllAccess != "" {
-			boardParams["all_access"] = boardCreateAllAccess == "true"
+			req.AllAccess = boardCreateAllAccess == "true"
 		}
 		if boardCreateAutoPostponePeriod > 0 {
-			boardParams["auto_postpone_period"] = boardCreateAutoPostponePeriod
+			req.AutoPostponePeriod = int32(boardCreateAutoPostponePeriod)
 		}
 
-		body := map[string]any{
-			"board": boardParams,
-		}
-
-		client := getClient()
-		resp, err := client.Post("/boards.json", body)
+		ac := getSDK()
+		data, resp, err := ac.Boards().Create(cmd.Context(), req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		// Create returns location header - follow it to get the created resource
-		if resp.Location != "" {
-			followResp, err := client.FollowLocation(resp.Location)
-			if err == nil && followResp != nil {
-				// Extract board ID from response
-				boardID := ""
-				if board, ok := followResp.Data.(map[string]any); ok {
-					if id, ok := board["id"].(string); ok {
-						boardID = id
-					}
-				}
-
-				// Build breadcrumbs
-				var breadcrumbs []Breadcrumb
-				if boardID != "" {
-					breadcrumbs = []Breadcrumb{
-						breadcrumb("show", fmt.Sprintf("fizzy board show %s", boardID), "View board details"),
-						breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
-						breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
-					}
-				}
-
-				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
-				return nil
+		items := normalizeAny(data)
+		boardID := ""
+		if board, ok := items.(map[string]any); ok {
+			if id, ok := board["id"]; ok {
+				boardID = fmt.Sprintf("%v", id)
 			}
-			// If follow fails, just return success with location
-			printSuccessWithLocation(resp.Location)
-			return nil
 		}
 
-		printSuccess(resp.Data)
+		var breadcrumbs []Breadcrumb
+		if boardID != "" {
+			breadcrumbs = []Breadcrumb{
+				breadcrumb("show", fmt.Sprintf("fizzy board show %s", boardID), "View board details"),
+				breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
+				breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
+			}
+		}
+
+		if location := resp.Headers.Get("Location"); location != "" {
+			printMutationWithLocation(items, location, breadcrumbs)
+		} else {
+			printMutation(items, "", breadcrumbs)
+		}
 		return nil
 	},
 }
@@ -202,35 +198,28 @@ var boardUpdateCmd = &cobra.Command{
 
 		boardID := args[0]
 
-		boardParams := make(map[string]any)
-
+		req := &generated.UpdateBoardRequest{}
 		if boardUpdateName != "" {
-			boardParams["name"] = boardUpdateName
+			req.Name = boardUpdateName
 		}
 		if boardUpdateAllAccess != "" {
-			boardParams["all_access"] = boardUpdateAllAccess == "true"
+			req.AllAccess = boardUpdateAllAccess == "true"
 		}
 		if boardUpdateAutoPostponePeriod > 0 {
-			boardParams["auto_postpone_period"] = boardUpdateAutoPostponePeriod
+			req.AutoPostponePeriod = int32(boardUpdateAutoPostponePeriod)
 		}
 
-		body := map[string]any{
-			"board": boardParams,
-		}
-
-		client := getClient()
-		resp, err := client.Patch("/boards/"+boardID+".json", body)
+		data, _, err := getSDK().Boards().Update(cmd.Context(), boardID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		// Build breadcrumbs
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy board show %s", boardID), "View board"),
 			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		printMutation(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -245,13 +234,11 @@ var boardDeleteCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		_, err := client.Delete("/boards/" + args[0] + ".json")
+		_, err := getSDK().Boards().Delete(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		// Build breadcrumbs
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("boards", "fizzy board list", "List boards"),
 			breadcrumb("create", "fizzy board create --name \"name\"", "Create new board"),

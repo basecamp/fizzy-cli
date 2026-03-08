@@ -29,27 +29,37 @@ var notificationListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
+		ac := getSDK()
+		var items any
+		var linkNext string
+
 		path := "/notifications.json"
 		if notificationListPage > 0 {
 			path += "?page=" + strconv.Itoa(notificationListPage)
 		}
 
-		resp, err := client.GetWithPagination(path, notificationListAll)
-		if err != nil {
-			return err
+		if notificationListAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			data, resp, err := ac.Notifications().List(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		// Build summary with unread count
-		count := 0
+		count := dataCount(items)
 		unreadCount := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-			for _, item := range arr {
-				if notif, ok := item.(map[string]any); ok {
-					if read, ok := notif["read"].(bool); ok && !read {
-						unreadCount++
-					}
+		for _, item := range toSliceAny(items) {
+			if notif, ok := item.(map[string]any); ok {
+				if read, ok := notif["read"].(bool); ok && !read {
+					unreadCount++
 				}
 			}
 		}
@@ -67,7 +77,7 @@ var notificationListCmd = &cobra.Command{
 			breadcrumb("show", "fizzy card show <card_number>", "View card"),
 		}
 
-		hasNext := resp.LinkNext != ""
+		hasNext := linkNext != ""
 		if hasNext {
 			nextPage := notificationListPage + 1
 			if notificationListPage == 0 {
@@ -76,7 +86,7 @@ var notificationListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy notification list --page %d", nextPage), "Next page"))
 		}
 
-		printListPaginated(resp.Data, notificationColumns, hasNext, resp.LinkNext, notificationListAll, summary, breadcrumbs)
+		printListPaginated(items, notificationColumns, hasNext, linkNext, notificationListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -91,10 +101,9 @@ var notificationReadCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Post("/notifications/"+args[0]+"/reading.json", nil)
+		_, err := getSDK().Notifications().Read(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -102,11 +111,7 @@ var notificationReadCmd = &cobra.Command{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -121,10 +126,9 @@ var notificationUnreadCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Delete("/notifications/" + args[0] + "/reading.json")
+		_, err := getSDK().Notifications().Unread(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -132,11 +136,7 @@ var notificationUnreadCmd = &cobra.Command{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -150,10 +150,9 @@ var notificationReadAllCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Post("/notifications/bulk_reading.json", nil)
+		_, err := getSDK().Notifications().BulkRead(cmd.Context(), nil)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -161,7 +160,7 @@ var notificationReadAllCmd = &cobra.Command{
 			breadcrumb("notifications", "fizzy notification list", "List notifications"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -178,27 +177,24 @@ var notificationTrayCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		path := "/notifications/tray.json"
+		var includeRead *bool
 		if notificationTrayIncludeRead {
-			path += "?include_read=true"
+			t := true
+			includeRead = &t
 		}
-
-		resp, err := client.Get(path)
+		data, _, err := getSDK().Notifications().GetTray(cmd.Context(), includeRead)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
+		items := normalizeAny(data)
 
 		// Build summary
-		count := 0
+		count := dataCount(items)
 		unreadCount := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-			for _, item := range arr {
-				if notif, ok := item.(map[string]any); ok {
-					if read, ok := notif["read"].(bool); ok && !read {
-						unreadCount++
-					}
+		for _, item := range toSliceAny(items) {
+			if notif, ok := item.(map[string]any); ok {
+				if read, ok := notif["read"].(bool); ok && !read {
+					unreadCount++
 				}
 			}
 		}
@@ -211,7 +207,7 @@ var notificationTrayCmd = &cobra.Command{
 			breadcrumb("list", "fizzy notification list", "List all notifications"),
 		}
 
-		printList(resp.Data, notificationColumns, summary, breadcrumbs)
+		printList(items, notificationColumns, summary, breadcrumbs)
 		return nil
 	},
 }

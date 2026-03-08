@@ -17,9 +17,9 @@ func TestSearch(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		assertExitCode(t, err, 0)
@@ -43,9 +43,9 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := searchCmd.RunE(searchCmd, []string{"login error"})
 		assertExitCode(t, err, 0)
@@ -63,9 +63,9 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		searchBoard = "123"
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
@@ -85,9 +85,9 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		searchSort = "newest"
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
@@ -107,9 +107,9 @@ func TestSearch(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		searchIndexedBy = "closed"
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
@@ -124,9 +124,9 @@ func TestSearch(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		assertExitCode(t, err, errors.ExitAuthFailure)

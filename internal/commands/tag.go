@@ -29,22 +29,36 @@ var tagListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
+		ac := getSDK()
+		var items any
+		var linkNext string
+
 		path := "/tags.json"
 		if tagListPage > 0 {
 			path += "?page=" + strconv.Itoa(tagListPage)
 		}
 
-		resp, err := client.GetWithPagination(path, tagListAll)
-		if err != nil {
-			return err
+		if tagListAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			listPath := ""
+			if tagListPage > 0 {
+				listPath = path
+			}
+			data, resp, err := ac.Tags().List(cmd.Context(), listPath)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d tags", count)
 		if tagListAll {
 			summary += " (all)"
@@ -58,7 +72,7 @@ var tagListCmd = &cobra.Command{
 			breadcrumb("cards", "fizzy card list --tag <id>", "List cards with tag"),
 		}
 
-		hasNext := resp.LinkNext != ""
+		hasNext := linkNext != ""
 		if hasNext {
 			nextPage := tagListPage + 1
 			if tagListPage == 0 {
@@ -67,7 +81,7 @@ var tagListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy tag list --page %d", nextPage), "Next page"))
 		}
 
-		printListPaginated(resp.Data, tagColumns, hasNext, resp.LinkNext, tagListAll, summary, breadcrumbs)
+		printListPaginated(items, tagColumns, hasNext, linkNext, tagListAll, summary, breadcrumbs)
 		return nil
 	},
 }

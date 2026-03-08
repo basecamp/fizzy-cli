@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -29,22 +30,36 @@ var userListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
+		ac := getSDK()
+		var items any
+		var linkNext string
+
 		path := "/users.json"
 		if userListPage > 0 {
 			path += "?page=" + strconv.Itoa(userListPage)
 		}
 
-		resp, err := client.GetWithPagination(path, userListAll)
-		if err != nil {
-			return err
+		if userListAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			listPath := ""
+			if userListPage > 0 {
+				listPath = path
+			}
+			data, resp, err := ac.Users().List(cmd.Context(), listPath)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d users", count)
 		if userListAll {
 			summary += " (all)"
@@ -58,7 +73,7 @@ var userListCmd = &cobra.Command{
 			breadcrumb("assign", "fizzy card assign <number> --user <user_id>", "Assign user to card"),
 		}
 
-		hasNext := resp.LinkNext != ""
+		hasNext := linkNext != ""
 		if hasNext {
 			nextPage := userListPage + 1
 			if userListPage == 0 {
@@ -67,7 +82,7 @@ var userListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy user list --page %d", nextPage), "Next page"))
 		}
 
-		printListPaginated(resp.Data, userColumns, hasNext, resp.LinkNext, userListAll, summary, breadcrumbs)
+		printListPaginated(items, userColumns, hasNext, linkNext, userListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -84,10 +99,9 @@ var userShowCmd = &cobra.Command{
 
 		userID := args[0]
 
-		client := getClient()
-		resp, err := client.Get("/users/" + userID + ".json")
+		data, _, err := getSDK().Users().Get(cmd.Context(), userID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -96,7 +110,7 @@ var userShowCmd = &cobra.Command{
 			breadcrumb("assign", fmt.Sprintf("fizzy card assign <number> --user %s", userID), "Assign to card"),
 		}
 
-		printDetail(resp.Data, "", breadcrumbs)
+		printDetail(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -116,15 +130,15 @@ var userUpdateCmd = &cobra.Command{
 		}
 
 		userID := args[0]
-		path := "/users/" + userID + ".json"
 
 		if userUpdateName == "" && userUpdateAvatar == "" {
 			return newRequiredFlagError("name or --avatar")
 		}
 
-		apiClient := getClient()
-
+		// Avatar upload requires multipart — keep using old client for this case
 		if userUpdateAvatar != "" {
+			apiClient := getClient()
+			path := "/users/" + userID + ".json"
 			fields := make(map[string]string)
 			if userUpdateName != "" {
 				fields["user[name]"] = userUpdateName
@@ -147,14 +161,9 @@ var userUpdateCmd = &cobra.Command{
 			return nil
 		}
 
-		body := map[string]any{
-			"user": map[string]any{
-				"name": userUpdateName,
-			},
-		}
-		resp, err := apiClient.Patch(path, body)
+		respData, _, err := getSDK().Users().Update(cmd.Context(), userID, &generated.UpdateUserRequest{Name: userUpdateName})
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -163,7 +172,7 @@ var userUpdateCmd = &cobra.Command{
 			breadcrumb("people", "fizzy user list", "List users"),
 		}
 
-		data := resp.Data
+		data := normalizeAny(respData)
 		if data == nil {
 			data = map[string]any{}
 		}
@@ -184,10 +193,9 @@ var userDeactivateCmd = &cobra.Command{
 
 		userID := args[0]
 
-		client := getClient()
-		_, err := client.Delete("/users/" + userID + ".json")
+		_, err := getSDK().Users().Deactivate(cmd.Context(), userID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		breadcrumbs := []Breadcrumb{

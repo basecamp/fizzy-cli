@@ -36,18 +36,13 @@ var commentAttachmentsShowCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		client := getClient()
-		path := "/cards/" + commentAttachmentsShowCard + "/comments.json"
-		resp, err := client.GetWithPagination(path, true)
+		ac := getSDK()
+		pages, err := ac.GetAll(cmd.Context(), "/cards/"+commentAttachmentsShowCard+"/comments.json")
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		comments, ok := resp.Data.([]any)
-		if !ok {
-			return errors.NewError("Invalid comments response")
-		}
-
+		comments := rawPagesToSlice(pages)
 		attachments := extractCommentAttachments(comments)
 
 		summary := fmt.Sprintf("%d attachments across %d comments on card #%s", len(attachments), len(comments), commentAttachmentsShowCard)
@@ -89,18 +84,13 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			return newRequiredFlagError("card")
 		}
 
-		client := getClient()
-		path := "/cards/" + commentAttachmentsDownloadCard + "/comments.json"
-		resp, err := client.GetWithPagination(path, true)
+		ac := getSDK()
+		pages, err := ac.GetAll(cmd.Context(), "/cards/"+commentAttachmentsDownloadCard+"/comments.json")
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		comments, ok := resp.Data.([]any)
-		if !ok {
-			return errors.NewError("Invalid comments response")
-		}
-
+		comments := rawPagesToSlice(pages)
 		attachments := extractCommentAttachments(comments)
 
 		if len(attachments) == 0 {
@@ -122,7 +112,8 @@ Use 'fizzy comment attachments show --card CARD_NUMBER' to see available attachm
 			toDownload = attachments
 		}
 
-		// Download the files
+		// Download the files (uses old client for DownloadFile)
+		client := getClient()
 		results := make([]map[string]any, 0, len(toDownload))
 		for i, attachment := range toDownload {
 			outputPath := buildOutputPath(commentAttachmentsDownloadOutput, attachment.Filename, i+1, len(toDownload))

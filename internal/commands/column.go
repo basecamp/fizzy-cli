@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/basecamp/fizzy-cli/internal/errors"
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -30,21 +31,23 @@ var columnListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Get("/boards/" + boardID + "/columns.json")
+		ac := getSDK()
+		data, _, err := ac.Columns().List(cmd.Context(), boardID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		data, ok := resp.Data.([]any)
-		if !ok {
-			printSuccess(resp.Data)
+		items := normalizeAny(data)
+
+		dataSlice := toSliceAny(items)
+		if dataSlice == nil {
+			printSuccess(items)
 			return nil
 		}
 
-		cols := make([]any, 0, len(data)+3)
+		cols := make([]any, 0, len(dataSlice)+3)
 		cols = append(cols, pseudoColumnObject(pseudoColumnNotNow), pseudoColumnObject(pseudoColumnMaybe))
-		cols = append(cols, data...)
+		cols = append(cols, dataSlice...)
 		cols = append(cols, pseudoColumnObject(pseudoColumnDone))
 
 		// Build summary
@@ -90,10 +93,9 @@ var columnShowCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Get("/boards/" + boardID + "/columns/" + columnID + ".json")
+		data, _, err := getSDK().Columns().Get(cmd.Context(), boardID, columnID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -102,7 +104,7 @@ var columnShowCmd = &cobra.Command{
 			breadcrumb("update", fmt.Sprintf("fizzy column update %s --board %s", columnID, boardID), "Update column"),
 		}
 
-		printDetail(resp.Data, "", breadcrumbs)
+		printDetail(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -129,52 +131,44 @@ var columnCreateCmd = &cobra.Command{
 			return newRequiredFlagError("name")
 		}
 
-		columnParams := map[string]any{
-			"name": columnCreateName,
-		}
+		ac := getSDK()
+		req := &generated.CreateColumnRequest{Name: columnCreateName}
 		if columnCreateColor != "" {
-			columnParams["color"] = columnCreateColor
+			req.Color = columnCreateColor
 		}
 
-		body := map[string]any{
-			"column": columnParams,
-		}
-
-		client := getClient()
-		resp, err := client.Post("/boards/"+boardID+"/columns.json", body)
+		data, resp, err := ac.Columns().Create(cmd.Context(), boardID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		// Create returns location header - follow it to get the created resource
-		if resp.Location != "" {
-			followResp, err := client.FollowLocation(resp.Location)
-			if err == nil && followResp != nil {
-				// Extract column ID from response
-				columnID := ""
-				if col, ok := followResp.Data.(map[string]any); ok {
-					if id, ok := col["id"].(string); ok {
-						columnID = id
-					}
-				}
+		items := normalizeAny(data)
+		if items == nil {
+			items = map[string]any{}
+		}
 
-				// Build breadcrumbs
-				var breadcrumbs []Breadcrumb
-				if columnID != "" {
-					breadcrumbs = []Breadcrumb{
-						breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
-						breadcrumb("show", fmt.Sprintf("fizzy column show %s --board %s", columnID, boardID), "View column"),
-					}
-				}
-
-				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
-				return nil
+		// Extract column ID from response
+		columnID := ""
+		if col, ok := items.(map[string]any); ok {
+			if id, ok := col["id"]; ok {
+				columnID = fmt.Sprintf("%v", id)
 			}
-			printSuccessWithLocation(resp.Location)
-			return nil
 		}
 
-		printSuccess(resp.Data)
+		// Build breadcrumbs
+		var breadcrumbs []Breadcrumb
+		if columnID != "" {
+			breadcrumbs = []Breadcrumb{
+				breadcrumb("columns", fmt.Sprintf("fizzy column list --board %s", boardID), "List columns"),
+				breadcrumb("show", fmt.Sprintf("fizzy column show %s --board %s", columnID, boardID), "View column"),
+			}
+		}
+
+		if location := resp.Headers.Get("Location"); location != "" {
+			printMutationWithLocation(items, location, breadcrumbs)
+		} else {
+			printMutation(items, "", breadcrumbs)
+		}
 		return nil
 	},
 }
@@ -203,24 +197,19 @@ var columnUpdateCmd = &cobra.Command{
 			return err
 		}
 
-		columnParams := make(map[string]any)
-		if columnUpdateName != "" {
-			columnParams["name"] = columnUpdateName
-		}
-		if columnUpdateColor != "" {
-			columnParams["color"] = columnUpdateColor
-		}
-
-		body := map[string]any{
-			"column": columnParams,
-		}
-
 		columnID := args[0]
 
-		client := getClient()
-		resp, err := client.Patch("/boards/"+boardID+"/columns/"+columnID+".json", body)
+		req := &generated.UpdateColumnRequest{}
+		if columnUpdateName != "" {
+			req.Name = columnUpdateName
+		}
+		if columnUpdateColor != "" {
+			req.Color = columnUpdateColor
+		}
+
+		data, _, err := getSDK().Columns().Update(cmd.Context(), boardID, columnID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -229,7 +218,11 @@ var columnUpdateCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy column show %s --board %s", columnID, boardID), "View column"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		result := normalizeAny(data)
+		if result == nil {
+			result = map[string]any{}
+		}
+		printMutation(result, "", breadcrumbs)
 		return nil
 	},
 }
@@ -256,10 +249,9 @@ var columnDeleteCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		_, err = client.Delete("/boards/" + boardID + "/columns/" + args[0] + ".json")
+		_, err = getSDK().Columns().Delete(cmd.Context(), boardID, args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs

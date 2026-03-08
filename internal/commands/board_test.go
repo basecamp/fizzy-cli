@@ -18,9 +18,9 @@ func TestBoardList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardListCmd.RunE(boardListCmd, []string{})
 		assertExitCode(t, err, 0)
@@ -47,9 +47,9 @@ func TestBoardList(t *testing.T) {
 			LinkNext:   "https://api.example.com/boards.json?page=2",
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardListPage = 2
 		boardListAll = false
@@ -99,9 +99,9 @@ func TestBoardList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardListPage = 12
 		boardListAll = false
@@ -114,11 +114,38 @@ func TestBoardList(t *testing.T) {
 		}
 	})
 
+	t.Run("passes page to GetAll", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{map[string]any{"id": "1"}},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardListPage = 3
+		boardListAll = true
+		err := boardListCmd.RunE(boardListCmd, []string{})
+		boardListPage = 0
+		boardListAll = false
+
+		assertExitCode(t, err, 0)
+		if len(mock.GetWithPaginationCalls) == 0 {
+			t.Fatal("expected at least one GET call")
+		}
+		gotPath := mock.GetWithPaginationCalls[0].Path
+		if gotPath != "/boards.json?page=3" {
+			t.Errorf("expected path '/boards.json?page=3', got '%s'", gotPath)
+		}
+	})
+
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com") // No token
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardListCmd.RunE(boardListCmd, []string{})
 		assertExitCode(t, err, errors.ExitAuthFailure)
@@ -126,9 +153,9 @@ func TestBoardList(t *testing.T) {
 
 	t.Run("requires account", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "", "https://api.example.com") // No account
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardListCmd.RunE(boardListCmd, []string{})
 		assertExitCode(t, err, errors.ExitInvalidArgs)
@@ -146,9 +173,9 @@ func TestBoardShow(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardShowCmd.RunE(boardShowCmd, []string{"123"})
 		assertExitCode(t, err, 0)
@@ -162,8 +189,8 @@ func TestBoardShow(t *testing.T) {
 		if len(mock.GetCalls) != 1 {
 			t.Errorf("expected 1 Get call, got %d", len(mock.GetCalls))
 		}
-		if mock.GetCalls[0].Path != "/boards/123.json" {
-			t.Errorf("expected path '/boards/123.json', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/boards/123" {
+			t.Errorf("expected path '/boards/123', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
@@ -171,9 +198,9 @@ func TestBoardShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetError = errors.NewNotFoundError("Board not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardShowCmd.RunE(boardShowCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)
@@ -185,20 +212,20 @@ func TestBoardCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/boards/456",
+			Location:   "/boards/456",
 			Data:       map[string]any{"id": "456"},
 		}
-		mock.FollowLocationResponse = &client.APIResponse{
+		mock.OnGet("/boards/456", &client.APIResponse{
 			StatusCode: 200,
 			Data: map[string]any{
 				"id":   "456",
 				"name": "New Board",
 			},
-		}
+		})
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardCreateName = "New Board"
 		err := boardCreateCmd.RunE(boardCreateCmd, []string{})
@@ -219,25 +246,21 @@ func TestBoardCreate(t *testing.T) {
 			t.Errorf("expected path '/boards.json', got '%s'", mock.PostCalls[0].Path)
 		}
 
-		// Verify body contains board wrapper with name
+		// Verify body contains name (flat — Rails wrap_parameters handles wrapping)
 		body, ok := mock.PostCalls[0].Body.(map[string]any)
 		if !ok {
 			t.Fatal("expected map body")
 		}
-		boardParams, ok := body["board"].(map[string]any)
-		if !ok {
-			t.Fatal("expected board wrapper in body")
-		}
-		if boardParams["name"] != "New Board" {
-			t.Errorf("expected name 'New Board', got '%v'", boardParams["name"])
+		if body["name"] != "New Board" {
+			t.Errorf("expected name 'New Board', got '%v'", body["name"])
 		}
 	})
 
 	t.Run("requires name flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardCreateName = ""
 		err := boardCreateCmd.RunE(boardCreateCmd, []string{})
@@ -248,16 +271,13 @@ func TestBoardCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/boards/789",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       map[string]any{"id": "789"},
+			Location:   "/boards/789",
+			Data:       map[string]any{"id": "789", "name": "Private Board"},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardCreateName = "Private Board"
 		boardCreateAllAccess = "false"
@@ -273,12 +293,12 @@ func TestBoardCreate(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		body := mock.PostCalls[0].Body.(map[string]any)
-		boardParams := body["board"].(map[string]any)
-		if boardParams["all_access"] != false {
-			t.Errorf("expected all_access false, got %v", boardParams["all_access"])
+		// all_access=false is omitted from JSON (bool omitempty), which is equivalent to false
+		if v, ok := body["all_access"]; ok && v != false {
+			t.Errorf("expected all_access false or absent, got %v", body["all_access"])
 		}
-		if boardParams["auto_postpone_period"] != 7 {
-			t.Errorf("expected auto_postpone_period 7, got %v", boardParams["auto_postpone_period"])
+		if body["auto_postpone_period"] != float64(7) {
+			t.Errorf("expected auto_postpone_period 7, got %v", body["auto_postpone_period"])
 		}
 	})
 }
@@ -294,9 +314,9 @@ func TestBoardUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardUpdateName = "Updated Name"
 		err := boardUpdateCmd.RunE(boardUpdateCmd, []string{"123"})
@@ -310,8 +330,8 @@ func TestBoardUpdate(t *testing.T) {
 		if len(mock.PatchCalls) != 1 {
 			t.Errorf("expected 1 Patch call, got %d", len(mock.PatchCalls))
 		}
-		if mock.PatchCalls[0].Path != "/boards/123.json" {
-			t.Errorf("expected path '/boards/123.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/boards/123" {
+			t.Errorf("expected path '/boards/123', got '%s'", mock.PatchCalls[0].Path)
 		}
 	})
 
@@ -319,9 +339,9 @@ func TestBoardUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchError = errors.NewValidationError("Name is too long")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardUpdateName = "Updated"
 		err := boardUpdateCmd.RunE(boardUpdateCmd, []string{"123"})
@@ -339,9 +359,9 @@ func TestBoardDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardDeleteCmd.RunE(boardDeleteCmd, []string{"123"})
 		assertExitCode(t, err, 0)
@@ -352,8 +372,8 @@ func TestBoardDelete(t *testing.T) {
 		if len(mock.DeleteCalls) != 1 {
 			t.Errorf("expected 1 Delete call, got %d", len(mock.DeleteCalls))
 		}
-		if mock.DeleteCalls[0].Path != "/boards/123.json" {
-			t.Errorf("expected path '/boards/123.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/boards/123" {
+			t.Errorf("expected path '/boards/123', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 
@@ -361,9 +381,9 @@ func TestBoardDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Board not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := boardDeleteCmd.RunE(boardDeleteCmd, []string{"999"})
 		assertExitCode(t, err, errors.ExitNotFound)

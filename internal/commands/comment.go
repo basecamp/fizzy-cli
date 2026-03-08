@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -35,22 +36,36 @@ var commentListCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		client := getClient()
+		ac := getSDK()
+		var items any
+		var linkNext string
+
 		path := "/cards/" + commentListCard + "/comments.json"
 		if commentListPage > 0 {
 			path += "?page=" + strconv.Itoa(commentListPage)
 		}
 
-		resp, err := client.GetWithPagination(path, commentListAll)
-		if err != nil {
-			return err
+		if commentListAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			listPath := ""
+			if commentListPage > 0 {
+				listPath = path
+			}
+			data, resp, err := ac.Comments().List(cmd.Context(), commentListCard, listPath)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d comments on card #%s", count, commentListCard)
 		if commentListAll {
 			summary += " (all)"
@@ -65,8 +80,8 @@ var commentListCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", commentListCard), "View card"),
 		}
 
-		hasNext := resp.LinkNext != ""
-		printListPaginated(resp.Data, commentColumns, hasNext, resp.LinkNext, commentListAll, summary, breadcrumbs)
+		hasNext := linkNext != ""
+		printListPaginated(items, commentColumns, hasNext, linkNext, commentListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -91,10 +106,9 @@ var commentShowCmd = &cobra.Command{
 		commentID := args[0]
 		cardNumber := commentShowCard
 
-		client := getClient()
-		resp, err := client.Get("/cards/" + cardNumber + "/comments/" + commentID + ".json")
+		data, _, err := getSDK().Comments().Get(cmd.Context(), cardNumber, commentID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -104,7 +118,7 @@ var commentShowCmd = &cobra.Command{
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 		}
 
-		printDetail(resp.Data, "", breadcrumbs)
+		printDetail(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -142,24 +156,8 @@ var commentCreateCmd = &cobra.Command{
 			return newRequiredFlagError("body or body_file")
 		}
 
-		commentParams := map[string]any{
-			"body": body,
-		}
-		if commentCreateCreatedAt != "" {
-			commentParams["created_at"] = commentCreateCreatedAt
-		}
-
-		reqBody := map[string]any{
-			"comment": commentParams,
-		}
-
 		cardNumber := commentCreateCard
-
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/comments.json", reqBody)
-		if err != nil {
-			return err
-		}
+		ac := getSDK()
 
 		// Build breadcrumbs
 		breadcrumbs := []Breadcrumb{
@@ -167,18 +165,21 @@ var commentCreateCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		// Create returns location header - follow it to get the created resource
-		if resp.Location != "" {
-			followResp, err := client.FollowLocation(resp.Location)
-			if err == nil && followResp != nil {
-				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
-				return nil
-			}
-			printSuccessWithLocation(resp.Location)
-			return nil
+		req := &generated.CreateCommentRequest{Body: body}
+		if commentCreateCreatedAt != "" {
+			req.CreatedAt = commentCreateCreatedAt
+		}
+		data, resp, err := ac.Comments().Create(cmd.Context(), cardNumber, req)
+		if err != nil {
+			return convertSDKError(err)
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		items := normalizeAny(data)
+		if location := resp.Headers.Get("Location"); location != "" {
+			printMutationWithLocation(items, location, breadcrumbs)
+		} else {
+			printMutation(items, "", breadcrumbs)
+		}
 		return nil
 	},
 }
@@ -202,29 +203,24 @@ var commentUpdateCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		commentParams := make(map[string]any)
-
+		var body string
 		if commentUpdateBodyFile != "" {
 			content, err := os.ReadFile(commentUpdateBodyFile)
 			if err != nil {
 				return err
 			}
-			commentParams["body"] = markdownToHTML(string(content))
+			body = markdownToHTML(string(content))
 		} else if commentUpdateBody != "" {
-			commentParams["body"] = markdownToHTML(commentUpdateBody)
-		}
-
-		reqBody := map[string]any{
-			"comment": commentParams,
+			body = markdownToHTML(commentUpdateBody)
 		}
 
 		commentID := args[0]
 		cardNumber := commentUpdateCard
 
-		client := getClient()
-		resp, err := client.Patch("/cards/"+cardNumber+"/comments/"+commentID+".json", reqBody)
+		req := &generated.UpdateCommentRequest{Body: body}
+		data, _, err := getSDK().Comments().Update(cmd.Context(), cardNumber, commentID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -233,7 +229,7 @@ var commentUpdateCmd = &cobra.Command{
 			breadcrumb("comments", fmt.Sprintf("fizzy comment list --card %s", cardNumber), "List comments"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		printMutation(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -257,10 +253,9 @@ var commentDeleteCmd = &cobra.Command{
 
 		cardNumber := commentDeleteCard
 
-		client := getClient()
-		_, err := client.Delete("/cards/" + cardNumber + "/comments/" + args[0] + ".json")
+		_, err := getSDK().Comments().Delete(cmd.Context(), cardNumber, args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs

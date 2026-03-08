@@ -32,7 +32,7 @@ var searchCmd = &cobra.Command{
 
 		query := strings.Join(args, " ")
 
-		client := getClient()
+		ac := getSDK()
 		path := "/cards.json"
 
 		var params []string
@@ -67,16 +67,26 @@ var searchCmd = &cobra.Command{
 			path += "?" + strings.Join(params, "&")
 		}
 
-		resp, err := client.GetWithPagination(path, searchAll)
-		if err != nil {
-			return err
+		var items any
+		var linkNext string
+
+		if searchAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			data, resp, err := ac.Cards().List(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d results for \"%s\"", count, query)
 		if searchAll {
 			summary = fmt.Sprintf("%d results for \"%s\" (all)", count, query)
@@ -90,8 +100,8 @@ var searchCmd = &cobra.Command{
 			breadcrumb("narrow", fmt.Sprintf("fizzy search \"%s\" --board <id>", query), "Filter by board"),
 		}
 
-		hasNext := resp.LinkNext != ""
-		printListPaginated(resp.Data, searchColumns, hasNext, resp.LinkNext, searchAll, summary, breadcrumbs)
+		hasNext := linkNext != ""
+		printListPaginated(items, searchColumns, hasNext, linkNext, searchAll, summary, breadcrumbs)
 		return nil
 	},
 }

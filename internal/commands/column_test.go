@@ -10,17 +10,17 @@ import (
 func TestColumnList(t *testing.T) {
 	t.Run("returns list of columns", func(t *testing.T) {
 		mock := NewMockClient()
-		mock.GetResponse = &client.APIResponse{
+		mock.OnGet("/boards/123/columns.json", &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
 				map[string]any{"id": "1", "name": "To Do"},
 				map[string]any{"id": "2", "name": "In Progress"},
 			},
-		}
+		})
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnListBoard = "123"
 		err := columnListCmd.RunE(columnListCmd, []string{})
@@ -59,9 +59,9 @@ func TestColumnList(t *testing.T) {
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnListBoard = ""
 		err := columnListCmd.RunE(columnListCmd, []string{})
@@ -75,10 +75,10 @@ func TestColumnList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		cfg.Board = "123"
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnListBoard = ""
 		err := columnListCmd.RunE(columnListCmd, []string{})
@@ -104,9 +104,9 @@ func TestColumnShow(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnShowBoard = "123"
 		err := columnShowCmd.RunE(columnShowCmd, []string{"col-1"})
@@ -117,16 +117,16 @@ func TestColumnShow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if mock.GetCalls[0].Path != "/boards/123/columns/col-1.json" {
-			t.Errorf("expected path '/boards/123/columns/col-1.json', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/boards/123/columns/col-1" {
+			t.Errorf("expected path '/boards/123/columns/col-1', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnShowBoard = ""
 		err := columnShowCmd.RunE(columnShowCmd, []string{"col-1"})
@@ -135,9 +135,9 @@ func TestColumnShow(t *testing.T) {
 
 	t.Run("shows pseudo columns without board", func(t *testing.T) {
 		mock := NewMockClient()
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnShowBoard = ""
 		err := columnShowCmd.RunE(columnShowCmd, []string{"done"})
@@ -161,19 +161,16 @@ func TestColumnCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/columns/col-1",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
+			Location:   "/columns/col-1",
 			Data: map[string]any{
 				"id":   "col-1",
 				"name": "New Column",
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnCreateBoard = "123"
 		columnCreateName = "New Column"
@@ -191,17 +188,16 @@ func TestColumnCreate(t *testing.T) {
 		}
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		columnParams := body["column"].(map[string]any)
-		if columnParams["name"] != "New Column" {
-			t.Errorf("expected name 'New Column', got '%v'", columnParams["name"])
+		if body["name"] != "New Column" {
+			t.Errorf("expected name 'New Column', got '%v'", body["name"])
 		}
 	})
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnCreateBoard = ""
 		columnCreateName = "Test"
@@ -213,9 +209,9 @@ func TestColumnCreate(t *testing.T) {
 
 	t.Run("requires name flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnCreateBoard = "123"
 		columnCreateName = ""
@@ -229,16 +225,12 @@ func TestColumnCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/columns/col-1",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       map[string]any{},
+			Data:       map[string]any{"id": "col-1", "name": "Test"},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnCreateBoard = "123"
 		columnCreateName = "Test"
@@ -254,9 +246,8 @@ func TestColumnCreate(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		body := mock.PostCalls[0].Body.(map[string]any)
-		columnParams := body["column"].(map[string]any)
-		if columnParams["color"] != "blue" {
-			t.Errorf("expected color 'blue', got '%v'", columnParams["color"])
+		if body["color"] != "blue" {
+			t.Errorf("expected color 'blue', got '%v'", body["color"])
 		}
 	})
 }
@@ -272,9 +263,9 @@ func TestColumnUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnUpdateBoard = "123"
 		columnUpdateName = "Updated Column"
@@ -287,16 +278,16 @@ func TestColumnUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if mock.PatchCalls[0].Path != "/boards/123/columns/col-1.json" {
-			t.Errorf("expected path '/boards/123/columns/col-1.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/boards/123/columns/col-1" {
+			t.Errorf("expected path '/boards/123/columns/col-1', got '%s'", mock.PatchCalls[0].Path)
 		}
 	})
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnUpdateBoard = ""
 		err := columnUpdateCmd.RunE(columnUpdateCmd, []string{"col-1"})
@@ -312,9 +303,9 @@ func TestColumnDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnDeleteBoard = "123"
 		err := columnDeleteCmd.RunE(columnDeleteCmd, []string{"col-1"})
@@ -325,16 +316,16 @@ func TestColumnDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if mock.DeleteCalls[0].Path != "/boards/123/columns/col-1.json" {
-			t.Errorf("expected path '/boards/123/columns/col-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/boards/123/columns/col-1" {
+			t.Errorf("expected path '/boards/123/columns/col-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 
 	t.Run("requires board flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		columnDeleteBoard = ""
 		err := columnDeleteCmd.RunE(columnDeleteCmd, []string{"col-1"})

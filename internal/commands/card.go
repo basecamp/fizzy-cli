@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/basecamp/fizzy-cli/internal/errors"
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -49,7 +50,7 @@ var cardListCmd = &cobra.Command{
 		indexedByFilter := strings.TrimSpace(cardListIndexedBy)
 		effectiveIndexedBy := indexedByFilter
 
-		client := getClient()
+		ac := getSDK()
 		path := "/cards.json"
 
 		var params []string
@@ -132,14 +133,27 @@ var cardListCmd = &cobra.Command{
 			return errors.NewInvalidArgsError("Filtering by column requires --all (or --page) because it is applied client-side")
 		}
 
-		resp, err := client.GetWithPagination(path, cardListAll)
-		if err != nil {
-			return err
+		var items any
+		var linkNext string
+
+		if cardListAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			data, resp, err := ac.Cards().List(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
 		if clientSideTriage || clientSideColumnFilter != "" {
-			arr, ok := resp.Data.([]any)
-			if !ok {
+			arr := toSliceAny(items)
+			if arr == nil {
 				return errors.NewError("Unexpected cards list response")
 			}
 
@@ -174,14 +188,11 @@ var cardListCmd = &cobra.Command{
 				}
 			}
 
-			resp.Data = filtered
+			items = filtered
 		}
 
 		// Build summary
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d cards", count)
 		if cardListAll {
 			summary += " (all)"
@@ -196,7 +207,7 @@ var cardListCmd = &cobra.Command{
 			breadcrumb("search", "fizzy search \"query\"", "Search cards"),
 		}
 
-		hasNext := resp.LinkNext != ""
+		hasNext := linkNext != ""
 		if hasNext {
 			nextPage := cardListPage + 1
 			if cardListPage == 0 {
@@ -205,7 +216,7 @@ var cardListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy card list --page %d", nextPage), "Next page"))
 		}
 
-		printListPaginated(resp.Data, cardColumns, hasNext, resp.LinkNext, cardListAll, summary, breadcrumbs)
+		printListPaginated(items, cardColumns, hasNext, linkNext, cardListAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -220,17 +231,18 @@ var cardShowCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		resp, err := client.Get("/cards/" + args[0] + ".json")
+		cardNumber := args[0]
+
+		data, _, err := getSDK().Cards().Get(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		cardNumber := args[0]
+		items := normalizeAny(data)
 
 		// Build summary
 		summary := fmt.Sprintf("Card #%s", cardNumber)
-		if card, ok := resp.Data.(map[string]any); ok {
+		if card, ok := items.(map[string]any); ok {
 			if title, ok := card["title"].(string); ok {
 				summary = fmt.Sprintf("Card #%s: %s", cardNumber, title)
 			}
@@ -244,7 +256,7 @@ var cardShowCmd = &cobra.Command{
 			breadcrumb("assign", fmt.Sprintf("fizzy card assign %s --user <user_id>", cardNumber), "Assign user"),
 		}
 
-		printDetail(resp.Data, summary, breadcrumbs)
+		printDetail(items, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -254,7 +266,6 @@ var cardCreateBoard string
 var cardCreateTitle string
 var cardCreateDescription string
 var cardCreateDescriptionFile string
-var cardCreateTagIDs string
 var cardCreateImage string
 var cardCreateCreatedAt string
 
@@ -275,72 +286,64 @@ var cardCreateCmd = &cobra.Command{
 			return newRequiredFlagError("title")
 		}
 
-		cardParams := map[string]any{
-			"title": cardCreateTitle,
-		}
-
-		// Handle description
+		// Resolve description
+		var description string
 		if cardCreateDescriptionFile != "" {
 			descContent, descErr := os.ReadFile(cardCreateDescriptionFile)
 			if descErr != nil {
 				return descErr
 			}
-			cardParams["description"] = markdownToHTML(string(descContent))
+			description = markdownToHTML(string(descContent))
 		} else if cardCreateDescription != "" {
-			cardParams["description"] = markdownToHTML(cardCreateDescription)
+			description = markdownToHTML(cardCreateDescription)
 		}
 
-		if cardCreateTagIDs != "" {
-			cardParams["tag_ids"] = cardCreateTagIDs
+		ac := getSDK()
+
+		req := &generated.CreateCardRequest{
+			BoardId: boardID,
+			Title:   cardCreateTitle,
+		}
+		if description != "" {
+			req.Description = description
 		}
 		if cardCreateImage != "" {
-			cardParams["image"] = cardCreateImage
+			req.Image = cardCreateImage
 		}
 		if cardCreateCreatedAt != "" {
-			cardParams["created_at"] = cardCreateCreatedAt
+			req.CreatedAt = cardCreateCreatedAt
 		}
 
-		body := map[string]any{
-			"board_id": boardID,
-			"card":     cardParams,
-		}
-
-		client := getClient()
-		resp, err := client.Post("/cards.json", body)
+		data, resp, err := ac.Cards().Create(cmd.Context(), req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		// Create returns location header - follow it to get the created resource
-		if resp.Location != "" {
-			followResp, err := client.FollowLocation(resp.Location)
-			if err == nil && followResp != nil {
-				// Extract card number from response
-				cardNumber := ""
-				if card, ok := followResp.Data.(map[string]any); ok {
-					if num, ok := card["number"].(float64); ok {
-						cardNumber = fmt.Sprintf("%d", int(num))
-					}
-				}
+		items := normalizeAny(data)
 
-				// Build breadcrumbs
-				var breadcrumbs []Breadcrumb
-				if cardNumber != "" {
-					breadcrumbs = []Breadcrumb{
-						breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card details"),
-						breadcrumb("triage", fmt.Sprintf("fizzy card column %s --column <column_id>", cardNumber), "Move to column"),
-						breadcrumb("comment", fmt.Sprintf("fizzy comment create --card %s --body \"text\"", cardNumber), "Add comment"),
-					}
-				}
-
-				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
-				return nil
+		// Extract card number from response
+		cardNumber := ""
+		if card, ok := items.(map[string]any); ok {
+			if num, ok := card["number"].(float64); ok {
+				cardNumber = fmt.Sprintf("%d", int(num))
 			}
-			printSuccessWithLocation(resp.Location)
-			return nil
 		}
 
-		printSuccess(resp.Data)
+		// Build breadcrumbs
+		var breadcrumbs []Breadcrumb
+		if cardNumber != "" {
+			breadcrumbs = []Breadcrumb{
+				breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card details"),
+				breadcrumb("triage", fmt.Sprintf("fizzy card column %s --column <column_id>", cardNumber), "Move to column"),
+				breadcrumb("comment", fmt.Sprintf("fizzy comment create --card %s --body \"text\"", cardNumber), "Add comment"),
+			}
+		}
+
+		if location := resp.Headers.Get("Location"); location != "" {
+			printMutationWithLocation(items, location, breadcrumbs)
+		} else {
+			printMutation(items, "", breadcrumbs)
+		}
 		return nil
 	},
 }
@@ -362,38 +365,19 @@ var cardUpdateCmd = &cobra.Command{
 			return err
 		}
 
-		cardParams := make(map[string]any)
+		cardNumber := args[0]
 
-		if cardUpdateTitle != "" {
-			cardParams["title"] = cardUpdateTitle
-		}
+		// Resolve description
+		var description string
 		if cardUpdateDescriptionFile != "" {
 			content, err := os.ReadFile(cardUpdateDescriptionFile)
 			if err != nil {
 				return err
 			}
-			cardParams["description"] = markdownToHTML(string(content))
+			description = markdownToHTML(string(content))
 		} else if cardUpdateDescription != "" {
-			cardParams["description"] = markdownToHTML(cardUpdateDescription)
+			description = markdownToHTML(cardUpdateDescription)
 		}
-		if cardUpdateImage != "" {
-			cardParams["image"] = cardUpdateImage
-		}
-		if cardUpdateCreatedAt != "" {
-			cardParams["created_at"] = cardUpdateCreatedAt
-		}
-
-		body := map[string]any{
-			"card": cardParams,
-		}
-
-		client := getClient()
-		resp, err := client.Patch("/cards/"+args[0]+".json", body)
-		if err != nil {
-			return err
-		}
-
-		cardNumber := args[0]
 
 		// Build breadcrumbs
 		breadcrumbs := []Breadcrumb{
@@ -402,7 +386,25 @@ var cardUpdateCmd = &cobra.Command{
 			breadcrumb("comment", fmt.Sprintf("fizzy comment create --card %s --body \"text\"", cardNumber), "Add comment"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		req := &generated.UpdateCardRequest{}
+		if cardUpdateTitle != "" {
+			req.Title = cardUpdateTitle
+		}
+		if description != "" {
+			req.Description = description
+		}
+		if cardUpdateImage != "" {
+			req.Image = cardUpdateImage
+		}
+		if cardUpdateCreatedAt != "" {
+			req.CreatedAt = cardUpdateCreatedAt
+		}
+
+		data, _, err := getSDK().Cards().Update(cmd.Context(), cardNumber, req)
+		if err != nil {
+			return convertSDKError(err)
+		}
+		printMutation(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -417,10 +419,9 @@ var cardDeleteCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		_, err := client.Delete("/cards/" + args[0] + ".json")
+		_, err := getSDK().Cards().Delete(cmd.Context(), args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -448,10 +449,9 @@ var cardCloseCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/closure.json", nil)
+		_, err := getSDK().Cards().Close(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -460,11 +460,7 @@ var cardCloseCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -481,10 +477,9 @@ var cardReopenCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Delete("/cards/" + cardNumber + "/closure.json")
+		_, err := getSDK().Cards().Reopen(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -494,11 +489,7 @@ var cardReopenCmd = &cobra.Command{
 			breadcrumb("triage", fmt.Sprintf("fizzy card column %s --column <column_id>", cardNumber), "Move to column"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -515,10 +506,9 @@ var cardPostponeCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/not_now.json", nil)
+		_, err := getSDK().Cards().Postpone(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -527,11 +517,7 @@ var cardPostponeCmd = &cobra.Command{
 			breadcrumb("triage", fmt.Sprintf("fizzy card column %s --column <column_id>", cardNumber), "Move to column"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -555,25 +541,18 @@ var cardMoveCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		body := map[string]any{
-			"board_id": cardMoveBoard,
+		moveData, _, err := getSDK().Cards().Move(cmd.Context(), cardNumber, &generated.MoveCardRequest{
+			BoardId: cardMoveBoard,
+		})
+		if err != nil {
+			return convertSDKError(err)
 		}
 
-		client := getClient()
-		_, err := client.Patch("/cards/"+cardNumber+"/board.json", body)
-		if err != nil {
-			return err
-		}
-
-		// Fetch the updated card to show confirmation with title
-		resp, err := client.Get("/cards/" + cardNumber + ".json")
-		if err != nil {
-			return err
-		}
+		items := normalizeAny(moveData)
 
 		// Build summary with card title if available
 		summary := fmt.Sprintf("Card #%s moved to board %s", cardNumber, cardMoveBoard)
-		if card, ok := resp.Data.(map[string]any); ok {
+		if card, ok := items.(map[string]any); ok {
 			if title, ok := card["title"].(string); ok {
 				summary = fmt.Sprintf("Card #%s \"%s\" moved to board %s", cardNumber, title, cardMoveBoard)
 			}
@@ -585,7 +564,7 @@ var cardMoveCmd = &cobra.Command{
 			breadcrumb("triage", fmt.Sprintf("fizzy card column %s --column <column_id>", cardNumber), "Move to column"),
 		}
 
-		printMutation(resp.Data, summary, breadcrumbs)
+		printMutation(items, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -616,59 +595,41 @@ var cardColumnCmd = &cobra.Command{
 			breadcrumb("close", fmt.Sprintf("fizzy card close %s", cardNumber), "Close card"),
 		}
 
-		client := getClient()
+		ac := getSDK()
 		if pseudo, ok := parsePseudoColumnID(cardColumnColumn); ok {
 			switch pseudo.Kind {
 			case "triage":
-				resp, err := client.Delete("/cards/" + cardNumber + "/triage.json")
+				_, err := ac.Cards().UnTriage(cmd.Context(), cardNumber)
 				if err != nil {
-					return err
+					return convertSDKError(err)
 				}
-				data := resp.Data
-				if data == nil {
-					data = map[string]any{}
-				}
-				printMutation(data, "", breadcrumbs)
+				printMutation(map[string]any{}, "", breadcrumbs)
 				return nil
 			case "not_now":
-				resp, err := client.Post("/cards/"+cardNumber+"/not_now.json", nil)
+				_, err := ac.Cards().Postpone(cmd.Context(), cardNumber)
 				if err != nil {
-					return err
+					return convertSDKError(err)
 				}
-				data := resp.Data
-				if data == nil {
-					data = map[string]any{}
-				}
-				printMutation(data, "", breadcrumbs)
+				printMutation(map[string]any{}, "", breadcrumbs)
 				return nil
 			case "closed":
-				resp, err := client.Post("/cards/"+cardNumber+"/closure.json", nil)
+				_, err := ac.Cards().Close(cmd.Context(), cardNumber)
 				if err != nil {
-					return err
+					return convertSDKError(err)
 				}
-				data := resp.Data
-				if data == nil {
-					data = map[string]any{}
-				}
-				printMutation(data, "", breadcrumbs)
+				printMutation(map[string]any{}, "", breadcrumbs)
 				return nil
 			}
 		}
 
-		body := map[string]any{
-			"column_id": cardColumnColumn,
-		}
-
-		resp, err := client.Post("/cards/"+cardNumber+"/triage.json", body)
+		_, err := ac.Cards().Triage(cmd.Context(), cardNumber, &generated.TriageCardRequest{
+			ColumnId: cardColumnColumn,
+		})
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -685,10 +646,9 @@ var cardUntriageCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Delete("/cards/" + cardNumber + "/triage.json")
+		_, err := getSDK().Cards().UnTriage(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -697,13 +657,9 @@ var cardUntriageCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{
-				"untriaged": true,
-			}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{
+			"untriaged": true,
+		}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -727,14 +683,11 @@ var cardAssignCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		body := map[string]any{
-			"assignee_id": cardAssignUser,
-		}
-
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/assignments.json", body)
+		_, err := getSDK().Cards().Assign(cmd.Context(), cardNumber, &generated.AssignCardRequest{
+			AssigneeId: cardAssignUser,
+		})
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -743,11 +696,7 @@ var cardAssignCmd = &cobra.Command{
 			breadcrumb("people", "fizzy user list", "List users"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -764,21 +713,16 @@ var cardSelfAssignCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/self_assignment.json", nil)
+		_, err := getSDK().Cards().SelfAssign(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -802,14 +746,9 @@ var cardTagCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		body := map[string]any{
-			"tag_title": cardTagTag,
-		}
-
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/taggings.json", body)
+		resp, err := getSDK().Cards().Tag(cmd.Context(), cardNumber, &generated.TagCardRequest{TagTitle: cardTagTag})
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -818,7 +757,7 @@ var cardTagCmd = &cobra.Command{
 			breadcrumb("tags", "fizzy tag list", "List tags"),
 		}
 
-		data := resp.Data
+		data := normalizeAny(resp.Data)
 		if data == nil {
 			data = map[string]any{}
 		}
@@ -839,10 +778,9 @@ var cardWatchCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/watch.json", nil)
+		_, err := getSDK().Cards().Watch(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -851,11 +789,7 @@ var cardWatchCmd = &cobra.Command{
 			breadcrumb("notifications", "fizzy notification list", "View notifications"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -872,10 +806,9 @@ var cardUnwatchCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Delete("/cards/" + cardNumber + "/watch.json")
+		_, err := getSDK().Cards().Unwatch(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -884,11 +817,7 @@ var cardUnwatchCmd = &cobra.Command{
 			breadcrumb("notifications", "fizzy notification list", "View notifications"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -905,10 +834,9 @@ var cardImageRemoveCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Delete("/cards/" + cardNumber + "/image.json")
+		_, err := getSDK().Cards().DeleteImage(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -917,11 +845,7 @@ var cardImageRemoveCmd = &cobra.Command{
 			breadcrumb("update", fmt.Sprintf("fizzy card update %s", cardNumber), "Update card"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -938,10 +862,9 @@ var cardPinCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/pin.json", nil)
+		_, err := getSDK().Cards().Pin(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -951,11 +874,7 @@ var cardPinCmd = &cobra.Command{
 			breadcrumb("unpin", fmt.Sprintf("fizzy card unpin %s", cardNumber), "Unpin card"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -972,10 +891,9 @@ var cardUnpinCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Delete("/cards/" + cardNumber + "/pin.json")
+		_, err := getSDK().Cards().Unpin(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -985,11 +903,7 @@ var cardUnpinCmd = &cobra.Command{
 			breadcrumb("pin", fmt.Sprintf("fizzy card pin %s", cardNumber), "Pin card"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -1006,10 +920,9 @@ var cardGoldenCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/goldness.json", nil)
+		_, err := getSDK().Cards().Gold(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -1018,11 +931,7 @@ var cardGoldenCmd = &cobra.Command{
 			breadcrumb("golden", "fizzy card list --indexed-by golden", "List golden cards"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -1039,10 +948,9 @@ var cardUngoldenCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		client := getClient()
-		resp, err := client.Delete("/cards/" + cardNumber + "/goldness.json")
+		_, err := getSDK().Cards().Ungold(cmd.Context(), cardNumber)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -1051,11 +959,7 @@ var cardUngoldenCmd = &cobra.Command{
 			breadcrumb("golden", "fizzy card list --indexed-by golden", "List golden cards"),
 		}
 
-		data := resp.Data
-		if data == nil {
-			data = map[string]any{}
-		}
-		printMutation(data, "", breadcrumbs)
+		printMutation(map[string]any{}, "", breadcrumbs)
 		return nil
 	},
 }
@@ -1090,7 +994,6 @@ func init() {
 	cardCreateCmd.Flags().StringVar(&cardCreateTitle, "title", "", "Card title (required)")
 	cardCreateCmd.Flags().StringVar(&cardCreateDescription, "description", "", "Card description (HTML)")
 	cardCreateCmd.Flags().StringVar(&cardCreateDescriptionFile, "description_file", "", "Read description from file")
-	cardCreateCmd.Flags().StringVar(&cardCreateTagIDs, "tag-ids", "", "Comma-separated tag IDs")
 	cardCreateCmd.Flags().StringVar(&cardCreateImage, "image", "", "Header image signed ID")
 	cardCreateCmd.Flags().StringVar(&cardCreateCreatedAt, "created-at", "", "Custom created_at timestamp")
 	cardCmd.AddCommand(cardCreateCmd)

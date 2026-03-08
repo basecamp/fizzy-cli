@@ -156,9 +156,9 @@ func TestCommentAttachmentsShowCommand(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsShowCard = "172"
 		err := commentAttachmentsShowCmd.RunE(commentAttachmentsShowCmd, []string{})
@@ -178,9 +178,9 @@ func TestCommentAttachmentsShowCommand(t *testing.T) {
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsShowCard = ""
 		err := commentAttachmentsShowCmd.RunE(commentAttachmentsShowCmd, []string{})
@@ -222,9 +222,9 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 			Data:       commentsWithMultipleAttachments,
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsDownloadCard = "172"
 		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{})
@@ -248,9 +248,9 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 			Data:       commentsWithAttachment,
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsDownloadCard = "172"
 		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{"1"})
@@ -284,9 +284,9 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsDownloadCard = "172"
 		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{})
@@ -307,9 +307,9 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 			Data:       commentsWithAttachment,
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsDownloadCard = "172"
 		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{"abc"})
@@ -329,9 +329,9 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 			Data:       commentsWithAttachment,
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsDownloadCard = "172"
 		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{"5"})
@@ -346,9 +346,9 @@ func TestCommentAttachmentsDownloadCommand(t *testing.T) {
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentAttachmentsDownloadCard = ""
 		err := commentAttachmentsDownloadCmd.RunE(commentAttachmentsDownloadCmd, []string{})

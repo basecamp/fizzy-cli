@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -32,10 +33,10 @@ var stepShowCmd = &cobra.Command{
 		stepID := args[0]
 		cardNumber := stepShowCard
 
-		client := getClient()
-		resp, err := client.Get("/cards/" + cardNumber + "/steps/" + stepID + ".json")
+		ac := getSDK()
+		data, _, err := ac.Steps().Get(cmd.Context(), cardNumber, stepID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -44,7 +45,7 @@ var stepShowCmd = &cobra.Command{
 			breadcrumb("show", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		printDetail(resp.Data, "", breadcrumbs)
+		printDetail(normalizeAny(data), "", breadcrumbs)
 		return nil
 	},
 }
@@ -70,24 +71,8 @@ var stepCreateCmd = &cobra.Command{
 			return newRequiredFlagError("content")
 		}
 
-		stepParams := map[string]any{
-			"content": stepCreateContent,
-		}
-		if stepCreateCompleted {
-			stepParams["completed"] = true
-		}
-
-		body := map[string]any{
-			"step": stepParams,
-		}
-
 		cardNumber := stepCreateCard
-
-		client := getClient()
-		resp, err := client.Post("/cards/"+cardNumber+"/steps.json", body)
-		if err != nil {
-			return err
-		}
+		ac := getSDK()
 
 		// Build breadcrumbs
 		breadcrumbs := []Breadcrumb{
@@ -95,18 +80,21 @@ var stepCreateCmd = &cobra.Command{
 			breadcrumb("step", fmt.Sprintf("fizzy step create --card %s --content \"text\"", cardNumber), "Add another step"),
 		}
 
-		// Create returns location header - follow it to get the created resource
-		if resp.Location != "" {
-			followResp, err := client.FollowLocation(resp.Location)
-			if err == nil && followResp != nil {
-				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
-				return nil
-			}
-			printSuccessWithLocation(resp.Location)
-			return nil
+		req := &generated.CreateStepRequest{Content: stepCreateContent}
+		if stepCreateCompleted {
+			req.Completed = true
+		}
+		data, resp, err := ac.Steps().Create(cmd.Context(), cardNumber, req)
+		if err != nil {
+			return convertSDKError(err)
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		items := normalizeAny(data)
+		if location := resp.Headers.Get("Location"); location != "" {
+			printMutationWithLocation(items, location, breadcrumbs)
+		} else {
+			printMutation(items, "", breadcrumbs)
+		}
 		return nil
 	},
 }
@@ -131,29 +119,24 @@ var stepUpdateCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		stepParams := make(map[string]any)
-
-		if stepUpdateContent != "" {
-			stepParams["content"] = stepUpdateContent
-		}
-		if stepUpdateCompleted {
-			stepParams["completed"] = true
-		}
-		if stepUpdateNotCompleted {
-			stepParams["completed"] = false
-		}
-
-		body := map[string]any{
-			"step": stepParams,
-		}
-
 		stepID := args[0]
 		cardNumber := stepUpdateCard
 
-		client := getClient()
-		resp, err := client.Patch("/cards/"+cardNumber+"/steps/"+stepID+".json", body)
+		req := &generated.UpdateStepRequest{}
+		if stepUpdateContent != "" {
+			req.Content = stepUpdateContent
+		}
+		if stepUpdateCompleted {
+			req.Completed = true
+		}
+		if stepUpdateNotCompleted {
+			req.Completed = false
+		}
+
+		ac := getSDK()
+		data, _, err := ac.Steps().Update(cmd.Context(), cardNumber, stepID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs
@@ -162,7 +145,11 @@ var stepUpdateCmd = &cobra.Command{
 			breadcrumb("card", fmt.Sprintf("fizzy card show %s", cardNumber), "View card"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		result := normalizeAny(data)
+		if result == nil {
+			result = map[string]any{}
+		}
+		printMutation(result, "", breadcrumbs)
 		return nil
 	},
 }
@@ -186,10 +173,9 @@ var stepDeleteCmd = &cobra.Command{
 
 		cardNumber := stepDeleteCard
 
-		client := getClient()
-		_, err := client.Delete("/cards/" + cardNumber + "/steps/" + args[0] + ".json")
+		_, err := getSDK().Steps().Delete(cmd.Context(), cardNumber, args[0])
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		// Build breadcrumbs

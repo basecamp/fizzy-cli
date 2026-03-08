@@ -220,9 +220,9 @@ func TestCardAttachmentsCommand(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mock := NewMockClient().WithGetData(tt.cardData)
-			result := SetTestMode(mock)
+			result := SetTestModeWithSDK(mock)
 			SetTestConfig("test-token", "test-account", "https://api.test.com")
-			defer ResetTestMode()
+			defer resetTest()
 
 			rootCmd.SetArgs([]string{"card", "attachments", "show", tt.cardNumber})
 			err := rootCmd.Execute()
@@ -476,9 +476,9 @@ func TestCardAttachmentsDownloadCommand(t *testing.T) {
 			if tt.downloadError != nil {
 				mock.DownloadFileError = tt.downloadError
 			}
-			result := SetTestMode(mock)
+			result := SetTestModeWithSDK(mock)
 			SetTestConfig("test-token", "test-account", "https://api.test.com")
-			defer ResetTestMode()
+			defer resetTest()
 
 			rootCmd.SetArgs(tt.args)
 			err := rootCmd.Execute()
@@ -604,9 +604,9 @@ func TestAttachmentDownloadSanitizesFilename(t *testing.T) {
 			}
 
 			mock := NewMockClient().WithGetData(cardData)
-			result := SetTestMode(mock)
+			result := SetTestModeWithSDK(mock)
 			SetTestConfig("test-token", "test-account", "https://api.test.com")
-			defer ResetTestMode()
+			defer resetTest()
 
 			rootCmd.SetArgs([]string{"card", "attachments", "download", "241", "1"})
 			err := rootCmd.Execute()

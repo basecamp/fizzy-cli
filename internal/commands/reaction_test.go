@@ -17,9 +17,9 @@ func TestReactionList(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionListCard = "42"
 		reactionListComment = "comment-1"
@@ -35,9 +35,9 @@ func TestReactionList(t *testing.T) {
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionListCard = ""
 		reactionListComment = "comment-1"
@@ -54,9 +54,9 @@ func TestReactionList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionListCard = "42"
 		reactionListComment = ""
@@ -78,9 +78,9 @@ func TestReactionCreate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionCreateCard = "42"
 		reactionCreateComment = "comment-1"
@@ -108,9 +108,9 @@ func TestReactionCreate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionCreateCard = "42"
 		reactionCreateComment = ""
@@ -139,9 +139,9 @@ func TestReactionDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionDeleteCard = "42"
 		reactionDeleteComment = "comment-1"
@@ -150,8 +150,8 @@ func TestReactionDelete(t *testing.T) {
 		reactionDeleteComment = ""
 
 		assertExitCode(t, err, 0)
-		if mock.DeleteCalls[0].Path != "/cards/42/comments/comment-1/reactions/reaction-1.json" {
-			t.Errorf("expected path '/cards/42/comments/comment-1/reactions/reaction-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/cards/42/comments/comment-1/reactions/reaction-1" {
+			t.Errorf("expected path '/cards/42/comments/comment-1/reactions/reaction-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 
@@ -162,9 +162,9 @@ func TestReactionDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		reactionDeleteCard = "42"
 		reactionDeleteComment = ""
@@ -172,8 +172,8 @@ func TestReactionDelete(t *testing.T) {
 		reactionDeleteCard = ""
 
 		assertExitCode(t, err, 0)
-		if mock.DeleteCalls[0].Path != "/cards/42/reactions/reaction-1.json" {
-			t.Errorf("expected path '/cards/42/reactions/reaction-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/cards/42/reactions/reaction-1" {
+			t.Errorf("expected path '/cards/42/reactions/reaction-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 }

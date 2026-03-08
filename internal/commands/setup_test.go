@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,9 +19,29 @@ func TestSetupCommandDescription(t *testing.T) {
 	})
 }
 
+// toJSON marshals v to json.RawMessage for test data.
+func toJSON(t *testing.T, v any) json.RawMessage {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// toJSONSlice converts a slice of values into []json.RawMessage for test data.
+func toJSONSlice(t *testing.T, items []any) []json.RawMessage {
+	t.Helper()
+	result := make([]json.RawMessage, len(items))
+	for i, item := range items {
+		result[i] = toJSON(t, item)
+	}
+	return result
+}
+
 func TestParseAccounts(t *testing.T) {
 	t.Run("parses accounts from identity response", func(t *testing.T) {
-		data := map[string]any{
+		data := toJSON(t, map[string]any{
 			"accounts": []any{
 				map[string]any{
 					"id":   "abc123",
@@ -33,7 +54,7 @@ func TestParseAccounts(t *testing.T) {
 					"slug": "/123456789",
 				},
 			},
-		}
+		})
 
 		accounts, err := parseAccounts(data)
 		if err != nil {
@@ -56,7 +77,7 @@ func TestParseAccounts(t *testing.T) {
 	})
 
 	t.Run("returns error for invalid data format", func(t *testing.T) {
-		data := "invalid"
+		data := json.RawMessage(`"invalid"`)
 		_, err := parseAccounts(data)
 		if err == nil {
 			t.Error("expected error for invalid data format")
@@ -64,9 +85,9 @@ func TestParseAccounts(t *testing.T) {
 	})
 
 	t.Run("returns error when accounts key missing", func(t *testing.T) {
-		data := map[string]any{
+		data := toJSON(t, map[string]any{
 			"other": "data",
-		}
+		})
 		_, err := parseAccounts(data)
 		if err == nil {
 			t.Error("expected error when accounts key missing")
@@ -74,7 +95,7 @@ func TestParseAccounts(t *testing.T) {
 	})
 
 	t.Run("handles accounts without slug", func(t *testing.T) {
-		data := map[string]any{
+		data := toJSON(t, map[string]any{
 			"accounts": []any{
 				map[string]any{
 					"id":   "abc123",
@@ -86,7 +107,7 @@ func TestParseAccounts(t *testing.T) {
 					"slug": "/123",
 				},
 			},
-		}
+		})
 
 		accounts, err := parseAccounts(data)
 		if err != nil {
@@ -105,7 +126,7 @@ func TestParseAccounts(t *testing.T) {
 
 func TestParseBoards(t *testing.T) {
 	t.Run("parses boards from boards response", func(t *testing.T) {
-		data := []any{
+		data := toJSONSlice(t, []any{
 			map[string]any{
 				"id":   "board1",
 				"name": "Engineering",
@@ -114,7 +135,7 @@ func TestParseBoards(t *testing.T) {
 				"id":   "board2",
 				"name": "Marketing",
 			},
-		}
+		})
 
 		boards, err := parseBoards(data)
 		if err != nil {
@@ -134,15 +155,19 @@ func TestParseBoards(t *testing.T) {
 	})
 
 	t.Run("returns error for invalid data format", func(t *testing.T) {
-		data := "invalid"
-		_, err := parseBoards(data)
-		if err == nil {
-			t.Error("expected error for invalid data format")
+		// parseBoards takes []json.RawMessage; an entry with invalid JSON causes it to skip
+		data := []json.RawMessage{json.RawMessage(`"invalid"`)}
+		boards, err := parseBoards(data)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(boards) != 0 {
+			t.Errorf("expected 0 boards for invalid data, got %d", len(boards))
 		}
 	})
 
 	t.Run("handles empty boards list", func(t *testing.T) {
-		data := []any{}
+		data := []json.RawMessage{}
 
 		boards, err := parseBoards(data)
 		if err != nil {
@@ -155,7 +180,7 @@ func TestParseBoards(t *testing.T) {
 	})
 
 	t.Run("skips boards without id or name", func(t *testing.T) {
-		data := []any{
+		data := toJSONSlice(t, []any{
 			map[string]any{
 				"id": "board1",
 				// missing name
@@ -168,7 +193,7 @@ func TestParseBoards(t *testing.T) {
 				"id":   "board3",
 				"name": "Valid Board",
 			},
-		}
+		})
 
 		boards, err := parseBoards(data)
 		if err != nil {
@@ -201,7 +226,8 @@ func TestValidateToken(t *testing.T) {
 		// The actual API call is tested via e2e tests
 
 		// For now, test that parseAccounts works correctly
-		accounts, err := parseAccounts(mock.GetResponse.Data)
+		rawData, _ := json.Marshal(mock.GetResponse.Data)
+		accounts, err := parseAccounts(json.RawMessage(rawData))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -210,6 +236,42 @@ func TestValidateToken(t *testing.T) {
 			t.Fatalf("expected 1 account, got %d", len(accounts))
 		}
 	})
+}
+
+func TestValidateAPIURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr string
+	}{
+		{"accepts HTTPS URL", "https://fizzy.example.com", ""},
+		{"accepts HTTPS with port", "https://fizzy.example.com:8443", ""},
+		{"accepts http://localhost", "http://localhost:3000", ""},
+		{"accepts http://127.0.0.1", "http://127.0.0.1:3000", ""},
+		{"accepts http://[::1]", "http://[::1]:3000", ""},
+		{"accepts http://*.localhost", "http://app.localhost:3000", ""},
+		{"rejects empty", "", "URL is required"},
+		{"rejects no scheme", "fizzy.example.com", "URL must start with http:// or https://"},
+		{"rejects http with remote host", "http://fizzy.example.com", "non-localhost URLs must use https://"},
+		{"rejects http with IP", "http://10.0.0.1:3000", "non-localhost URLs must use https://"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAPIURL(tt.url)
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Errorf("expected no error, got %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tt.wantErr)
+				} else if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("expected error containing %q, got %q", tt.wantErr, err.Error())
+				}
+			}
+		})
+	}
 }
 
 func TestSaveLocal(t *testing.T) {

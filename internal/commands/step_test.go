@@ -18,25 +18,25 @@ func TestStepShow(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepShowCard = "42"
 		err := stepShowCmd.RunE(stepShowCmd, []string{"step-1"})
 		stepShowCard = ""
 
 		assertExitCode(t, err, 0)
-		if mock.GetCalls[0].Path != "/cards/42/steps/step-1.json" {
-			t.Errorf("expected path '/cards/42/steps/step-1.json', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/cards/42/steps/step-1" {
+			t.Errorf("expected path '/cards/42/steps/step-1', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepShowCard = ""
 		err := stepShowCmd.RunE(stepShowCmd, []string{"step-1"})
@@ -50,19 +50,16 @@ func TestStepCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/steps/step-1",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
+			Location:   "/steps/step-1",
 			Data: map[string]any{
 				"id":      "step-1",
 				"content": "New step",
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepCreateCard = "42"
 		stepCreateContent = "New step"
@@ -76,9 +73,8 @@ func TestStepCreate(t *testing.T) {
 		}
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		stepParams := body["step"].(map[string]any)
-		if stepParams["content"] != "New step" {
-			t.Errorf("expected content 'New step', got '%v'", stepParams["content"])
+		if body["content"] != "New step" {
+			t.Errorf("expected content 'New step', got '%v'", body["content"])
 		}
 	})
 
@@ -86,16 +82,12 @@ func TestStepCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/steps/step-1",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       map[string]any{},
+			Data:       map[string]any{"id": "step-1", "content": "Already done", "completed": true},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepCreateCard = "42"
 		stepCreateContent = "Already done"
@@ -108,17 +100,16 @@ func TestStepCreate(t *testing.T) {
 		assertExitCode(t, err, 0)
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		stepParams := body["step"].(map[string]any)
-		if stepParams["completed"] != true {
-			t.Errorf("expected completed true, got '%v'", stepParams["completed"])
+		if body["completed"] != true {
+			t.Errorf("expected completed true, got '%v'", body["completed"])
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepCreateCard = ""
 		stepCreateContent = "Test"
@@ -130,9 +121,9 @@ func TestStepCreate(t *testing.T) {
 
 	t.Run("requires content flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepCreateCard = "42"
 		stepCreateContent = ""
@@ -151,9 +142,9 @@ func TestStepUpdate(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepUpdateCard = "42"
 		stepUpdateContent = "Updated content"
@@ -162,8 +153,8 @@ func TestStepUpdate(t *testing.T) {
 		stepUpdateContent = ""
 
 		assertExitCode(t, err, 0)
-		if mock.PatchCalls[0].Path != "/cards/42/steps/step-1.json" {
-			t.Errorf("expected path '/cards/42/steps/step-1.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/cards/42/steps/step-1" {
+			t.Errorf("expected path '/cards/42/steps/step-1', got '%s'", mock.PatchCalls[0].Path)
 		}
 	})
 }
@@ -176,17 +167,17 @@ func TestStepDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		stepDeleteCard = "42"
 		err := stepDeleteCmd.RunE(stepDeleteCmd, []string{"step-1"})
 		stepDeleteCard = ""
 
 		assertExitCode(t, err, 0)
-		if mock.DeleteCalls[0].Path != "/cards/42/steps/step-1.json" {
-			t.Errorf("expected path '/cards/42/steps/step-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/cards/42/steps/step-1" {
+			t.Errorf("expected path '/cards/42/steps/step-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 }

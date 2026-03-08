@@ -300,7 +300,8 @@ func signupWizard() error {
 	}
 	fmt.Println("✓")
 
-	accounts, err := parseAccounts(identityData)
+	identityJSON, _ := json.Marshal(identityData)
+	accounts, err := parseAccounts(json.RawMessage(identityJSON))
 	if err != nil || len(accounts) == 0 {
 		return errors.NewError("No accounts found")
 	}
@@ -495,7 +496,8 @@ func runSignupComplete(cmd *cobra.Command, args []string) error {
 		}
 
 		var accounts []Account
-		accounts, err = parseAccounts(identityData)
+		identityJSON, _ := json.Marshal(identityData)
+		accounts, err = parseAccounts(json.RawMessage(identityJSON))
 		if err != nil || len(accounts) == 0 {
 			return errors.NewError("No accounts found after signup")
 		}

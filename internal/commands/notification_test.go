@@ -16,14 +16,37 @@ func TestNotificationList(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := notificationListCmd.RunE(notificationListCmd, []string{})
 		assertExitCode(t, err, 0)
 		if mock.GetWithPaginationCalls[0].Path != "/notifications.json" {
 			t.Errorf("expected path '/notifications.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("passes page to GetAll", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{map[string]any{"id": "1"}},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		notificationListPage = 2
+		notificationListAll = true
+		err := notificationListCmd.RunE(notificationListCmd, []string{})
+		notificationListPage = 0
+		notificationListAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/notifications.json?page=2" {
+			t.Errorf("expected path '/notifications.json?page=2', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
 	})
 }
@@ -36,9 +59,9 @@ func TestNotificationRead(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := notificationReadCmd.RunE(notificationReadCmd, []string{"notif-1"})
 		assertExitCode(t, err, 0)
@@ -56,9 +79,9 @@ func TestNotificationUnread(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := notificationUnreadCmd.RunE(notificationUnreadCmd, []string{"notif-1"})
 		assertExitCode(t, err, 0)
@@ -79,9 +102,9 @@ func TestNotificationTray(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := notificationTrayCmd.RunE(notificationTrayCmd, []string{})
 		assertExitCode(t, err, 0)
@@ -100,9 +123,9 @@ func TestNotificationTray(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		notificationTrayIncludeRead = true
 		err := notificationTrayCmd.RunE(notificationTrayCmd, []string{})
@@ -123,9 +146,9 @@ func TestNotificationReadAll(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		err := notificationReadAllCmd.RunE(notificationReadAllCmd, []string{})
 		assertExitCode(t, err, 0)

@@ -13,14 +13,14 @@ func TestCommentList(t *testing.T) {
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
-				map[string]any{"id": "1", "body": "Comment 1"},
-				map[string]any{"id": "2", "body": "Comment 2"},
+				map[string]any{"id": "1", "body": map[string]any{"html": "Comment 1", "plain_text": "Comment 1"}},
+				map[string]any{"id": "2", "body": map[string]any{"html": "Comment 2", "plain_text": "Comment 2"}},
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentListCard = "42"
 		err := commentListCmd.RunE(commentListCmd, []string{})
@@ -43,9 +43,9 @@ func TestCommentList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentListCard = "42"
 		commentListPage = 12
@@ -60,11 +60,36 @@ func TestCommentList(t *testing.T) {
 		}
 	})
 
-	t.Run("requires card flag", func(t *testing.T) {
+	t.Run("passes page to GetAll", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{map[string]any{"id": "1"}},
+		}
+
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
+
+		commentListCard = "42"
+		commentListPage = 2
+		commentListAll = true
+		err := commentListCmd.RunE(commentListCmd, []string{})
+		commentListCard = ""
+		commentListPage = 0
+		commentListAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/cards/42/comments.json?page=2" {
+			t.Errorf("expected path '/cards/42/comments.json?page=2', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("requires card flag for list", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
 
 		commentListCard = ""
 		err := commentListCmd.RunE(commentListCmd, []string{})
@@ -79,13 +104,13 @@ func TestCommentShow(t *testing.T) {
 			StatusCode: 200,
 			Data: map[string]any{
 				"id":   "comment-1",
-				"body": "This is a comment",
+				"body": map[string]any{"html": "This is a comment", "plain_text": "This is a comment"},
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentShowCard = "42"
 		err := commentShowCmd.RunE(commentShowCmd, []string{"comment-1"})
@@ -96,16 +121,16 @@ func TestCommentShow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if mock.GetCalls[0].Path != "/cards/42/comments/comment-1.json" {
-			t.Errorf("expected path '/cards/42/comments/comment-1.json', got '%s'", mock.GetCalls[0].Path)
+		if mock.GetCalls[0].Path != "/cards/42/comments/comment-1" {
+			t.Errorf("expected path '/cards/42/comments/comment-1', got '%s'", mock.GetCalls[0].Path)
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentShowCard = ""
 		err := commentShowCmd.RunE(commentShowCmd, []string{"comment-1"})
@@ -118,19 +143,16 @@ func TestCommentCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/comments/comment-1",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
+			Location:   "/comments/comment-1",
 			Data: map[string]any{
 				"id":   "comment-1",
-				"body": "New comment",
+				"body": map[string]any{"html": "New comment", "plain_text": "New comment"},
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentCreateCard = "42"
 		commentCreateBody = "New comment"
@@ -148,17 +170,16 @@ func TestCommentCreate(t *testing.T) {
 		}
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		comment := body["comment"].(map[string]any)
-		if comment["body"] != "New comment" {
-			t.Errorf("expected body 'New comment', got '%v'", comment["body"])
+		if body["body"] != "New comment" {
+			t.Errorf("expected body 'New comment', got '%v'", body["body"])
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentCreateCard = ""
 		commentCreateBody = "Test"
@@ -170,9 +191,9 @@ func TestCommentCreate(t *testing.T) {
 
 	t.Run("requires body or body_file", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentCreateCard = "42"
 		commentCreateBody = ""
@@ -187,16 +208,12 @@ func TestCommentCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/comments/comment-1",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       map[string]any{},
+			Data:       map[string]any{"id": "comment-1", "body": map[string]any{"html": "Test", "plain_text": "Test"}},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentCreateCard = "42"
 		commentCreateBody = "Test"
@@ -212,9 +229,8 @@ func TestCommentCreate(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		body := mock.PostCalls[0].Body.(map[string]any)
-		comment := body["comment"].(map[string]any)
-		if comment["created_at"] != "2020-01-01T00:00:00Z" {
-			t.Errorf("expected created_at '2020-01-01T00:00:00Z', got '%v'", comment["created_at"])
+		if body["created_at"] != "2020-01-01T00:00:00Z" {
+			t.Errorf("expected created_at '2020-01-01T00:00:00Z', got '%v'", body["created_at"])
 		}
 	})
 }
@@ -226,13 +242,13 @@ func TestCommentUpdate(t *testing.T) {
 			StatusCode: 200,
 			Data: map[string]any{
 				"id":   "comment-1",
-				"body": "Updated comment",
+				"body": map[string]any{"html": "Updated comment", "plain_text": "Updated comment"},
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentUpdateCard = "42"
 		commentUpdateBody = "Updated comment"
@@ -245,16 +261,16 @@ func TestCommentUpdate(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if mock.PatchCalls[0].Path != "/cards/42/comments/comment-1.json" {
-			t.Errorf("expected path '/cards/42/comments/comment-1.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/cards/42/comments/comment-1" {
+			t.Errorf("expected path '/cards/42/comments/comment-1', got '%s'", mock.PatchCalls[0].Path)
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentUpdateCard = ""
 		err := commentUpdateCmd.RunE(commentUpdateCmd, []string{"comment-1"})
@@ -270,9 +286,9 @@ func TestCommentDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentDeleteCard = "42"
 		err := commentDeleteCmd.RunE(commentDeleteCmd, []string{"comment-1"})
@@ -283,16 +299,16 @@ func TestCommentDelete(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if mock.DeleteCalls[0].Path != "/cards/42/comments/comment-1.json" {
-			t.Errorf("expected path '/cards/42/comments/comment-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/cards/42/comments/comment-1" {
+			t.Errorf("expected path '/cards/42/comments/comment-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 
 	t.Run("requires card flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		commentDeleteCard = ""
 		err := commentDeleteCmd.RunE(commentDeleteCmd, []string{"comment-1"})
