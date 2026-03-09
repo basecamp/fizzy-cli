@@ -113,7 +113,9 @@ func TestAuthLogin(t *testing.T) {
 	t.Run("saves token to config file", func(t *testing.T) {
 		// Run login with HOME set to temp directory
 		result := harness.Execute(cfg.BinaryPath, []string{"auth", "login", cfg.Token}, map[string]string{
-			"HOME": tmpDir,
+			"HOME":             tmpDir,
+			"FIZZY_PROFILE":    cfg.Account,
+			"FIZZY_NO_KEYRING": "1",
 		})
 
 		if result.ExitCode != harness.ExitSuccess {
@@ -153,7 +155,9 @@ func TestAuthLogout(t *testing.T) {
 
 	t.Run("removes config file on logout", func(t *testing.T) {
 		result := harness.Execute(cfg.BinaryPath, []string{"auth", "logout"}, map[string]string{
-			"HOME": tmpDir,
+			"HOME":             tmpDir,
+			"FIZZY_PROFILE":    cfg.Account,
+			"FIZZY_NO_KEYRING": "1",
 		})
 
 		if result.ExitCode != harness.ExitSuccess {
@@ -169,7 +173,9 @@ func TestAuthLogout(t *testing.T) {
 	t.Run("succeeds when already logged out", func(t *testing.T) {
 		// Config file already removed, run logout again
 		result := harness.Execute(cfg.BinaryPath, []string{"auth", "logout"}, map[string]string{
-			"HOME": tmpDir,
+			"HOME":             tmpDir,
+			"FIZZY_PROFILE":    cfg.Account,
+			"FIZZY_NO_KEYRING": "1",
 		})
 
 		if result.ExitCode != harness.ExitSuccess {
