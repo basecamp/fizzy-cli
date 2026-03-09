@@ -28,6 +28,9 @@ type Harness struct {
 	// Cleanup tracks created resources for cleanup
 	Cleanup *CleanupTracker
 
+	// configHome is a temporary directory used as HOME to isolate from host config
+	configHome string
+
 	// t is the testing context
 	t *testing.T
 }
@@ -137,12 +140,19 @@ func New(t *testing.T) *Harness {
 		t.Skip("FIZZY_TEST_ACCOUNT not set, skipping integration tests")
 	}
 
+	tmpDir, err := os.MkdirTemp("", "fizzy-e2e-*")
+	if err != nil {
+		t.Fatalf("failed to create temp config dir: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(tmpDir) })
+
 	return &Harness{
 		BinaryPath: cfg.BinaryPath,
 		Token:      cfg.Token,
 		Account:    cfg.Account,
 		APIURL:     cfg.APIURL,
 		Cleanup:    NewCleanupTracker(),
+		configHome: tmpDir,
 		t:          t,
 	}
 }
@@ -174,8 +184,14 @@ func (h *Harness) RunWithEnv(env map[string]string, args ...string) *Result {
 	// Build full argument list with global options
 	fullArgs := h.buildArgs(args...)
 
+	// Merge global env (FIZZY_PROFILE) with caller-provided env
+	mergedEnv := h.globalEnv()
+	for k, v := range env {
+		mergedEnv[k] = v
+	}
+
 	// Execute the command
-	result := Execute(h.BinaryPath, fullArgs, env)
+	result := Execute(h.BinaryPath, fullArgs, mergedEnv)
 
 	// Try to parse JSON response
 	if result.Stdout != "" {
@@ -211,15 +227,23 @@ func (h *Harness) RunWithoutAuth(args ...string) *Result {
 }
 
 // buildArgs builds the full argument list with global options.
-// Thor requires global options to come AFTER the subcommand.
 func (h *Harness) buildArgs(args ...string) []string {
 	globalArgs := []string{
 		"--token", h.Token,
-		"--account", h.Account,
 		"--api-url", h.APIURL,
 	}
 	// Append global args after the command args
 	return append(args, globalArgs...)
+}
+
+// globalEnv returns environment variables for the test harness.
+// Uses a temporary HOME to isolate from host config/keyring.
+func (h *Harness) globalEnv() map[string]string {
+	return map[string]string{
+		"FIZZY_PROFILE":    h.Account,
+		"FIZZY_NO_KEYRING": "1",
+		"HOME":             h.configHome,
+	}
 }
 
 // GetDataString extracts a string value from the response data.

@@ -346,9 +346,13 @@ func TestCardAttachmentsDownload(t *testing.T) {
 
 		// Check response data
 		data := result.GetDataMap()
-		downloaded := int(data["downloaded"].(float64))
-		if downloaded != 2 {
-			t.Errorf("expected downloaded=2, got %d", downloaded)
+		if data == nil {
+			t.Error("expected data map in response")
+		} else {
+			downloaded := int(data["downloaded"].(float64))
+			if downloaded != 2 {
+				t.Errorf("expected downloaded=2, got %d", downloaded)
+			}
 		}
 	})
 
@@ -388,12 +392,14 @@ func TestCardAttachmentsDownload(t *testing.T) {
 
 		// Check response shows custom saved_to path
 		data := result.GetDataMap()
-		files := data["files"].([]any)
-		if len(files) > 0 {
-			fileInfo := files[0].(map[string]any)
-			savedTo := fileInfo["saved_to"].(string)
-			if savedTo != customFilename {
-				t.Errorf("expected saved_to=%q, got %q", customFilename, savedTo)
+		if data == nil {
+			t.Error("expected data map in response")
+		} else if files, ok := data["files"].([]any); ok && len(files) > 0 {
+			if fileInfo, ok := files[0].(map[string]any); ok {
+				savedTo, _ := fileInfo["saved_to"].(string)
+				if savedTo != customFilename {
+					t.Errorf("expected saved_to=%q, got %q", customFilename, savedTo)
+				}
 			}
 		}
 	})
