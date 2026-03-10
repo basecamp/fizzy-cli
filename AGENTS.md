@@ -24,8 +24,8 @@ Commands use the fizzy-sdk (`github.com/basecamp/fizzy-sdk/go/pkg/fizzy`) for AP
 - **`getSDKClient()`** returns `*fizzy.Client` — root client for account-independent operations (e.g. identity)
 - **`getClient()`** (deprecated) returns `client.API` — legacy client, used only for file upload, download, multipart PATCH, and board migration
 
-SDK responses return `json.RawMessage`. Helper functions convert to the `any` types the output layer expects:
-- **`jsonAny(resp.Data)`** — converts single response to `any` (maps become `map[string]any`, arrays become `[]map[string]any`)
+SDK service methods return typed structs (e.g. `*generated.Board`, `[]generated.Card`). Helper functions convert to the `any` types the output layer expects:
+- **`normalizeAny(data)`** — JSON-round-trips any value (typed structs, `json.RawMessage`, maps) to `map[string]any` / `[]map[string]any`
 - **`jsonAnySlice(pages)`** — converts `[]json.RawMessage` from `GetAll()` pagination to `[]map[string]any`
 - **`convertSDKError(err)`** — converts SDK errors to `*output.Error`
 - **`toSliceAny(v)`** — normalizes `[]map[string]any` or `[]any` to `[]any` for iteration

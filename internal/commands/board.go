@@ -198,20 +198,41 @@ var boardUpdateCmd = &cobra.Command{
 
 		boardID := args[0]
 
-		req := &generated.UpdateBoardRequest{}
-		if boardUpdateName != "" {
-			req.Name = boardUpdateName
-		}
-		if boardUpdateAllAccess != "" {
-			req.AllAccess = boardUpdateAllAccess == "true"
-		}
-		if boardUpdateAutoPostponePeriod > 0 {
-			req.AutoPostponePeriod = int32(boardUpdateAutoPostponePeriod)
-		}
-
-		data, _, err := getSDK().Boards().Update(cmd.Context(), boardID, req)
-		if err != nil {
-			return convertSDKError(err)
+		// When --all_access false is set, we must send `"all_access": false`
+		// explicitly. The SDK's UpdateBoardRequest uses `omitempty` on the
+		// AllAccess bool, which silently drops false values. Use raw Patch
+		// when all_access is being set to false.
+		ac := getSDK()
+		var data any
+		if boardUpdateAllAccess == "false" {
+			body := map[string]any{"all_access": false}
+			if boardUpdateName != "" {
+				body["name"] = boardUpdateName
+			}
+			if boardUpdateAutoPostponePeriod > 0 {
+				body["auto_postpone_period"] = boardUpdateAutoPostponePeriod
+			}
+			resp, patchErr := ac.Patch(cmd.Context(), "/boards/"+boardID+".json", body)
+			if patchErr != nil {
+				return convertSDKError(patchErr)
+			}
+			data = resp.Data
+		} else {
+			req := &generated.UpdateBoardRequest{}
+			if boardUpdateName != "" {
+				req.Name = boardUpdateName
+			}
+			if boardUpdateAllAccess == "true" {
+				req.AllAccess = true
+			}
+			if boardUpdateAutoPostponePeriod > 0 {
+				req.AutoPostponePeriod = int32(boardUpdateAutoPostponePeriod)
+			}
+			var updateErr error
+			data, _, updateErr = ac.Boards().Update(cmd.Context(), boardID, req)
+			if updateErr != nil {
+				return convertSDKError(updateErr)
+			}
 		}
 
 		breadcrumbs := []Breadcrumb{

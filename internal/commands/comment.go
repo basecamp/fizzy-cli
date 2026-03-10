@@ -217,7 +217,10 @@ var commentUpdateCmd = &cobra.Command{
 		commentID := args[0]
 		cardNumber := commentUpdateCard
 
-		req := &generated.UpdateCommentRequest{Body: body}
+		req := &generated.UpdateCommentRequest{}
+		if body != "" {
+			req.Body = body
+		}
 		data, _, err := getSDK().Comments().Update(cmd.Context(), cardNumber, commentID, req)
 		if err != nil {
 			return convertSDKError(err)

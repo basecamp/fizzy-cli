@@ -19,7 +19,11 @@ var uploadFileCmd = &cobra.Command{
 	Long:  "Uploads a file and returns a signed_id for use in rich text fields.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := requireAuthAndAccount(); err != nil {
+		// Upload uses legacy client only — skip SDK initialization
+		if err := requireAuth(); err != nil {
+			return err
+		}
+		if err := requireAccount(); err != nil {
 			return err
 		}
 

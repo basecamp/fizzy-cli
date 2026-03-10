@@ -2,6 +2,7 @@ package commands
 
 import (
 	"errors"
+	"net"
 
 	"github.com/basecamp/cli/output"
 	fizzy "github.com/basecamp/fizzy-sdk/go/pkg/fizzy"
@@ -53,6 +54,17 @@ func convertSDKError(err error) error {
 			e.Hint = "Run 'fizzy auth login TOKEN' or set FIZZY_TOKEN"
 		}
 		return e
+	}
+
+	// Catch raw network errors that weren't wrapped by the SDK
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return &output.Error{
+			Code:      output.CodeNetwork,
+			Message:   netErr.Error(),
+			Hint:      "Check your internet connection",
+			Retryable: true,
+		}
 	}
 
 	return err
