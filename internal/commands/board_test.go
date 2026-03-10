@@ -67,9 +67,9 @@ func TestBoardList(t *testing.T) {
 			LinkNext:   "https://api.example.com/boards.json?page=2",
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		boardListPage = 0
 		boardListAll = false
