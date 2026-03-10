@@ -116,10 +116,14 @@ func installAgentHelp() {
 	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		if cfgAgent {
 			agentHelp(cmd, args)
-		} else {
-			// Fall back to Cobra's default help
-			cmd.Root().SetHelpFunc(nil)
-			_ = cmd.Help()
+			return
 		}
+		// Banner on root help only
+		if cmd == rootCmd {
+			printBanner()
+		}
+		// Fall back to Cobra's default help
+		cmd.Root().SetHelpFunc(nil)
+		_ = cmd.Help()
 	})
 }
