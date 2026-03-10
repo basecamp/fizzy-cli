@@ -9,19 +9,19 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
-  security-events: write
-  pull-requests: read
+permissions: {}
 
 jobs:
   test:
     uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
 
   security:
     uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      security-events: write
 
   release:
     name: Release
@@ -33,6 +33,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
