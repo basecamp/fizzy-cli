@@ -427,11 +427,14 @@ func validateAPIURL(s string) error {
 	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") {
 		return fmt.Errorf("URL must start with http:// or https://")
 	}
-	if strings.HasPrefix(s, "http://") {
-		u, err := url.Parse(s)
-		if err != nil {
-			return fmt.Errorf("invalid URL: %w", err)
-		}
+	u, err := url.Parse(s)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+	if u.Hostname() == "" {
+		return fmt.Errorf("URL must include a hostname")
+	}
+	if u.Scheme == "http" {
 		host := u.Hostname()
 		if host != "localhost" && host != "127.0.0.1" && host != "::1" && !strings.HasSuffix(host, ".localhost") {
 			return fmt.Errorf("non-localhost URLs must use https://")
