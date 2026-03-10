@@ -153,10 +153,10 @@ func TestBoardCRUD(t *testing.T) {
 			t.Skip("no board ID from create test")
 		}
 
-		published := true
+		published := false
 		publishResult := h.Run("board", "publish", boardID)
 
-		// Always unpublish on exit, even if assertions fail mid-test
+		// Only unpublish on exit if publish succeeded
 		t.Cleanup(func() {
 			if published {
 				h.Run("board", "unpublish", boardID)
@@ -175,6 +175,8 @@ func TestBoardCRUD(t *testing.T) {
 		if !publishResult.Response.OK {
 			t.Fatalf("expected ok=true, error: %+v", publishResult.Response.Error)
 		}
+
+		published = true
 
 		publicURL := publishResult.GetDataString("public_url")
 		if publicURL == "" {
