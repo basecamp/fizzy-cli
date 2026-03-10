@@ -103,10 +103,10 @@ func installSkillFiles() (string, error) {
 	skillDir := filepath.Join(home, ".agents", "skills", "fizzy")
 	skillFile := filepath.Join(skillDir, skillFilename)
 
-	if err := os.MkdirAll(skillDir, 0o755); err != nil { //nolint:gosec // G301: Skill files are not secrets
+	if err := os.MkdirAll(skillDir, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return "", fmt.Errorf("creating skill directory: %w", err)
 	}
-	if err := os.WriteFile(skillFile, skills.Content, 0o644); err != nil { //nolint:gosec // G306: Skill files are not secrets
+	if err := os.WriteFile(skillFile, skills.Content, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
 		return "", fmt.Errorf("writing skill file: %w", err)
 	}
 
@@ -180,10 +180,10 @@ func runSkillWizard() error {
 
 	// Write to selected location
 	dir := filepath.Dir(expandedPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // G301: Skill files are not secrets
+	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("creating directory: %v", err)}
 	}
-	if err := os.WriteFile(expandedPath, skills.Content, 0o644); err != nil { //nolint:gosec // G306: Skill files are not secrets
+	if err := os.WriteFile(expandedPath, skills.Content, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
 		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("writing skill file: %v", err)}
 	}
 
@@ -193,8 +193,8 @@ func runSkillWizard() error {
 		canonicalDir := filepath.Join(home, ".agents", "skills", "fizzy")
 		canonicalFile := filepath.Join(canonicalDir, skillFilename)
 		if canonicalFile != expandedPath {
-			_ = os.MkdirAll(canonicalDir, 0o755)                   //nolint:gosec // G301: Skill files are not secrets
-			_ = os.WriteFile(canonicalFile, skills.Content, 0o644) //nolint:gosec // G306: Skill files are not secrets
+			_ = os.MkdirAll(canonicalDir, 0o755)                   // #nosec G301 -- skill files are not secrets //nolint:gosec
+			_ = os.WriteFile(canonicalFile, skills.Content, 0o644) // #nosec G306 -- skill files are not secrets //nolint:gosec
 		}
 	}
 
@@ -281,7 +281,7 @@ func linkSkillToClaude() (string, string, error) {
 	symlinkDir := filepath.Join(home, ".claude", "skills")
 	symlinkPath := filepath.Join(symlinkDir, "fizzy")
 
-	if err := os.MkdirAll(symlinkDir, 0o755); err != nil { //nolint:gosec // G301: Skill files are not secrets
+	if err := os.MkdirAll(symlinkDir, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return "", "", fmt.Errorf("creating symlink directory: %w", err)
 	}
 
@@ -302,7 +302,7 @@ func linkSkillToClaude() (string, string, error) {
 }
 
 func copySkillFiles(src, dst string) error {
-	if err := os.MkdirAll(dst, 0o755); err != nil { //nolint:gosec // G301: Skill files are not secrets
+	if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return err
 	}
 	entries, err := os.ReadDir(src)
@@ -317,7 +317,7 @@ func copySkillFiles(src, dst string) error {
 		if err != nil {
 			return err
 		}
-		if err := os.WriteFile(filepath.Join(dst, e.Name()), data, 0o644); err != nil { //nolint:gosec // G306: Skill files are not secrets
+		if err := os.WriteFile(filepath.Join(dst, e.Name()), data, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
 			return err
 		}
 	}

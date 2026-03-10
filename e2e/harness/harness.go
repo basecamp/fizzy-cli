@@ -333,6 +333,9 @@ func (r *Result) GetNumberFromLocation() int {
 	}
 	// Try to parse as int
 	var num int
-	_, _ = fmt.Sscanf(idStr, "%d", &num)
+	n, err := fmt.Sscanf(idStr, "%d", &num)
+	if err != nil || n != 1 {
+		return 0
+	}
 	return num
 }
