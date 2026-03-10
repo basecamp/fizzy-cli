@@ -309,6 +309,10 @@ func parseRetryAfter(value string) time.Duration {
 		return time.Second
 	}
 	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
+		const maxRetryDelay = 300 // 5 minutes; anything larger is almost certainly bogus
+		if seconds > maxRetryDelay {
+			seconds = maxRetryDelay
+		}
 		return time.Duration(seconds) * time.Second
 	}
 	// Try HTTP-date format
