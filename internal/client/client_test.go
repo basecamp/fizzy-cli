@@ -783,6 +783,10 @@ func TestParseRetryAfter(t *testing.T) {
 	}{
 		{"empty", "", time.Second},
 		{"seconds", "5", 5 * time.Second},
+		{"capped", "600", 300 * time.Second},
+		{"overflow", "9227000000", 300 * time.Second},
+		{"zero", "0", time.Second},
+		{"negative", "-1", time.Second},
 		{"invalid", "not-a-number", time.Second},
 	}
 	for _, tt := range tests {

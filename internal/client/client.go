@@ -250,6 +250,8 @@ func (c *Client) sleep(d time.Duration) {
 
 const maxRetries = 3
 
+var linkNextRe = regexp.MustCompile(`<([^>]+)>;\s*rel="next"`)
+
 // doWithRetry wraps HTTPClient.Do with retry logic for 429 and 5xx responses.
 // Only retries GET/DELETE/PUT on 5xx; POST/PATCH only retry on 429.
 func (c *Client) doWithRetry(req *http.Request) (*http.Response, error) {
@@ -305,11 +307,12 @@ func resetBody(req *http.Request) {
 // parseRetryAfter parses the Retry-After header value as seconds.
 // Returns a default of 1 second if the header is missing or unparseable.
 func parseRetryAfter(value string) time.Duration {
+	const maxRetryDelay = 300 // 5 minutes; anything larger is almost certainly bogus
+
 	if value == "" {
 		return time.Second
 	}
 	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
-		const maxRetryDelay = 300 // 5 minutes; anything larger is almost certainly bogus
 		if seconds > maxRetryDelay {
 			seconds = maxRetryDelay
 		}
@@ -319,6 +322,9 @@ func parseRetryAfter(value string) time.Duration {
 	if t, err := http.ParseTime(value); err == nil {
 		delay := time.Until(t)
 		if delay > 0 {
+			if delay > maxRetryDelay*time.Second {
+				return maxRetryDelay * time.Second
+			}
 			return delay
 		}
 	}
@@ -361,9 +367,7 @@ func parseLinkNext(linkHeader string) string {
 	if linkHeader == "" {
 		return ""
 	}
-	// Parse Link header: <url>; rel="next"
-	re := regexp.MustCompile(`<([^>]+)>;\s*rel="next"`)
-	matches := re.FindStringSubmatch(linkHeader)
+	matches := linkNextRe.FindStringSubmatch(linkHeader)
 	if len(matches) > 1 {
 		return matches[1]
 	}
