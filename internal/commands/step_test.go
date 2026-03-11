@@ -181,3 +181,44 @@ func TestStepDelete(t *testing.T) {
 		}
 	})
 }
+
+func TestStepList(t *testing.T) {
+	t.Run("lists steps on card", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "step-1", "content": "Step 1"},
+				map[string]any{"id": "step-2", "content": "Step 2"},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		stepListCard = "42"
+		err := stepListCmd.RunE(stepListCmd, []string{})
+		stepListCard = ""
+
+		assertExitCode(t, err, 0)
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Fatalf("expected 1 GetWithPagination call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if mock.GetWithPaginationCalls[0].Path != "/cards/42/steps.json" {
+			t.Errorf("expected path '/cards/42/steps.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("requires card flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		stepListCard = ""
+		err := stepListCmd.RunE(stepListCmd, []string{})
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}

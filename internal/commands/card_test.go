@@ -1059,3 +1059,51 @@ func TestCardMove(t *testing.T) {
 		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
+
+func TestCardPublish(t *testing.T) {
+	t.Run("publishes card", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := cardPublishCmd.RunE(cardPublishCmd, []string{"42"})
+		assertExitCode(t, err, 0)
+
+		if mock.PostCalls[0].Path != "/cards/42/publish.json" {
+			t.Errorf("expected path '/cards/42/publish.json', got '%s'", mock.PostCalls[0].Path)
+		}
+	})
+}
+
+func TestCardMarkRead(t *testing.T) {
+	t.Run("marks card as read", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := cardMarkReadCmd.RunE(cardMarkReadCmd, []string{"42"})
+		assertExitCode(t, err, 0)
+
+		if mock.PostCalls[0].Path != "/cards/42/reading.json" {
+			t.Errorf("expected path '/cards/42/reading.json', got '%s'", mock.PostCalls[0].Path)
+		}
+	})
+}
+
+func TestCardMarkUnread(t *testing.T) {
+	t.Run("marks card as unread", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := cardMarkUnreadCmd.RunE(cardMarkUnreadCmd, []string{"42"})
+		assertExitCode(t, err, 0)
+
+		if mock.DeleteCalls[0].Path != "/cards/42/reading.json" {
+			t.Errorf("expected path '/cards/42/reading.json', got '%s'", mock.DeleteCalls[0].Path)
+		}
+	})
+}

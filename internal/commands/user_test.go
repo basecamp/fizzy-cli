@@ -205,3 +205,126 @@ func TestUserDeactivate(t *testing.T) {
 		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
+
+func TestUserRole(t *testing.T) {
+	t.Run("updates user role", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		userRoleRole = "admin"
+		err := userRoleCmd.RunE(userRoleCmd, []string{"user-1"})
+		userRoleRole = ""
+
+		assertExitCode(t, err, 0)
+		if mock.PatchCalls[0].Path != "/users/user-1/role.json" {
+			t.Errorf("expected path '/users/user-1/role.json', got '%s'", mock.PatchCalls[0].Path)
+		}
+
+		body := mock.PatchCalls[0].Body.(map[string]any)
+		if body["role"] != "admin" {
+			t.Errorf("expected role 'admin', got '%v'", body["role"])
+		}
+	})
+
+	t.Run("requires role flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		userRoleRole = ""
+		err := userRoleCmd.RunE(userRoleCmd, []string{"user-1"})
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}
+
+func TestUserAvatarRemove(t *testing.T) {
+	t.Run("removes user avatar", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := userAvatarRemoveCmd.RunE(userAvatarRemoveCmd, []string{"user-1"})
+		assertExitCode(t, err, 0)
+
+		if mock.DeleteCalls[0].Path != "/users/user-1/avatar" {
+			t.Errorf("expected path '/users/user-1/avatar', got '%s'", mock.DeleteCalls[0].Path)
+		}
+	})
+}
+
+func TestUserPushSubscriptionCreate(t *testing.T) {
+	t.Run("creates push subscription", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubCreateUser = "user-1"
+		pushSubCreateEndpoint = "https://push.example.com"
+		pushSubCreateP256dhKey = "key1"
+		pushSubCreateAuthKey = "key2"
+		err := userPushSubscriptionCreateCmd.RunE(userPushSubscriptionCreateCmd, []string{})
+		pushSubCreateUser = ""
+		pushSubCreateEndpoint = ""
+		pushSubCreateP256dhKey = ""
+		pushSubCreateAuthKey = ""
+
+		assertExitCode(t, err, 0)
+		if mock.PostCalls[0].Path != "/users/user-1/push_subscriptions.json" {
+			t.Errorf("expected path '/users/user-1/push_subscriptions.json', got '%s'", mock.PostCalls[0].Path)
+		}
+	})
+
+	t.Run("requires user flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubCreateUser = ""
+		pushSubCreateEndpoint = "https://push.example.com"
+		pushSubCreateP256dhKey = "key1"
+		pushSubCreateAuthKey = "key2"
+		err := userPushSubscriptionCreateCmd.RunE(userPushSubscriptionCreateCmd, []string{})
+		pushSubCreateEndpoint = ""
+		pushSubCreateP256dhKey = ""
+		pushSubCreateAuthKey = ""
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}
+
+func TestUserPushSubscriptionDelete(t *testing.T) {
+	t.Run("deletes push subscription", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubDeleteUser = "user-1"
+		err := userPushSubscriptionDeleteCmd.RunE(userPushSubscriptionDeleteCmd, []string{"sub-1"})
+		pushSubDeleteUser = ""
+
+		assertExitCode(t, err, 0)
+		if mock.DeleteCalls[0].Path != "/users/user-1/push_subscriptions/sub-1" {
+			t.Errorf("expected path '/users/user-1/push_subscriptions/sub-1', got '%s'", mock.DeleteCalls[0].Path)
+		}
+	})
+
+	t.Run("requires user flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubDeleteUser = ""
+		err := userPushSubscriptionDeleteCmd.RunE(userPushSubscriptionDeleteCmd, []string{"sub-1"})
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}

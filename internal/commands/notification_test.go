@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/basecamp/fizzy-cli/internal/client"
+	"github.com/basecamp/fizzy-cli/internal/errors"
 )
 
 func TestNotificationList(t *testing.T) {
@@ -155,5 +156,61 @@ func TestNotificationReadAll(t *testing.T) {
 		if mock.PostCalls[0].Path != "/notifications/bulk_reading.json" {
 			t.Errorf("expected path '/notifications/bulk_reading.json', got '%s'", mock.PostCalls[0].Path)
 		}
+	})
+}
+
+func TestNotificationSettingsShow(t *testing.T) {
+	t.Run("shows notification settings", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       map[string]any{"bundle_email_frequency": "daily", "email_enabled": true},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := notificationSettingsShowCmd.RunE(notificationSettingsShowCmd, []string{})
+		assertExitCode(t, err, 0)
+		if mock.GetCalls[0].Path != "/notifications/settings.json" {
+			t.Errorf("expected path '/notifications/settings.json', got '%s'", mock.GetCalls[0].Path)
+		}
+	})
+}
+
+func TestNotificationSettingsUpdate(t *testing.T) {
+	t.Run("updates notification settings with bundle-email-frequency flag", func(t *testing.T) {
+		mock := NewMockClient()
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		notificationSettingsUpdateFrequency = "daily"
+		err := notificationSettingsUpdateCmd.RunE(notificationSettingsUpdateCmd, []string{})
+		notificationSettingsUpdateFrequency = ""
+
+		assertExitCode(t, err, 0)
+		if mock.PatchCalls[0].Path != "/notifications/settings.json" {
+			t.Errorf("expected path '/notifications/settings.json', got '%s'", mock.PatchCalls[0].Path)
+		}
+		body := mock.PatchCalls[0].Body.(map[string]any)
+		if body["bundle_email_frequency"] != "daily" {
+			t.Errorf("expected bundle_email_frequency 'daily', got '%v'", body["bundle_email_frequency"])
+		}
+	})
+
+	t.Run("requires bundle-email-frequency flag", func(t *testing.T) {
+		mock := NewMockClient()
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		notificationSettingsUpdateFrequency = ""
+		err := notificationSettingsUpdateCmd.RunE(notificationSettingsUpdateCmd, []string{})
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }

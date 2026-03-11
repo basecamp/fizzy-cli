@@ -663,3 +663,158 @@ func TestBoardEntropy(t *testing.T) {
 		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }
+
+func TestBoardClosed(t *testing.T) {
+	t.Run("lists closed cards", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "1", "number": float64(10), "title": "Closed Card"},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardClosedBoard = "123"
+		err := boardClosedCmd.RunE(boardClosedCmd, []string{})
+		boardClosedBoard = ""
+		boardClosedPage = 0
+		boardClosedAll = false
+
+		assertExitCode(t, err, 0)
+
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Errorf("expected 1 GetWithPagination call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if mock.GetWithPaginationCalls[0].Path != "/boards/123/columns/closed.json" {
+			t.Errorf("expected path '/boards/123/columns/closed.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("requires board flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardClosedBoard = ""
+		err := boardClosedCmd.RunE(boardClosedCmd, []string{})
+		boardClosedBoard = ""
+		boardClosedPage = 0
+		boardClosedAll = false
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}
+
+func TestBoardPostponed(t *testing.T) {
+	t.Run("lists postponed cards", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "1", "number": float64(20), "title": "Postponed Card"},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardPostponedBoard = "123"
+		err := boardPostponedCmd.RunE(boardPostponedCmd, []string{})
+		boardPostponedBoard = ""
+		boardPostponedPage = 0
+		boardPostponedAll = false
+
+		assertExitCode(t, err, 0)
+
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Errorf("expected 1 GetWithPagination call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if mock.GetWithPaginationCalls[0].Path != "/boards/123/columns/not_now.json" {
+			t.Errorf("expected path '/boards/123/columns/not_now.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+}
+
+func TestBoardStream(t *testing.T) {
+	t.Run("lists stream cards", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "1", "number": float64(30), "title": "Stream Card"},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardStreamBoard = "123"
+		err := boardStreamCmd.RunE(boardStreamCmd, []string{})
+		boardStreamBoard = ""
+		boardStreamPage = 0
+		boardStreamAll = false
+
+		assertExitCode(t, err, 0)
+
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Errorf("expected 1 GetWithPagination call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if mock.GetWithPaginationCalls[0].Path != "/boards/123/columns/stream.json" {
+			t.Errorf("expected path '/boards/123/columns/stream.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+}
+
+func TestBoardInvolvement(t *testing.T) {
+	t.Run("updates board involvement", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PatchResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       map[string]any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardInvolvementInvolvement = "involved"
+		err := boardInvolvementCmd.RunE(boardInvolvementCmd, []string{"123"})
+		boardInvolvementInvolvement = ""
+
+		assertExitCode(t, err, 0)
+
+		if len(mock.PatchCalls) != 1 {
+			t.Errorf("expected 1 Patch call, got %d", len(mock.PatchCalls))
+		}
+		if mock.PatchCalls[0].Path != "/boards/123/involvement.json" {
+			t.Errorf("expected path '/boards/123/involvement.json', got '%s'", mock.PatchCalls[0].Path)
+		}
+		body, ok := mock.PatchCalls[0].Body.(map[string]any)
+		if !ok {
+			t.Fatal("expected map body")
+		}
+		if body["involvement"] != "involved" {
+			t.Errorf("expected involvement 'involved', got '%v'", body["involvement"])
+		}
+	})
+
+	t.Run("requires involvement flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardInvolvementInvolvement = ""
+		err := boardInvolvementCmd.RunE(boardInvolvementCmd, []string{"123"})
+		boardInvolvementInvolvement = ""
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}

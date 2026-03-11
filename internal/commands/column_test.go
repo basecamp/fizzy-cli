@@ -332,3 +332,45 @@ func TestColumnDelete(t *testing.T) {
 		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
+
+func TestColumnMoveLeft(t *testing.T) {
+	t.Run("moves column left", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := columnMoveLeftCmd.RunE(columnMoveLeftCmd, []string{"col-1"})
+		assertExitCode(t, err, 0)
+
+		if mock.PostCalls[0].Path != "/columns/col-1/left_position.json" {
+			t.Errorf("expected path '/columns/col-1/left_position.json', got '%s'", mock.PostCalls[0].Path)
+		}
+	})
+
+	t.Run("rejects pseudo columns", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := columnMoveLeftCmd.RunE(columnMoveLeftCmd, []string{"not-now"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}
+
+func TestColumnMoveRight(t *testing.T) {
+	t.Run("moves column right", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := columnMoveRightCmd.RunE(columnMoveRightCmd, []string{"col-1"})
+		assertExitCode(t, err, 0)
+
+		if mock.PostCalls[0].Path != "/columns/col-1/right_position.json" {
+			t.Errorf("expected path '/columns/col-1/right_position.json', got '%s'", mock.PostCalls[0].Path)
+		}
+	})
+}
