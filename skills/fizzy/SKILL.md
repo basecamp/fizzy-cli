@@ -2,7 +2,7 @@
 name: fizzy
 description: |
   Interact with Fizzy via the Fizzy CLI. Manage boards, cards, columns, comments,
-  steps, reactions, tags, users, notifications, pins, and webhooks. Use for ANY Fizzy question or action.
+  steps, reactions, tags, users, notifications, pins, webhooks, and account settings. Use for ANY Fizzy question or action.
 triggers:
   # Direct invocations
   - fizzy
@@ -17,6 +17,7 @@ triggers:
   - fizzy tag
   - fizzy notification
   - fizzy webhook
+  - fizzy account
   # Common actions
   - link to fizzy
   - track in fizzy
@@ -53,7 +54,7 @@ argument-hint: "[action] [args...]"
 
 # /fizzy - Fizzy Workflow Command
 
-Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, users, notifications, pins, webhooks, search, and board migration.
+Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, users, notifications, pins, webhooks, account settings, search, and board migration.
 
 ## Agent Invariants
 
@@ -97,17 +98,18 @@ Want to change something?
 
 | Resource | List | Show | Create | Update | Delete | Other |
 |----------|------|------|--------|--------|--------|-------|
-| account | - | `account show` | - | - | - | `account entropy` |
-| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board publish ID`, `board unpublish ID`, `board entropy ID`, `migrate board ID` |
-| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER` |
+| account | - | `account show` | - | - | - | `account entropy`, `account settings-update`, `account export-create`, `account export-show`, `account join-code-show`, `account join-code-reset`, `account join-code-update` |
+| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
+| card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER`, `card publish NUMBER`, `card mark-read NUMBER`, `card mark-unread NUMBER` |
 | search | `search QUERY` | - | - | - | - | - |
-| column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | - |
+| column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | `column move-left ID`, `column move-right ID` |
 | comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` | `comment attachments show --card NUMBER` |
-| step | - | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
+| step | `step list --card NUMBER` | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
 | reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` | - |
 | tag | `tag list` | - | - | - | - | - |
-| user | `user list` | `user show ID` | - | `user update ID` | - | `user deactivate ID` |
-| notification | `notification list` | - | - | - | - | `notification tray`, `notification read-all` |
+| user | `user list` | `user show ID` | - | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user push-subscription-create`, `user push-subscription-delete ID` |
+| notification | `notification list` | - | - | - | - | `notification tray`, `notification read-all`, `notification settings-show`, `notification settings-update` |
+| account | - | `account show` | - | `account settings-update` | - | `account export-create`, `account export-show ID`, `account join-code-show`, `account join-code-reset`, `account join-code-update` |
 | pin | `pin list` | - | - | - | - | `card pin NUMBER`, `card unpin NUMBER` |
 | webhook | `webhook list --board ID` | `webhook show ID --board ID` | `webhook create` | `webhook update ID` | `webhook delete ID` | `webhook reactivate ID` |
 
@@ -155,6 +157,9 @@ Note: `--limit` and `--all` cannot be used together.
 
 Commands supporting `--all` and `--page`:
 - `board list`
+- `board closed`
+- `board postponed`
+- `board stream`
 - `card list`
 - `search`
 - `comment list`
@@ -487,6 +492,10 @@ fizzy board publish BOARD_ID
 fizzy board unpublish BOARD_ID
 fizzy board delete BOARD_ID
 fizzy board entropy BOARD_ID --auto_postpone_period_in_days N  # N: 3, 7, 11, 30, 90, 365
+fizzy board closed --board ID [--page N] [--all]       # List closed cards
+fizzy board postponed --board ID [--page N] [--all]    # List postponed cards
+fizzy board stream --board ID [--page N] [--all]       # List stream cards
+fizzy board involvement BOARD_ID --involvement LEVEL   # Update your involvement
 ```
 
 `board show` includes `public_url` only when the board is published.
@@ -604,6 +613,9 @@ fizzy card unpin CARD_NUMBER                  # Unpin card
 fizzy card golden CARD_NUMBER                 # Mark as golden/starred
 fizzy card ungolden CARD_NUMBER               # Remove golden status
 fizzy card image-remove CARD_NUMBER           # Remove header image
+fizzy card publish CARD_NUMBER               # Publish a card
+fizzy card mark-read CARD_NUMBER             # Mark card as read
+fizzy card mark-unread CARD_NUMBER           # Mark card as unread
 ```
 
 #### Attachments
@@ -624,6 +636,8 @@ fizzy column show COLUMN_ID --board ID
 fizzy column create --board ID --name "Name" [--color HEX]
 fizzy column update COLUMN_ID --board ID [--name "Name"] [--color HEX]
 fizzy column delete COLUMN_ID --board ID
+fizzy column move-left COLUMN_ID             # Move column one position left
+fizzy column move-right COLUMN_ID            # Move column one position right
 ```
 
 ### Comments
@@ -646,9 +660,10 @@ fizzy comment attachments download --card NUMBER [INDEX]      # Download (1-base
 
 ### Steps (To-Do Items)
 
-Steps are returned in `card show` response. No separate list command.
+Steps are returned in `card show` response but can also be listed separately.
 
 ```bash
+fizzy step list --card NUMBER
 fizzy step show STEP_ID --card NUMBER
 fizzy step create --card NUMBER --content "Text" [--completed]
 fizzy step update STEP_ID --card NUMBER [--content "Text"] [--completed] [--not_completed]
@@ -693,6 +708,10 @@ fizzy user show USER_ID
 fizzy user update USER_ID --name "Name"       # Update user name (requires admin/owner)
 fizzy user update USER_ID --avatar /path.jpg  # Update user avatar
 fizzy user deactivate USER_ID                  # Deactivate user (requires admin/owner)
+fizzy user role USER_ID --role ROLE            # Update user role (requires admin/owner)
+fizzy user avatar-remove USER_ID               # Remove user avatar
+fizzy user push-subscription-create --user ID --endpoint URL --p256dh-key KEY --auth-key KEY
+fizzy user push-subscription-delete SUB_ID --user ID
 ```
 
 ### Pins
@@ -710,6 +729,8 @@ fizzy notification tray --include-read     # Include read notifications
 fizzy notification read NOTIFICATION_ID
 fizzy notification read-all
 fizzy notification unread NOTIFICATION_ID
+fizzy notification settings-show              # Show notification settings
+fizzy notification settings-update --bundle-email-frequency FREQ  # Update settings
 ```
 
 ### Webhooks
@@ -742,6 +763,18 @@ fizzy webhook reactivate WEBHOOK_ID --board ID    # Reactivate a deactivated web
 | `created_at` | timestamp | ISO 8601 |
 | `url` | string | API URL |
 | `board` | object | Nested Board |
+
+### Account
+
+```bash
+fizzy account show                                     # Show account settings
+fizzy account settings-update --name "Name"            # Update account name
+fizzy account export-create                            # Create data export
+fizzy account export-show EXPORT_ID                    # Check export status
+fizzy account join-code-show                           # Show join code
+fizzy account join-code-reset                          # Reset join code
+fizzy account join-code-update --usage-limit N         # Update join code limit
+```
 
 ### File Uploads
 
