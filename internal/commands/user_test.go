@@ -297,6 +297,60 @@ func TestUserPushSubscriptionCreate(t *testing.T) {
 
 		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
+
+	t.Run("requires endpoint flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubCreateUser = "user-1"
+		pushSubCreateEndpoint = ""
+		pushSubCreateP256dhKey = "key1"
+		pushSubCreateAuthKey = "key2"
+		err := userPushSubscriptionCreateCmd.RunE(userPushSubscriptionCreateCmd, []string{})
+		pushSubCreateUser = ""
+		pushSubCreateP256dhKey = ""
+		pushSubCreateAuthKey = ""
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+
+	t.Run("requires p256dh-key flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubCreateUser = "user-1"
+		pushSubCreateEndpoint = "https://push.example.com"
+		pushSubCreateP256dhKey = ""
+		pushSubCreateAuthKey = "key2"
+		err := userPushSubscriptionCreateCmd.RunE(userPushSubscriptionCreateCmd, []string{})
+		pushSubCreateUser = ""
+		pushSubCreateEndpoint = ""
+		pushSubCreateAuthKey = ""
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+
+	t.Run("requires auth-key flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		pushSubCreateUser = "user-1"
+		pushSubCreateEndpoint = "https://push.example.com"
+		pushSubCreateP256dhKey = "key1"
+		pushSubCreateAuthKey = ""
+		err := userPushSubscriptionCreateCmd.RunE(userPushSubscriptionCreateCmd, []string{})
+		pushSubCreateUser = ""
+		pushSubCreateEndpoint = ""
+		pushSubCreateP256dhKey = ""
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
 }
 
 func TestUserPushSubscriptionDelete(t *testing.T) {

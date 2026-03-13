@@ -739,6 +739,21 @@ func TestBoardPostponed(t *testing.T) {
 			t.Errorf("expected path '/boards/123/columns/not_now.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
 	})
+
+	t.Run("requires board flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardPostponedBoard = ""
+		err := boardPostponedCmd.RunE(boardPostponedCmd, []string{})
+		boardPostponedBoard = ""
+		boardPostponedPage = 0
+		boardPostponedAll = false
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
 }
 
 func TestBoardStream(t *testing.T) {
@@ -769,6 +784,21 @@ func TestBoardStream(t *testing.T) {
 		if mock.GetWithPaginationCalls[0].Path != "/boards/123/columns/stream.json" {
 			t.Errorf("expected path '/boards/123/columns/stream.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
+	})
+
+	t.Run("requires board flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardStreamBoard = ""
+		err := boardStreamCmd.RunE(boardStreamCmd, []string{})
+		boardStreamBoard = ""
+		boardStreamPage = 0
+		boardStreamAll = false
+
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
