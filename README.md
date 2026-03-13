@@ -87,8 +87,9 @@ fizzy comment create --card 42 --body "Looks good!"   # Add comment
 ### Output Formats
 
 ```bash
-fizzy board list               # JSON output
-fizzy board list | jq '.data'  # Pipe through jq for raw data
+fizzy board list                        # JSON output
+fizzy board list --jq '.data'           # Built-in jq filtering (no external jq required)
+fizzy board list --jq '[.data[] | {id, name}]'  # Extract specific fields
 ```
 
 ### JSON Envelope

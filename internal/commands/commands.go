@@ -24,11 +24,11 @@ type flagInfo struct {
 	Description string `json:"description"`
 }
 
-// commandsCmd emits a catalog of all commands with their flags.
+// commandsCmd emits a flat catalog of all commands with their flags.
 var commandsCmd = &cobra.Command{
 	Use:   "commands",
 	Short: "List all available commands",
-	Long:  "Lists all available commands. Use --json for a structured command catalog.",
+	Long:  "Lists all available commands with their flags in JSON format.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		catalog := walkCommands(rootCmd, "fizzy")
 		printSuccess(catalog)
@@ -109,4 +109,21 @@ func agentHelp(cmd *cobra.Command, _ []string) {
 
 	data, _ := json.MarshalIndent(info, "", "  ")
 	fmt.Fprintln(outWriter, string(data))
+}
+
+// installAgentHelp sets the custom help function when --agent is active.
+func installAgentHelp() {
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		if cfgAgent {
+			agentHelp(cmd, args)
+			return
+		}
+		// Banner on root help only
+		if cmd == rootCmd {
+			printBanner()
+		}
+		// Fall back to Cobra's default help
+		cmd.Root().SetHelpFunc(nil)
+		_ = cmd.Help()
+	})
 }

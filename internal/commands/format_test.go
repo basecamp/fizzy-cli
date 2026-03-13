@@ -281,6 +281,7 @@ func runCobraWithArgs(args ...string) (string, error) {
 	cfgAgent = false
 	cfgStyled = false
 	cfgMarkdown = false
+	cfgJQ = ""
 	testBuf.Reset()
 	lastRawOutput = ""
 	out = output.New(output.Options{Format: output.FormatJSON, Writer: &testBuf})

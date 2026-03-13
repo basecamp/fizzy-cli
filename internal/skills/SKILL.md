@@ -61,7 +61,7 @@ Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, use
 **MUST follow these rules:**
 
 1. **Cards use NUMBER, not ID** — `fizzy card show 42` uses the card number. Other resources use their `id` field.
-2. **Parse JSON with jq** to reduce token output — `fizzy card list | jq '[.data[] | {number, title}]'`
+2. **Use built-in `--jq` for filtering** to reduce token output — `fizzy card list --jq '[.data[] | {number, title}]'`. Never pipe to external jq — use `--jq` instead. `--jq` implies `--json`, no need to pass both.
 3. **Check breadcrumbs** in responses for available next actions with pre-filled values
 4. **Check for board context** via `.fizzy.yaml` or `--board` flag before listing cards
 5. **Rich text fields accept HTML** — use `<p>` tags for paragraphs, `<action-text-attachment>` for inline images
@@ -123,6 +123,7 @@ All commands support:
 | `--token TOKEN` | API access token |
 | `--profile NAME` | Named profile (for multi-account users) |
 | `--api-url URL` | API base URL (default: https://app.fizzy.do) |
+| `--jq EXPR` | Built-in jq filter (no external jq required; implies --json) |
 | `--json` | JSON envelope output |
 | `--quiet` | Raw JSON data without envelope |
 | `--styled` | Human-readable styled output (tables, colors) |
@@ -298,7 +299,7 @@ Responses include a `breadcrumbs` array suggesting what you can do next. Each br
 - `description`: Human-readable description
 
 ```bash
-fizzy card show 42 | jq '.breadcrumbs'
+fizzy card show 42 --jq '.breadcrumbs'
 ```
 
 ```json
@@ -377,64 +378,66 @@ fizzy card list --board BOARD_ID --indexed-by not_now --all
 
 ---
 
-## Common jq Patterns
+## Built-in jq Filtering
+
+Use `--jq` for filtering and extracting data. `--jq` implies `--json` — no need to pass both. Never pipe to external jq — use `--jq` instead.
 
 ### Reducing Output
 
 ```bash
 # Card summary (most useful)
-fizzy card list | jq '[.data[] | {number, title, status, board: .board.name}]'
+fizzy card list --jq '[.data[] | {number, title, status, board: .board.name}]'
 
 # First N items
-fizzy card list | jq '.data[:5]'
+fizzy card list --jq '.data[:5]'
 
 # Just IDs
-fizzy board list | jq '[.data[].id]'
+fizzy board list --jq '[.data[].id]'
 
 # Specific fields from single item
-fizzy card show 579 | jq '.data | {number, title, status, golden}'
+fizzy card show 579 --jq '.data | {number, title, status, golden}'
 
 # Card with description length (description is a string, not object)
-fizzy card show 579 | jq '.data | {number, title, desc_length: (.description | length)}'
+fizzy card show 579 --jq '.data | {number, title, desc_length: (.description | length)}'
 ```
 
 ### Filtering
 
 ```bash
 # Cards with a specific status
-fizzy card list --all | jq '[.data[] | select(.status == "published")]'
+fizzy card list --all --jq '[.data[] | select(.status == "published")]'
 
 # Golden cards only
-fizzy card list --indexed-by golden | jq '[.data[] | {number, title}]'
+fizzy card list --indexed-by golden --jq '[.data[] | {number, title}]'
 
 # Cards with non-empty descriptions
-fizzy card list | jq '[.data[] | select(.description | length > 0) | {number, title}]'
+fizzy card list --jq '[.data[] | select(.description | length > 0) | {number, title}]'
 
 # Cards with steps (must use card show, steps not in list)
-fizzy card show 579 | jq '.data.steps'
+fizzy card show 579 --jq '.data.steps'
 ```
 
 ### Extracting Nested Data
 
 ```bash
 # Comment text only (body.plain_text for comments)
-fizzy comment list --card 579 | jq '[.data[].body.plain_text]'
+fizzy comment list --card 579 --jq '[.data[].body.plain_text]'
 
 # Card description (just .description for cards - it's a string)
-fizzy card show 579 | jq '.data.description'
+fizzy card show 579 --jq '.data.description'
 
 # Step completion status
-fizzy card show 579 | jq '[.data.steps[] | {content, completed}]'
+fizzy card show 579 --jq '[.data.steps[] | {content, completed}]'
 ```
 
 ### Activity Analysis
 
 ```bash
 # Cards with steps count (requires card show for each)
-fizzy card show 579 | jq '.data | {number, title, steps_count: (.steps | length)}'
+fizzy card show 579 --jq '.data | {number, title, steps_count: (.steps | length)}'
 
 # Comments count for a card
-fizzy comment list --card 579 | jq '.data | length'
+fizzy comment list --card 579 --jq '.data | length'
 ```
 
 ---
@@ -796,7 +799,7 @@ fizzy upload file PATH
 ```bash
 # Create the card
 CARD=$(fizzy card create --board BOARD_ID --title "New Feature" \
-  --description "<p>Feature description</p>" | jq -r '.data.number')
+  --description "<p>Feature description</p>" --jq '.data.number')
 
 # Add steps
 fizzy step create --card $CARD --content "Design the feature"
@@ -818,7 +821,7 @@ fizzy card close 42
 
 ```bash
 # Upload image
-SGID=$(fizzy upload file screenshot.png | jq -r '.data.attachable_sgid')
+SGID=$(fizzy upload file screenshot.png --jq '.data.attachable_sgid')
 
 # Create description file with embedded image
 cat > desc.html << EOF
@@ -841,7 +844,7 @@ if [[ ! "$MIME" =~ ^image/ ]]; then
 fi
 
 # Upload and get signed_id
-SIGNED_ID=$(fizzy upload file /path/to/header.png | jq -r '.data.signed_id')
+SIGNED_ID=$(fizzy upload file /path/to/header.png --jq '.data.signed_id')
 
 # Create card with background
 fizzy card create --board BOARD_ID --title "Card" --image "$SIGNED_ID"
@@ -877,7 +880,7 @@ fizzy card move 579 --to TARGET_BOARD_ID
 
 ```bash
 # Quick search
-fizzy search "bug" | jq '[.data[] | {number, title}]'
+fizzy search "bug" --jq '[.data[] | {number, title}]'
 
 # Search with filters
 fizzy search "login" --board BOARD_ID --sort newest
@@ -899,14 +902,14 @@ fizzy card list --unassigned --board BOARD_ID
 fizzy reaction create --card 579 --content "👍"
 
 # List reactions on a card
-fizzy reaction list --card 579 | jq '[.data[] | {id, content, reacter: .reacter.name}]'
+fizzy reaction list --card 579 --jq '[.data[] | {id, content, reacter: .reacter.name}]'
 ```
 
 ### Add Comment with Reaction
 
 ```bash
 # Add comment
-COMMENT=$(fizzy comment create --card 579 --body "<p>Looks good!</p>" | jq -r '.data.id')
+COMMENT=$(fizzy comment create --card 579 --body "<p>Looks good!</p>" --jq '.data.id')
 
 # Add reaction to the comment
 fizzy reaction create --card 579 --comment $COMMENT --content "👍"
