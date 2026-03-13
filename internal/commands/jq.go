@@ -26,11 +26,21 @@ func newJQWriter(dest io.Writer, filter string) (*jqWriter, error) {
 
 // Write intercepts JSON output, applies the jq filter, and writes filtered results.
 // String results print as plain text; everything else prints as indented JSON.
+// Error envelopes (ok: false) pass through unfiltered so error messages are never hidden.
 func (w *jqWriter) Write(p []byte) (int, error) {
 	var input any
 	if err := json.Unmarshal(p, &input); err != nil {
 		// Not JSON — pass through unchanged.
 		return w.dest.Write(p)
+	}
+
+	// Pass through error envelopes unfiltered so jq doesn't hide error messages.
+	if m, ok := input.(map[string]any); ok {
+		if okVal, exists := m["ok"]; exists {
+			if okBool, isBool := okVal.(bool); isBool && !okBool {
+				return w.dest.Write(p)
+			}
+		}
 	}
 
 	iter := w.query.Run(input)

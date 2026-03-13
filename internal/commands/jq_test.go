@@ -235,6 +235,31 @@ func TestJQWriterMap(t *testing.T) {
 	}
 }
 
+func TestJQWriterPassthroughErrorEnvelope(t *testing.T) {
+	var buf strings.Builder
+	w, err := newJQWriter(&buf, ".data")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Error envelopes (ok: false) should pass through unfiltered
+	errorJSON := `{"ok":false,"error":"not found","code":"not_found"}`
+	if _, err := w.Write([]byte(errorJSON)); err != nil {
+		t.Fatalf("write error: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(buf.String()), &result); err != nil {
+		t.Fatalf("expected JSON: %v\noutput: %s", err, buf.String())
+	}
+	if result["ok"] != false {
+		t.Error("expected ok to be false")
+	}
+	if result["error"] != "not found" {
+		t.Errorf("expected error message preserved, got %v", result["error"])
+	}
+}
+
 func TestJQWriterPassthroughNonJSON(t *testing.T) {
 	var buf strings.Builder
 	w, err := newJQWriter(&buf, ".data")
