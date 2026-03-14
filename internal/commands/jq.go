@@ -4,28 +4,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 
+	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/itchyny/gojq"
 )
 
 // jqWriter wraps an io.Writer and applies a compiled jq filter to JSON output.
 // Non-JSON writes pass through unchanged.
 type jqWriter struct {
-	dest  io.Writer
-	query *gojq.Query
+	dest io.Writer
+	code *gojq.Code
 }
 
-// newJQWriter parses the jq expression and returns a filtering writer.
+// newJQWriter parses and compiles the jq expression and returns a filtering writer.
+// Compilation includes gojq.WithEnvironLoader for env.VAR / $ENV.VAR access.
 func newJQWriter(dest io.Writer, filter string) (*jqWriter, error) {
 	query, err := gojq.Parse(filter)
 	if err != nil {
-		return nil, fmt.Errorf("invalid jq expression: %w", err)
+		return nil, errors.ErrJQValidation(err)
 	}
-	return &jqWriter{dest: dest, query: query}, nil
+	code, err := gojq.Compile(query, gojq.WithEnvironLoader(os.Environ))
+	if err != nil {
+		return nil, errors.ErrJQValidation(err)
+	}
+	return &jqWriter{dest: dest, code: code}, nil
 }
 
 // Write intercepts JSON output, applies the jq filter, and writes filtered results.
-// String results print as plain text; everything else prints as indented JSON.
+// String results print as plain text; everything else prints as compact single-line JSON.
 // Error envelopes (ok: false) pass through unfiltered so error messages are never hidden.
 func (w *jqWriter) Write(p []byte) (int, error) {
 	var input any
@@ -43,25 +50,25 @@ func (w *jqWriter) Write(p []byte) (int, error) {
 		}
 	}
 
-	iter := w.query.Run(input)
+	iter := w.code.Run(input)
 	for {
 		v, ok := iter.Next()
 		if !ok {
 			break
 		}
 		if err, isErr := v.(error); isErr {
-			return 0, fmt.Errorf("jq: %w", err)
+			return 0, errors.ErrJQRuntime(err)
 		}
 		if s, isStr := v.(string); isStr {
 			if _, err := fmt.Fprintln(w.dest, s); err != nil {
 				return 0, err
 			}
 		} else {
-			enc := json.NewEncoder(w.dest)
-			enc.SetIndent("", "  ")
-			if err := enc.Encode(v); err != nil {
-				return 0, err
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return 0, errors.ErrJQRuntime(fmt.Errorf("result not serializable: %w", err))
 			}
+			fmt.Fprintln(w.dest, string(raw))
 		}
 	}
 	return len(p), nil

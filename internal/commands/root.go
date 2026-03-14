@@ -21,6 +21,7 @@ import (
 	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-cli/internal/render"
 	fizzy "github.com/basecamp/fizzy-sdk/go/pkg/fizzy"
+	"github.com/itchyny/gojq"
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 )
@@ -74,6 +75,24 @@ var rootCmd = &cobra.Command{
 Use fizzy to manage boards, cards, comments, and more from your terminal.`,
 	Version: "dev",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		// Early jq validation: parse + compile before RunE so invalid
+		// expressions are rejected with no side effects.
+		if cfgJQ != "" {
+			q, err := gojq.Parse(cfgJQ)
+			if err != nil {
+				return errors.ErrJQValidation(err)
+			}
+			if _, err := gojq.Compile(q, gojq.WithEnvironLoader(os.Environ)); err != nil {
+				return errors.ErrJQValidation(err)
+			}
+			if cfgIDsOnly {
+				return errors.ErrJQConflict("--ids-only")
+			}
+			if cfgCount {
+				return errors.ErrJQConflict("--count")
+			}
+		}
+
 		// Resolve output format from parsed flags (must happen post-parse).
 		format, err := resolveFormat()
 		if err != nil {
@@ -181,6 +200,18 @@ func Execute() {
 			// Cobra-level errors (arg count, unknown flag) → usage
 			e = &output.Error{Code: output.CodeUsage, Message: err.Error()}
 		}
+
+		// jq-related errors (validation failures, unsupported commands, conflicts)
+		// must never be fed through the jq filter. Rebuild the output writer
+		// without jq so the error renders cleanly.
+		if errors.IsJQError(err) && cfgJQ != "" {
+			format := output.FormatJSON // --jq implies --json
+			if cfgAgent || cfgQuiet {
+				format = output.FormatQuiet
+			}
+			out = output.New(output.Options{Format: format, Writer: os.Stdout})
+		}
+
 		_ = out.Err(e)
 		os.Exit(e.ExitCode())
 	}
