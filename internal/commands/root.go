@@ -199,7 +199,15 @@ func Execute() {
 		// without jq so the error renders cleanly. Re-resolve the format to
 		// honor explicit flags like --agent --json.
 		if errors.IsJQError(err) && cfgJQ != "" {
-			format, _ := resolveFormat()
+			format, fmtErr := resolveFormat()
+			if fmtErr != nil {
+				// resolveFormat() can fail when --jq conflicts with another flag
+				// (e.g. --jq --styled). Fall back to a sensible machine format.
+				format = output.FormatJSON
+				if cfgAgent || cfgQuiet {
+					format = output.FormatQuiet
+				}
+			}
 			out = output.New(output.Options{Format: format, Writer: outWriter})
 		}
 
