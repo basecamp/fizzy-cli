@@ -1,15 +1,21 @@
 package commands
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+
+	"github.com/basecamp/fizzy-cli/internal/errors"
+	"github.com/spf13/cobra"
+)
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		printSuccess(map[string]any{
-			"version": rootCmd.Version,
-		})
-		return nil
+		if cfgJQ != "" {
+			return errors.ErrJQNotSupported("the version command")
+		}
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "fizzy version %s\n", rootCmd.Version)
+		return err
 	},
 }
 

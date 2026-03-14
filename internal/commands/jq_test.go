@@ -638,6 +638,38 @@ func TestJQRejectedBySkillInMachineMode(t *testing.T) {
 	}
 }
 
+func TestJQRejectedByVersion(t *testing.T) {
+	mock := NewMockClient()
+	SetTestModeWithSDK(mock)
+	SetTestConfig("token", "account", "https://api.example.com")
+	defer resetTest()
+
+	_, err := runCobraWithArgs("version", "--jq", ".version")
+	if err == nil {
+		t.Fatal("expected error for --jq with version")
+	}
+	if !strings.Contains(err.Error(), "--jq is not supported by the version command") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestVersionOutputPlainText(t *testing.T) {
+	defer resetTest()
+	resetTest()
+
+	var buf strings.Builder
+	versionCmd.SetOut(&buf)
+	defer versionCmd.SetOut(nil)
+
+	err := versionCmd.RunE(versionCmd, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(buf.String(), "fizzy version") {
+		t.Errorf("expected 'fizzy version' in output, got %q", buf.String())
+	}
+}
+
 func TestJQSetupBlockedInMachineMode(t *testing.T) {
 	defer resetTest()
 	resetTest()
