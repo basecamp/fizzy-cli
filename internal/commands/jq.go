@@ -18,15 +18,11 @@ type jqWriter struct {
 }
 
 // newJQWriter parses and compiles the jq expression and returns a filtering writer.
-// Compilation includes gojq.WithEnvironLoader for env.VAR / $ENV.VAR access.
+// Delegates to compileJQ for compilation so options are maintained in one place.
 func newJQWriter(dest io.Writer, filter string) (*jqWriter, error) {
-	query, err := gojq.Parse(filter)
+	code, err := compileJQ(filter)
 	if err != nil {
-		return nil, errors.ErrJQValidation(err)
-	}
-	code, err := gojq.Compile(query, gojq.WithEnvironLoader(os.Environ))
-	if err != nil {
-		return nil, errors.ErrJQValidation(err)
+		return nil, err
 	}
 	return &jqWriter{dest: dest, code: code}, nil
 }
