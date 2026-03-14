@@ -106,7 +106,7 @@ Use fizzy to manage boards, cards, comments, and more from your terminal.`,
 			if cfgJQ != "" {
 				jw, err := newJQWriter(&testBuf, cfgJQ)
 				if err != nil {
-					return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+					return err
 				}
 				w = jw
 			}
@@ -117,7 +117,7 @@ Use fizzy to manage boards, cards, comments, and more from your terminal.`,
 			if cfgJQ != "" {
 				jw, err := newJQWriter(os.Stdout, cfgJQ)
 				if err != nil {
-					return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+					return err
 				}
 				w = jw
 			}

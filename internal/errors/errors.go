@@ -70,17 +70,18 @@ func NewNetworkError(message string) *CLIError {
 	return e
 }
 
-// errJQUnsupported is a sentinel cause for all jq-related errors.
+// errJQ is a sentinel cause for all jq-related errors (validation,
+// unsupported command, flag conflict, and runtime failures).
 // root.go uses IsJQError() to detect these and bypass jq filtering
 // when rendering the error itself.
-var errJQUnsupported = errors.New("jq unsupported")
+var errJQ = errors.New("jq error")
 
 // ErrJQValidation returns a usage error for invalid --jq expressions.
 func ErrJQValidation(cause error) *CLIError {
 	return &output.Error{
 		Code:    output.CodeUsage,
 		Message: fmt.Sprintf("invalid --jq expression: %s", cause),
-		Cause:   errJQUnsupported,
+		Cause:   errJQ,
 	}
 }
 
@@ -89,7 +90,7 @@ func ErrJQNotSupported(command string) *CLIError {
 	return &output.Error{
 		Code:    output.CodeUsage,
 		Message: fmt.Sprintf("--jq is not supported by %s", command),
-		Cause:   errJQUnsupported,
+		Cause:   errJQ,
 	}
 }
 
@@ -98,7 +99,7 @@ func ErrJQConflict(flag string) *CLIError {
 	return &output.Error{
 		Code:    output.CodeUsage,
 		Message: fmt.Sprintf("cannot use --jq with %s", flag),
-		Cause:   errJQUnsupported,
+		Cause:   errJQ,
 	}
 }
 
@@ -108,14 +109,14 @@ func ErrJQRuntime(cause error) *CLIError {
 	return &output.Error{
 		Code:    output.CodeUsage,
 		Message: fmt.Sprintf("jq filter error: %s", cause),
-		Cause:   errJQUnsupported,
+		Cause:   errJQ,
 	}
 }
 
 // IsJQError returns true if the error is a jq-related error
-// (validation failure, unsupported command, or flag conflict).
+// (validation failure, unsupported command, flag conflict, or runtime failure).
 func IsJQError(err error) bool {
-	return errors.Is(err, errJQUnsupported)
+	return errors.Is(err, errJQ)
 }
 
 // FromHTTPStatus creates an appropriate error from an HTTP status code.
