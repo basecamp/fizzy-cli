@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/basecamp/cli/output"
+	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-cli/internal/harness"
 	"github.com/basecamp/fizzy-cli/internal/skills"
 	"github.com/charmbracelet/huh"
@@ -45,6 +46,9 @@ func init() {
 func runSkill(cmd *cobra.Command, args []string) error {
 	// Non-interactive: print skill content
 	if IsMachineOutput() {
+		if cfgJQ != "" {
+			return errors.ErrJQNotSupported("the skill command")
+		}
 		_, err := fmt.Fprint(cmd.OutOrStdout(), string(skills.Content))
 		return err
 	}
