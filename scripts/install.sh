@@ -20,6 +20,11 @@ case "$OS" in
   *) echo "Unsupported OS: $OS"; exit 1 ;;
 esac
 
+if [ "$OS" = "windows" ] && [ "$ARCH" = "arm64" ]; then
+  echo "Windows ARM64 is not currently supported. See https://github.com/basecamp/fizzy-cli/releases for available builds."
+  exit 1
+fi
+
 # Fetch latest version
 echo "Fetching latest version..."
 VERSION=$(curl -sI "https://github.com/$REPO/releases/latest" | grep -i '^location:' | sed 's/.*tag\///' | tr -d '\r\n' || true)
@@ -29,32 +34,31 @@ if [ -z "$VERSION" ]; then
 fi
 echo "Latest version: $VERSION"
 
-# Download archive
-EXT="tar.gz"
+# Download binary
+BINARY_NAME="fizzy-${OS}-${ARCH}"
 if [ "$OS" = "windows" ]; then
-  EXT="zip"
+  BINARY_NAME="fizzy-${OS}-${ARCH}.exe"
 fi
 
-ARCHIVE="fizzy_${VERSION#v}_${OS}_${ARCH}.${EXT}"
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/${VERSION}/${ARCHIVE}"
-CHECKSUMS_URL="https://github.com/$REPO/releases/download/${VERSION}/checksums.txt"
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/${VERSION}/${BINARY_NAME}"
+CHECKSUMS_URL="https://github.com/$REPO/releases/download/${VERSION}/SHA256SUMS-${OS}-${ARCH}.txt"
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-echo "Downloading $ARCHIVE..."
-curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$ARCHIVE"
+echo "Downloading $BINARY_NAME..."
+curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$BINARY_NAME"
 curl -fsSL "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt"
 
 # Verify SHA256
 echo "Verifying checksum..."
 cd "$TMPDIR"
-EXPECTED=$(awk -v f="$ARCHIVE" '$2 == f {print $1}' checksums.txt)
+EXPECTED=$(awk '{print $1}' checksums.txt)
 if [ -z "$EXPECTED" ]; then
-  echo "ERROR: Archive not found in checksums file"
+  echo "ERROR: Checksum not found"
   exit 1
 fi
-ACTUAL=$(sha256sum "$ARCHIVE" 2>/dev/null || shasum -a 256 "$ARCHIVE" | awk '{print $1}')
+ACTUAL=$(sha256sum "$BINARY_NAME" 2>/dev/null || shasum -a 256 "$BINARY_NAME" | awk '{print $1}')
 ACTUAL=$(echo "$ACTUAL" | awk '{print $1}')
 if [ "$EXPECTED" != "$ACTUAL" ]; then
   echo "ERROR: Checksum mismatch!"
@@ -64,43 +68,13 @@ if [ "$EXPECTED" != "$ACTUAL" ]; then
 fi
 echo "Checksum verified."
 
-# Verify cosign signature (if cosign available)
-if command -v cosign >/dev/null 2>&1; then
-  SIG_URL="https://github.com/$REPO/releases/download/${VERSION}/checksums.txt.sig"
-  CERT_URL="https://github.com/$REPO/releases/download/${VERSION}/checksums.txt.pem"
-  if curl -fsSL "$SIG_URL" -o checksums.txt.sig 2>/dev/null && \
-     curl -fsSL "$CERT_URL" -o checksums.txt.pem 2>/dev/null; then
-    echo "Verifying cosign signature..."
-    if cosign verify-blob \
-      --certificate checksums.txt.pem \
-      --signature checksums.txt.sig \
-      --certificate-identity-regexp="https://github.com/$REPO/.github/workflows/release.yml@refs/tags/" \
-      --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
-      checksums.txt 2>/dev/null; then
-      echo "Signature verified."
-    else
-      echo "ERROR: Signature verification failed"
-      exit 1
-    fi
-  fi
-fi
-
-# Extract
-echo "Extracting..."
-if [ "$EXT" = "zip" ]; then
-  unzip -q "$ARCHIVE" -d extract
-else
-  mkdir -p extract
-  tar -xzf "$ARCHIVE" -C extract
-fi
-
 # Install
 mkdir -p "$INSTALL_DIR"
 BINARY="fizzy"
 if [ "$OS" = "windows" ]; then
   BINARY="fizzy.exe"
 fi
-cp "extract/${BINARY}" "$INSTALL_DIR/${BINARY}"
+cp "$BINARY_NAME" "$INSTALL_DIR/${BINARY}"
 chmod +x "$INSTALL_DIR/${BINARY}"
 
 echo ""
