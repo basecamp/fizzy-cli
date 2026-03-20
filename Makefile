@@ -1,7 +1,7 @@
 .PHONY: test test-unit test-e2e test-go test-file test-run build clean tidy help \
 	check-toolchain fmt fmt-check vet lint tidy-check race-test vuln secrets \
 	replace-check security check release-check release tools \
-	surface-snapshot surface-check sync-skill
+	surface-snapshot surface-check sync-skill lint-actions
 
 BINARY := $(CURDIR)/bin/fizzy
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
@@ -37,6 +37,7 @@ help:
 	@echo "  make secrets        Run gitleaks secret scan"
 	@echo "  make replace-check  Guard against replace directives in go.mod"
 	@echo ""
+	@echo "  make lint-actions   Lint GitHub Actions workflows"
 	@echo "  make security       lint + vuln + secrets"
 	@echo "  make check          fmt-check + vet + lint + test-unit + tidy-check"
 	@echo "  make release-check  check + replace-check + vuln + race-test"
@@ -166,11 +167,28 @@ release-check: check replace-check vuln
 release:
 	@scripts/release.sh
 
+# Lint GitHub Actions workflows
+lint-actions:
+	actionlint
+	zizmor .
+
 # Install dev tools
 tools:
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	go install golang.org/x/vuln/cmd/govulncheck@latest
 	@echo "For gitleaks, install via: brew install gitleaks (or see https://github.com/gitleaks/gitleaks)"
+	@for tool in actionlint shellcheck zizmor; do \
+		if ! command -v "$$tool" > /dev/null 2>&1; then \
+			if command -v brew > /dev/null 2>&1; then \
+				brew install "$$tool"; \
+			elif command -v pacman > /dev/null 2>&1; then \
+				sudo pacman -S --noconfirm "$$tool"; \
+			else \
+				echo "Error: install $$tool manually" >&2; \
+				exit 1; \
+			fi; \
+		fi; \
+	done
 
 # Regenerate SURFACE.txt
 surface-snapshot:
