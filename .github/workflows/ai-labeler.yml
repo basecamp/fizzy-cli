@@ -1,18 +1,14 @@
 name: Classify PR
 
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers] -- required for write access to PRs from forks; workflow only calls reusable workflows, no PR code is checked out or executed
     types: [opened, synchronize, reopened]
 
 concurrency:
   group: classify-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  issues: write
-  models: read
-  pull-requests: write
+permissions: {}
 
 jobs:
   classify:
