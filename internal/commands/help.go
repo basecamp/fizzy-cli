@@ -3,9 +3,12 @@ package commands
 import (
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -13,11 +16,6 @@ import (
 const helpGroupAnnotation = "fizzy.help.group"
 
 var cliUXConfigured bool
-
-type helpExample struct {
-	Command     string
-	Description string
-}
 
 type helpLink struct {
 	Command     string
@@ -96,12 +94,6 @@ func renderRootHelp(cmd *cobra.Command, w io.Writer) {
 	fmt.Fprintln(w, "USAGE")
 	fmt.Fprintf(w, "  %s <command> [flags]\n", cmd.Name())
 
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "COMMON WORKFLOWS")
-	for _, ex := range rootHelpExamples {
-		fmt.Fprintf(w, "  %-34s %s\n", ex.Command, ex.Description)
-	}
-
 	groups := groupedRootCommands(cmd)
 	for _, group := range groups {
 		fmt.Fprintln(w)
@@ -119,7 +111,7 @@ func renderRootHelp(cmd *cobra.Command, w io.Writer) {
 
 	if cmd.Example != "" {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "EXAMPLES")
+		fmt.Fprintln(w, helpHeading(w, "EXAMPLES"))
 		printExampleBlock(w, cmd.Example)
 	}
 
@@ -178,7 +170,7 @@ func renderCommandHelp(cmd *cobra.Command, w io.Writer) {
 
 	if cmd.Example != "" {
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "EXAMPLES")
+		fmt.Fprintln(w, helpHeading(w, "EXAMPLES"))
 		printExampleBlock(w, cmd.Example)
 	}
 
@@ -349,12 +341,13 @@ func printExampleBlock(w io.Writer, example string) {
 	}
 }
 
-var rootHelpExamples = []helpExample{
-	{Command: "fizzy auth status", Description: "Check your authentication and active profile"},
-	{Command: "fizzy board list", Description: "List boards you can access"},
-	{Command: "fizzy card list --board <id>", Description: "List cards on a board"},
-	{Command: "fizzy card show <number>", Description: "Show a card by card number"},
-	{Command: "fizzy search \"query\"", Description: "Search cards by text"},
+func helpHeading(w io.Writer, title string) string {
+	if f, ok := w.(*os.File); ok {
+		if isatty.IsTerminal(f.Fd()) || isatty.IsCygwinTerminal(f.Fd()) {
+			return lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")).Render(title)
+		}
+	}
+	return title
 }
 
 var rootCommandGroupsOrder = []string{"core", "collaboration", "admin", "utilities"}
