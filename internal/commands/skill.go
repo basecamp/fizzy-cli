@@ -83,8 +83,7 @@ func newSkillInstallCmd() *cobra.Command {
 
 			summary := "Fizzy skill installed"
 			if out != nil {
-				_ = out.OK(result, output.WithSummary(summary))
-				captureResponse()
+				printMutation(result, summary, nil)
 				return nil
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Installed skill to %s\n", skillPath)

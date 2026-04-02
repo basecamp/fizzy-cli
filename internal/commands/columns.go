@@ -39,6 +39,13 @@ var (
 		{Header: "Name", Field: "name"},
 	}
 
+	authProfileColumns = render.Columns{
+		{Header: "Profile", Field: "profile"},
+		{Header: "Active", Field: "active"},
+		{Header: "Board", Field: "board"},
+		{Header: "Base URL", Field: "base_url"},
+	}
+
 	notificationColumns = render.Columns{
 		{Header: "ID", Field: "id"},
 		{Header: "Message", Field: "message"},

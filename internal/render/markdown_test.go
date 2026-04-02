@@ -70,3 +70,14 @@ func TestMarkdownDetailRendersKV(t *testing.T) {
 		t.Errorf("expected bold key, got:\n%s", result)
 	}
 }
+
+func TestMarkdownSummaryIncludesDataWhenPresent(t *testing.T) {
+	data := map[string]any{"id": "42", "name": "Test"}
+	result := MarkdownSummary(data, "Saved")
+	if !strings.Contains(result, "> Saved") {
+		t.Errorf("expected summary line, got:\n%s", result)
+	}
+	if !strings.Contains(result, "**name:** Test") {
+		t.Errorf("expected detail output, got:\n%s", result)
+	}
+}

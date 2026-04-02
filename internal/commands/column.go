@@ -41,7 +41,7 @@ var columnListCmd = &cobra.Command{
 
 		dataSlice := toSliceAny(items)
 		if dataSlice == nil {
-			printSuccess(items)
+			printDetail(items, "", nil)
 			return nil
 		}
 

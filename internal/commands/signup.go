@@ -400,7 +400,7 @@ func runSignupStart(cmd *cobra.Command, args []string) error {
 		data["code"] = code
 	}
 
-	printSuccessWithBreadcrumbs(data, "Magic link sent. Check your email for a 6-digit code.", breadcrumbs)
+	printMutation(data, "Magic link sent. Check your email for a 6-digit code.", breadcrumbs)
 	return nil
 }
 
@@ -445,7 +445,7 @@ func runSignupVerify(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	printSuccess(result)
+	printDetail(result, "", nil)
 	return nil
 }
 
@@ -551,7 +551,7 @@ func runSignupComplete(cmd *cobra.Command, args []string) error {
 		breadcrumb("setup", "fizzy setup", "Full interactive setup"),
 	}
 
-	printSuccessWithBreadcrumbs(result, summary, breadcrumbs)
+	printMutation(result, summary, breadcrumbs)
 	return nil
 }
 
