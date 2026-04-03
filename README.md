@@ -117,7 +117,7 @@ Breadcrumbs suggest next commands, making it easy for humans and agents to navig
 
 **Claude Code:** `fizzy setup claude` — installs the Claude plugin from the marketplace and links the embedded Fizzy skill into Claude's skills directory.
 
-**Other agents:** Point your agent at [`skills/fizzy/SKILL.md`](skills/fizzy/SKILL.md) for Fizzy workflow coverage, or run `fizzy skill` / `fizzy skill install` to install the embedded skill.
+**Other agents:** Point your agent at [`skills/fizzy/SKILL.md`](skills/fizzy/SKILL.md) for Fizzy workflow coverage. `fizzy skill` launches the interactive installer by default, while `fizzy skill install` installs the embedded skill directly.
 
 **Agent discovery:** Every command supports `--help --agent` for structured help output. Use `fizzy commands --json` for the full command catalog.
 
