@@ -73,21 +73,23 @@ notarize:
 changelog:
   use: github-native
 
-homebrew_casks:
+brews:
   - name: fizzy
-    ids: [default]
     repository:
       owner: basecamp
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Casks
+    directory: Formula
     homepage: "https://github.com/basecamp/fizzy-cli"
     description: "CLI for managing Fizzy boards, cards, and tasks"
     license: "MIT"
-    completions:
-      bash: "completions/fizzy.bash"
-      zsh: "completions/fizzy.zsh"
-      fish: "completions/fizzy.fish"
+    install: |
+      bin.install "fizzy"
+      bash_completion.install "completions/fizzy.bash" => "fizzy"
+      zsh_completion.install "completions/fizzy.zsh" => "_fizzy"
+      fish_completion.install "completions/fizzy.fish"
+    test: |
+      system "#{bin}/fizzy", "version"
 
 scoops:
   - name: fizzy
