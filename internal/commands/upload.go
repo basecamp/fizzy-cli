@@ -10,13 +10,13 @@ import (
 var uploadCmd = &cobra.Command{
 	Use:   "upload",
 	Short: "Upload files",
-	Long:  "Commands for uploading files for use in rich text fields.",
+	Long:  "Commands for uploading files for use in rich text fields and card header images.",
 }
 
 var uploadFileCmd = &cobra.Command{
 	Use:   "file PATH",
 	Short: "Upload a file",
-	Long:  "Uploads a file and returns a signed_id for use in rich text fields.",
+	Long:  "Uploads a file and returns both signed_id (for --image) and attachable_sgid (for inline rich text attachments when embedding manually).",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Upload uses legacy client only — skip SDK initialization

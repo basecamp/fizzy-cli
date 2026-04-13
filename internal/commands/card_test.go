@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/basecamp/fizzy-cli/internal/client"
@@ -491,6 +492,89 @@ func TestCardCreate(t *testing.T) {
 			t.Errorf("expected description '<p>Description</p>', got '%v'", body["description"])
 		}
 	})
+
+	t.Run("uploads and appends single inline attachment", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath := writeTestAttachmentFile(t, tempDir, "single.txt", "single")
+
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{
+			StatusCode: 201,
+			Data:       map[string]any{"id": "abc", "number": 42},
+		}
+		mock.UploadFileResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       map[string]any{"attachable_sgid": "sgid-single"},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardCreateBoard = "123"
+		cardCreateTitle = "Test"
+		cardCreateDescription = "See attached"
+		cardCreateAttach = []string{attachPath}
+		err := cardCreateCmd.RunE(cardCreateCmd, []string{})
+		cardCreateBoard = ""
+		cardCreateTitle = ""
+		cardCreateDescription = ""
+		cardCreateAttach = nil
+
+		assertExitCode(t, err, 0)
+
+		if len(mock.UploadFileCalls) != 1 || mock.UploadFileCalls[0] != attachPath {
+			t.Fatalf("unexpected upload calls: %#v", mock.UploadFileCalls)
+		}
+
+		body := mock.PostCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			"See attached",
+			`<action-text-attachment sgid="sgid-single"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
+		}
+	})
+
+	t.Run("uploads and appends multiple inline attachments in order", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath1 := writeTestAttachmentFile(t, tempDir, "first.txt", "first")
+		attachPath2 := writeTestAttachmentFile(t, tempDir, "second.txt", "second")
+
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{
+			StatusCode: 201,
+			Data:       map[string]any{"id": "abc", "number": 42},
+		}
+		mock.UploadFileResponses = []*client.APIResponse{
+			{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-1"}},
+			{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-2"}},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardCreateBoard = "123"
+		cardCreateTitle = "Test"
+		cardCreateAttach = []string{attachPath1, attachPath2}
+		err := cardCreateCmd.RunE(cardCreateCmd, []string{})
+		cardCreateBoard = ""
+		cardCreateTitle = ""
+		cardCreateAttach = nil
+
+		assertExitCode(t, err, 0)
+
+		body := mock.PostCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			`<action-text-attachment sgid="sgid-1"></action-text-attachment>`,
+			`<action-text-attachment sgid="sgid-2"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
+		}
+	})
 }
 
 func TestCardUpdate(t *testing.T) {
@@ -515,6 +599,35 @@ func TestCardUpdate(t *testing.T) {
 		assertExitCode(t, err, 0)
 		if mock.PatchCalls[0].Path != "/cards/42" {
 			t.Errorf("expected path '/cards/42', got '%s'", mock.PatchCalls[0].Path)
+		}
+	})
+
+	t.Run("uploads and appends inline attachments", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath := writeTestAttachmentFile(t, tempDir, "update.txt", "update")
+
+		mock := NewMockClient()
+		mock.PatchResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{"id": "abc"}}
+		mock.UploadFileResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-update"}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardUpdateDescription = "Updated body"
+		cardUpdateAttach = []string{attachPath}
+		err := cardUpdateCmd.RunE(cardUpdateCmd, []string{"42"})
+		cardUpdateDescription = ""
+		cardUpdateAttach = nil
+
+		assertExitCode(t, err, 0)
+		body := mock.PatchCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			"Updated body",
+			`<action-text-attachment sgid="sgid-update"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
 		}
 	})
 }
