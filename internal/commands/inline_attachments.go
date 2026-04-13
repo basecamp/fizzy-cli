@@ -86,7 +86,10 @@ func validateAttachmentPath(path string) error {
 	if err != nil {
 		return errors.NewError(fmt.Sprintf("Failed to open attachment %s: %v", path, err))
 	}
-	return file.Close()
+	if err := file.Close(); err != nil {
+		return errors.NewError(fmt.Sprintf("Failed to close attachment %s: %v", path, err))
+	}
+	return nil
 }
 
 func appendAttachmentTags(content string, sgids []string) string {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
@@ -152,7 +151,7 @@ var commentCreateCmd = &cobra.Command{
 			return err
 		}
 		if body == "" {
-			return errors.NewInvalidArgsError("required flag --body or --body_file or --attach not provided")
+			return newRequiredFlagError("body, body_file, or attach")
 		}
 
 		cardNumber := commentCreateCard
