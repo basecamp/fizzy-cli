@@ -65,7 +65,7 @@ Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, use
 3. **Check breadcrumbs** in responses for available next actions with pre-filled values.
 4. **Check for board context** via `.fizzy.yaml` or `--board` flag before listing cards.
 5. **Use `fizzy doctor` for setup/config/auth issues** before guessing — it is the primary read-only health check and includes remediation hints.
-6. **Rich text fields accept HTML** — use `<p>` tags for paragraphs, `<action-text-attachment>` for inline images.
+6. **Rich text fields accept markdown or HTML** — use repeatable `--attach PATH` for simple end-appended inline attachments, or embed `<action-text-attachment>` tags manually when exact placement matters.
 7. **Card description is a string**, but comment body is a nested object — `.description` vs `.body.plain_text`.
 8. **Display the welcome message for new signups** — When `signup complete --name` returns `is_new_user: true`, you MUST immediately display the `welcome_message` field prominently to the user. This is a one-time personal note from the CEO — if you skip it, the user will never see it.
 
@@ -577,16 +577,18 @@ fizzy card show CARD_NUMBER            # Show card details (includes steps)
 
 ```bash
 fizzy card create --board ID --title "Title" [flags]
-  --description "HTML"                 # Card description (HTML)
-  --description_file PATH              # Read description from file
+  --description "TEXT"                # Card description (markdown or HTML)
+  --description_file PATH              # Read description from file (markdown or HTML)
+  --attach PATH                        # Upload and append inline attachment at end (repeatable)
   --image SIGNED_ID                    # Header image (use signed_id from upload)
   --tag-ids "id1,id2"                  # Comma-separated tag IDs
   --created-at TIMESTAMP               # Custom created_at
 
 fizzy card update CARD_NUMBER [flags]
   --title "Title"
-  --description "HTML"
+  --description "TEXT"
   --description_file PATH
+  --attach PATH
   --image SIGNED_ID
   --created-at TIMESTAMP
 
@@ -654,8 +656,8 @@ fizzy column move-right COLUMN_ID            # Move column one position right
 ```bash
 fizzy comment list --card NUMBER [--page N] [--all]
 fizzy comment show COMMENT_ID --card NUMBER
-fizzy comment create --card NUMBER --body "HTML" [--body_file PATH] [--created-at TIMESTAMP]
-fizzy comment update COMMENT_ID --card NUMBER [--body "HTML"] [--body_file PATH]
+fizzy comment create --card NUMBER [--body "TEXT"] [--body_file PATH] [--attach PATH] [--created-at TIMESTAMP]
+fizzy comment update COMMENT_ID --card NUMBER [--body "TEXT"] [--body_file PATH] [--attach PATH]
 fizzy comment delete COMMENT_ID --card NUMBER
 ```
 
@@ -795,7 +797,9 @@ fizzy upload file PATH
 | ID | Use For |
 |---|---|
 | `signed_id` | Card header/background images (`--image` flag) |
-| `attachable_sgid` | Inline images in rich text (descriptions, comments) |
+| `attachable_sgid` | Manual inline rich text embedding with `<action-text-attachment>` |
+
+**Simple inline attachment mode:** prefer `--attach PATH` on `card create`, `card update`, `comment create`, and `comment update` when appending attachments at the end is fine.
 
 ---
 
@@ -824,8 +828,14 @@ fizzy comment create --card 42 --body "<p>Commit $(git rev-parse --short HEAD): 
 fizzy card close 42
 ```
 
-### Create Card with Inline Image
+### Create Card with Inline Attachment
 
+Simple mode:
+```bash
+fizzy card create --board BOARD_ID --title "Bug Report" --description "See the screenshot below" --attach screenshot.png
+```
+
+Advanced/manual placement mode:
 ```bash
 # Upload image
 SGID=$(fizzy upload file screenshot.png --jq '.data.attachable_sgid')
@@ -1060,7 +1070,9 @@ Complete field reference for all resources. Use these exact field paths in jq qu
 
 ## Rich Text Formatting
 
-Card descriptions and comments support HTML. For multiple paragraphs with spacing:
+Card descriptions and comments support markdown or HTML. For simple inline attachments appended at the end, use `--attach PATH`.
+
+For exact placement, upload first and embed `<action-text-attachment>` tags manually. For multiple paragraphs with spacing:
 
 ```html
 <p>First paragraph.</p>

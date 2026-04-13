@@ -20,6 +20,7 @@ type MockClient struct {
 	GetWithPaginationResponse *client.APIResponse
 	FollowLocationResponse    *client.APIResponse
 	UploadFileResponse        *client.APIResponse
+	UploadFileResponses       []*client.APIResponse
 
 	PatchMultipartResponse *client.APIResponse
 
@@ -201,6 +202,13 @@ func (m *MockClient) UploadFile(filePath string) (*client.APIResponse, error) {
 	m.UploadFileCalls = append(m.UploadFileCalls, filePath)
 	if m.UploadFileError != nil {
 		return nil, m.UploadFileError
+	}
+	if len(m.UploadFileResponses) > 0 {
+		idx := len(m.UploadFileCalls) - 1
+		if idx >= len(m.UploadFileResponses) {
+			idx = len(m.UploadFileResponses) - 1
+		}
+		return m.UploadFileResponses[idx], nil
 	}
 	return m.UploadFileResponse, nil
 }

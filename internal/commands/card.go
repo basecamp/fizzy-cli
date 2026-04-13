@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -266,13 +265,14 @@ var cardCreateBoard string
 var cardCreateTitle string
 var cardCreateDescription string
 var cardCreateDescriptionFile string
+var cardCreateAttach []string
 var cardCreateImage string
 var cardCreateCreatedAt string
 
 var cardCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a card",
-	Long:  "Creates a new card in a board.",
+	Long:  "Creates a new card in a board. Use --attach for simple end-appended inline attachments. For precise placement, upload files first and embed <action-text-attachment> tags manually in --description or --description_file.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
 			return err
@@ -286,16 +286,13 @@ var cardCreateCmd = &cobra.Command{
 			return newRequiredFlagError("title")
 		}
 
-		// Resolve description
-		var description string
-		if cardCreateDescriptionFile != "" {
-			descContent, descErr := os.ReadFile(cardCreateDescriptionFile)
-			if descErr != nil {
-				return descErr
-			}
-			description = markdownToHTML(string(descContent))
-		} else if cardCreateDescription != "" {
-			description = markdownToHTML(cardCreateDescription)
+		description, err := resolveRichTextContent(cardCreateDescription, cardCreateDescriptionFile)
+		if err != nil {
+			return err
+		}
+		description, err = appendInlineAttachmentsToContent(description, cardCreateAttach)
+		if err != nil {
+			return err
 		}
 
 		ac := getSDK()
@@ -362,13 +359,14 @@ var cardCreateCmd = &cobra.Command{
 var cardUpdateTitle string
 var cardUpdateDescription string
 var cardUpdateDescriptionFile string
+var cardUpdateAttach []string
 var cardUpdateImage string
 var cardUpdateCreatedAt string
 
 var cardUpdateCmd = &cobra.Command{
 	Use:   "update CARD_NUMBER",
 	Short: "Update a card",
-	Long:  "Updates an existing card.",
+	Long:  "Updates an existing card. Use --attach for simple end-appended inline attachments. For precise placement, upload files first and embed <action-text-attachment> tags manually in --description or --description_file.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
@@ -377,16 +375,25 @@ var cardUpdateCmd = &cobra.Command{
 
 		cardNumber := args[0]
 
-		// Resolve description
-		var description string
-		if cardUpdateDescriptionFile != "" {
-			content, err := os.ReadFile(cardUpdateDescriptionFile)
-			if err != nil {
-				return err
+		hasDescriptionInput := cardUpdateDescription != "" || cardUpdateDescriptionFile != ""
+		description, err := resolveRichTextContent(cardUpdateDescription, cardUpdateDescriptionFile)
+		if err != nil {
+			return err
+		}
+		if len(cardUpdateAttach) > 0 && !hasDescriptionInput {
+			currentData, _, getErr := getSDK().Cards().Get(cmd.Context(), cardNumber)
+			if getErr != nil {
+				return convertSDKError(getErr)
 			}
-			description = markdownToHTML(string(content))
-		} else if cardUpdateDescription != "" {
-			description = markdownToHTML(cardUpdateDescription)
+			if current, ok := normalizeAny(currentData).(map[string]any); ok {
+				if currentDescription, ok := current["description_html"].(string); ok {
+					description = currentDescription
+				}
+			}
+		}
+		description, err = appendInlineAttachmentsToContent(description, cardUpdateAttach)
+		if err != nil {
+			return err
 		}
 
 		// Build breadcrumbs
@@ -1098,16 +1105,18 @@ func init() {
 	// Create
 	cardCreateCmd.Flags().StringVar(&cardCreateBoard, "board", "", "Board ID (required)")
 	cardCreateCmd.Flags().StringVar(&cardCreateTitle, "title", "", "Card title (required)")
-	cardCreateCmd.Flags().StringVar(&cardCreateDescription, "description", "", "Card description (HTML)")
-	cardCreateCmd.Flags().StringVar(&cardCreateDescriptionFile, "description_file", "", "Read description from file")
+	cardCreateCmd.Flags().StringVar(&cardCreateDescription, "description", "", "Card description (markdown or HTML)")
+	cardCreateCmd.Flags().StringVar(&cardCreateDescriptionFile, "description_file", "", "Read description from file (markdown or HTML)")
+	cardCreateCmd.Flags().StringArrayVar(&cardCreateAttach, "attach", nil, "Upload and append inline attachment at the end of the description. Repeatable.")
 	cardCreateCmd.Flags().StringVar(&cardCreateImage, "image", "", "Header image signed ID")
 	cardCreateCmd.Flags().StringVar(&cardCreateCreatedAt, "created-at", "", "Custom created_at timestamp")
 	cardCmd.AddCommand(cardCreateCmd)
 
 	// Update
 	cardUpdateCmd.Flags().StringVar(&cardUpdateTitle, "title", "", "Card title")
-	cardUpdateCmd.Flags().StringVar(&cardUpdateDescription, "description", "", "Card description (HTML)")
-	cardUpdateCmd.Flags().StringVar(&cardUpdateDescriptionFile, "description_file", "", "Read description from file")
+	cardUpdateCmd.Flags().StringVar(&cardUpdateDescription, "description", "", "Card description (markdown or HTML)")
+	cardUpdateCmd.Flags().StringVar(&cardUpdateDescriptionFile, "description_file", "", "Read description from file (markdown or HTML)")
+	cardUpdateCmd.Flags().StringArrayVar(&cardUpdateAttach, "attach", nil, "Upload and append inline attachment at the end of the description. Repeatable.")
 	cardUpdateCmd.Flags().StringVar(&cardUpdateImage, "image", "", "Header image signed ID")
 	cardUpdateCmd.Flags().StringVar(&cardUpdateCreatedAt, "created-at", "", "Custom created_at timestamp")
 	cardCmd.AddCommand(cardUpdateCmd)

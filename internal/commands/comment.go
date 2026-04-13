@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
@@ -127,12 +126,13 @@ var commentShowCmd = &cobra.Command{
 var commentCreateCard string
 var commentCreateBody string
 var commentCreateBodyFile string
+var commentCreateAttach []string
 var commentCreateCreatedAt string
 
 var commentCreateCmd = &cobra.Command{
 	Use:   "create",
 	Short: "Create a comment",
-	Long:  "Creates a new comment on a card.",
+	Long:  "Creates a new comment on a card. Use --attach for simple end-appended inline attachments. For precise placement, upload files first and embed <action-text-attachment> tags manually in --body or --body_file.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
 			return err
@@ -142,18 +142,16 @@ var commentCreateCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		// Determine body content
-		var body string
-		if commentCreateBodyFile != "" {
-			content, err := os.ReadFile(commentCreateBodyFile)
-			if err != nil {
-				return err
-			}
-			body = markdownToHTML(string(content))
-		} else if commentCreateBody != "" {
-			body = markdownToHTML(commentCreateBody)
-		} else {
-			return newRequiredFlagError("body or body_file")
+		body, err := resolveRichTextContent(commentCreateBody, commentCreateBodyFile)
+		if err != nil {
+			return err
+		}
+		body, err = appendInlineAttachmentsToContent(body, commentCreateAttach)
+		if err != nil {
+			return err
+		}
+		if body == "" {
+			return newRequiredFlagError("body, body_file, or attach")
 		}
 
 		cardNumber := commentCreateCard
@@ -188,11 +186,12 @@ var commentCreateCmd = &cobra.Command{
 var commentUpdateCard string
 var commentUpdateBody string
 var commentUpdateBodyFile string
+var commentUpdateAttach []string
 
 var commentUpdateCmd = &cobra.Command{
 	Use:   "update COMMENT_ID",
 	Short: "Update a comment",
-	Long:  "Updates an existing comment.",
+	Long:  "Updates an existing comment. Use --attach for simple end-appended inline attachments. For precise placement, upload files first and embed <action-text-attachment> tags manually in --body or --body_file.",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
@@ -203,19 +202,31 @@ var commentUpdateCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		var body string
-		if commentUpdateBodyFile != "" {
-			content, err := os.ReadFile(commentUpdateBodyFile)
-			if err != nil {
-				return err
-			}
-			body = markdownToHTML(string(content))
-		} else if commentUpdateBody != "" {
-			body = markdownToHTML(commentUpdateBody)
-		}
-
 		commentID := args[0]
 		cardNumber := commentUpdateCard
+
+		hasBodyInput := commentUpdateBody != "" || commentUpdateBodyFile != ""
+		body, err := resolveRichTextContent(commentUpdateBody, commentUpdateBodyFile)
+		if err != nil {
+			return err
+		}
+		if len(commentUpdateAttach) > 0 && !hasBodyInput {
+			currentData, _, getErr := getSDK().Comments().Get(cmd.Context(), cardNumber, commentID)
+			if getErr != nil {
+				return convertSDKError(getErr)
+			}
+			if current, ok := normalizeAny(currentData).(map[string]any); ok {
+				if currentBody, ok := current["body"].(map[string]any); ok {
+					if currentHTML, ok := currentBody["html"].(string); ok {
+						body = currentHTML
+					}
+				}
+			}
+		}
+		body, err = appendInlineAttachmentsToContent(body, commentUpdateAttach)
+		if err != nil {
+			return err
+		}
 
 		req := &generated.UpdateCommentRequest{}
 		if body != "" {
@@ -289,15 +300,17 @@ func init() {
 
 	// Create
 	commentCreateCmd.Flags().StringVar(&commentCreateCard, "card", "", "Card number (required)")
-	commentCreateCmd.Flags().StringVar(&commentCreateBody, "body", "", "Comment body (HTML)")
-	commentCreateCmd.Flags().StringVar(&commentCreateBodyFile, "body_file", "", "Read body from file")
+	commentCreateCmd.Flags().StringVar(&commentCreateBody, "body", "", "Comment body (markdown or HTML)")
+	commentCreateCmd.Flags().StringVar(&commentCreateBodyFile, "body_file", "", "Read body from file (markdown or HTML)")
+	commentCreateCmd.Flags().StringArrayVar(&commentCreateAttach, "attach", nil, "Upload and append inline attachment at the end of the body. Repeatable.")
 	commentCreateCmd.Flags().StringVar(&commentCreateCreatedAt, "created-at", "", "Custom created_at timestamp")
 	commentCmd.AddCommand(commentCreateCmd)
 
 	// Update
 	commentUpdateCmd.Flags().StringVar(&commentUpdateCard, "card", "", "Card number (required)")
-	commentUpdateCmd.Flags().StringVar(&commentUpdateBody, "body", "", "Comment body (HTML)")
-	commentUpdateCmd.Flags().StringVar(&commentUpdateBodyFile, "body_file", "", "Read body from file")
+	commentUpdateCmd.Flags().StringVar(&commentUpdateBody, "body", "", "Comment body (markdown or HTML)")
+	commentUpdateCmd.Flags().StringVar(&commentUpdateBodyFile, "body_file", "", "Read body from file (markdown or HTML)")
+	commentUpdateCmd.Flags().StringArrayVar(&commentUpdateAttach, "attach", nil, "Upload and append inline attachment at the end of the body. Repeatable.")
 	commentCmd.AddCommand(commentUpdateCmd)
 
 	// Delete

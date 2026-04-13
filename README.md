@@ -94,6 +94,26 @@ fizzy search "authentication"             # Search across cards
 fizzy comment create --card 42 --body "Looks good!"   # Add comment
 ```
 
+### Attachments
+
+Simple mode uses repeatable `--attach` and appends inline attachments to the end of card descriptions or comment bodies:
+
+```bash
+fizzy card create --board ID --title "Bug report" --description "See attached" --attach screenshot.png
+fizzy comment create --card 42 --attach logs.txt
+fizzy comment create --card 42 --body_file comment.md --attach screenshot.png --attach trace.txt
+```
+
+Advanced mode still works when exact placement matters:
+
+```bash
+SGID=$(fizzy upload file screenshot.png --jq '.data.attachable_sgid')
+fizzy card create --board ID --title "Bug report" \
+  --description "<p>See screenshot</p><action-text-attachment sgid=\"$SGID\"></action-text-attachment>"
+```
+
+Use `signed_id` from `fizzy upload file` only for card header images via `--image`.
+
 ### Output Formats
 
 ```bash

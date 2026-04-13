@@ -18,11 +18,16 @@ var md = goldmark.New(
 // backtickAttachmentRegex matches backtick-wrapped action-text-attachment tags
 // that goldmark didn't convert (because they were inside HTML blocks).
 var backtickAttachmentRegex = regexp.MustCompile("`(<action-text-attachment[^>]*>)(</action-text-attachment>)`")
+var blockMarkdownRegex = regexp.MustCompile("(?m)^(#{1,6}\\s|[*+-]\\s|\\d+\\.\\s|>\\s|```|~~~)")
+var inlineMarkdownRegex = regexp.MustCompile(`(\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|\[[^\]]+\]\([^)]+\)|!\[[^\]]*\]\([^)]+\)|(^|[[:space:][:punct:]])[*_][^*_\n]+[*_]([[:space:][:punct:]]|$))`)
 
 // containsMarkdownOrHTML checks whether content has HTML tags or markdown
 // syntax that would benefit from conversion.
 func containsMarkdownOrHTML(content string) bool {
-	return strings.ContainsAny(content, "<>`")
+	if strings.ContainsAny(content, "<>`") {
+		return true
+	}
+	return blockMarkdownRegex.MatchString(content) || inlineMarkdownRegex.MatchString(content)
 }
 
 // markdownToHTML converts markdown content to HTML. Raw HTML in the input is
