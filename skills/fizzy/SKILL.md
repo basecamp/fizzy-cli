@@ -77,7 +77,7 @@ Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, use
 Need to find something?
 ├── Know the board? → fizzy card list --board <id>
 ├── Full-text search? → fizzy search "query"
-├── Filter by status? → fizzy card list --indexed-by closed|not_now|golden|stalled
+├── Filter by status? → fizzy card list --indexed-by maybe|closed|not_now|golden|stalled
 ├── Filter by person? → fizzy card list --assignee <id>
 ├── Filter by time? → fizzy card list --created today|thisweek|thismonth
 └── Cross-board? → fizzy search "query" (searches all boards)
@@ -360,9 +360,9 @@ Cards exist in different states. By default, `fizzy card list` returns **open ca
 You can also use pseudo-columns:
 
 ```bash
-fizzy card list --column done --all     # Same as --indexed-by closed
-fizzy card list --column not-now --all  # Same as --indexed-by not_now
-fizzy card list --column maybe --all    # Cards in triage (no column assigned)
+fizzy card list --column done      # Same as --indexed-by closed
+fizzy card list --column not-now   # Same as --indexed-by not_now
+fizzy card list --column maybe     # Same as --indexed-by maybe
 ```
 
 **Fetching all cards on a board:**
@@ -475,7 +475,7 @@ fizzy search QUERY [flags]
   --board ID                           # Filter by board
   --assignee ID                        # Filter by assignee user ID
   --tag ID                             # Filter by tag ID
-  --indexed-by LANE                    # Filter: all, closed, not_now, golden
+  --indexed-by LANE                    # Filter: all, closed, maybe, not_now, golden
   --sort ORDER                         # Sort: newest, oldest, or latest (default)
   --page N                             # Page number
   --all                                # Fetch all pages
@@ -559,7 +559,7 @@ fizzy card list [flags]
   --column ID                          # Filter by column ID or pseudo: not-now, maybe, done
   --assignee ID                        # Filter by assignee user ID
   --tag ID                             # Filter by tag ID
-  --indexed-by LANE                    # Filter: all, closed, not_now, stalled, postponing_soon, golden
+  --indexed-by LANE                    # Filter: all, closed, maybe, not_now, stalled, postponing_soon, golden
   --search "terms"                     # Search by text (space-separated for multiple terms)
   --sort ORDER                         # Sort: newest, oldest, or latest (default)
   --creator ID                         # Filter by creator user ID
