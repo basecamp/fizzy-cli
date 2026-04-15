@@ -272,6 +272,72 @@ var userAvatarRemoveCmd = &cobra.Command{
 	},
 }
 
+var userExportCreateCmd = &cobra.Command{
+	Use:   "export-create USER_ID",
+	Short: "Create a user export",
+	Long:  "Creates a new user data export.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		userID := args[0]
+
+		data, _, err := getSDK().Users().CreateUserDataExport(cmd.Context(), userID)
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		items := normalizeAny(data)
+		exportID := ""
+		if export, ok := items.(map[string]any); ok {
+			if id, ok := export["id"]; ok {
+				exportID = fmt.Sprintf("%v", id)
+			}
+		}
+
+		var breadcrumbs []Breadcrumb
+		if exportID != "" {
+			breadcrumbs = []Breadcrumb{
+				breadcrumb("show", fmt.Sprintf("fizzy user export-show %s %s", userID, exportID), "View export status"),
+				breadcrumb("user", fmt.Sprintf("fizzy user show %s", userID), "View user"),
+			}
+		}
+
+		printMutation(items, "", breadcrumbs)
+		return nil
+	},
+}
+
+var userExportShowCmd = &cobra.Command{
+	Use:   "export-show USER_ID EXPORT_ID",
+	Short: "Show a user export",
+	Long:  "Shows the status of a user data export.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		userID := args[0]
+		exportID := args[1]
+
+		data, _, err := getSDK().Users().GetUserDataExport(cmd.Context(), userID, exportID)
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("user", fmt.Sprintf("fizzy user show %s", userID), "View user"),
+			breadcrumb("export-create", fmt.Sprintf("fizzy user export-create %s", userID), "Create another export"),
+		}
+
+		printDetail(normalizeAny(data), "", breadcrumbs)
+		return nil
+	},
+}
+
 // Push subscription create flags
 var pushSubCreateUser string
 var pushSubCreateEndpoint string
@@ -376,6 +442,10 @@ func init() {
 
 	// Avatar remove
 	userCmd.AddCommand(userAvatarRemoveCmd)
+
+	// Exports
+	userCmd.AddCommand(userExportCreateCmd)
+	userCmd.AddCommand(userExportShowCmd)
 
 	// Push subscriptions
 	userPushSubscriptionCreateCmd.Flags().StringVar(&pushSubCreateUser, "user", "", "User ID (required)")

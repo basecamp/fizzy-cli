@@ -77,4 +77,11 @@ var (
 		{Header: "URL", Field: "payload_url"},
 		{Header: "Active", Field: "active"},
 	}
+
+	webhookDeliveryColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "State", Field: "state"},
+		{Header: "Created", Field: "created_at"},
+		{Header: "Updated", Field: "updated_at"},
+	}
 )

@@ -257,6 +257,50 @@ func TestUserAvatarRemove(t *testing.T) {
 	})
 }
 
+func TestUserExport(t *testing.T) {
+	t.Run("creates user export", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{
+			StatusCode: 201,
+			Data: map[string]any{
+				"id":     "export-1",
+				"status": "queued",
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := userExportCreateCmd.RunE(userExportCreateCmd, []string{"user-1"})
+		assertExitCode(t, err, 0)
+		if mock.PostCalls[0].Path != "/users/user-1/data_exports.json" {
+			t.Errorf("expected path '/users/user-1/data_exports.json', got '%s'", mock.PostCalls[0].Path)
+		}
+	})
+
+	t.Run("shows user export", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":     "export-1",
+				"status": "complete",
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := userExportShowCmd.RunE(userExportShowCmd, []string{"user-1", "export-1"})
+		assertExitCode(t, err, 0)
+		if mock.GetCalls[0].Path != "/users/user-1/data_exports/export-1" {
+			t.Errorf("expected path '/users/user-1/data_exports/export-1', got '%s'", mock.GetCalls[0].Path)
+		}
+	})
+}
+
 func TestUserPushSubscriptionCreate(t *testing.T) {
 	t.Run("creates push subscription", func(t *testing.T) {
 		mock := NewMockClient()

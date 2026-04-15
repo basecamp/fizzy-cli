@@ -100,7 +100,7 @@ Want to change something?
 | Resource | List | Show | Create | Update | Delete | Other |
 |----------|------|------|--------|--------|--------|-------|
 | account | - | `account show` | - | `account settings-update` | - | `account entropy`, `account export-create`, `account export-show EXPORT_ID`, `account join-code-show`, `account join-code-reset`, `account join-code-update` |
-| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
+| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board accesses --board ID`, `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
 | card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER`, `card publish NUMBER`, `card mark-read NUMBER`, `card mark-unread NUMBER` |
 | search | `search QUERY` | - | - | - | - | - |
 | column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | `column move-left ID`, `column move-right ID` |
@@ -108,9 +108,10 @@ Want to change something?
 | step | `step list --card NUMBER` | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
 | reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` | - |
 | tag | `tag list` | - | - | - | - | - |
-| user | `user list` | `user show ID` | - | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user push-subscription-create`, `user push-subscription-delete ID` |
+| user | `user list` | `user show ID`, `user export-show USER_ID EXPORT_ID` | `user export-create USER_ID` | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user push-subscription-create`, `user push-subscription-delete ID` |
 | notification | `notification list` | - | - | - | - | `notification tray`, `notification read-all`, `notification settings-show`, `notification settings-update` |
 | pin | `pin list` | - | - | - | - | `card pin NUMBER`, `card unpin NUMBER` |
+| webhook | `webhook list --board ID`, `webhook deliveries --board ID WEBHOOK_ID` | `webhook show ID --board ID` | `webhook create` | `webhook update ID` | `webhook delete ID` | `webhook reactivate ID` |
 | webhook | `webhook list --board ID` | `webhook show ID --board ID` | `webhook create` | `webhook update ID` | `webhook delete ID` | `webhook reactivate ID` |
 
 ---
@@ -501,6 +502,7 @@ fizzy board publish BOARD_ID
 fizzy board unpublish BOARD_ID
 fizzy board delete BOARD_ID
 fizzy board entropy BOARD_ID --auto_postpone_period_in_days N  # N: 3, 7, 11, 30, 90, 365
+fizzy board accesses --board ID [--page N]             # Show board access settings and users
 fizzy board closed --board ID [--page N] [--all]       # List closed cards
 fizzy board postponed --board ID [--page N] [--all]    # List postponed cards
 fizzy board stream --board ID [--page N] [--all]       # List stream cards
@@ -721,6 +723,8 @@ fizzy user update USER_ID --avatar /path.jpg  # Update user avatar
 fizzy user deactivate USER_ID                  # Deactivate user (requires admin/owner)
 fizzy user role USER_ID --role ROLE            # Update user role (requires admin/owner)
 fizzy user avatar-remove USER_ID               # Remove user avatar
+fizzy user export-create USER_ID               # Create user data export
+fizzy user export-show USER_ID EXPORT_ID       # Show user data export status
 fizzy user push-subscription-create --user ID --endpoint URL --p256dh-key KEY --auth-key KEY
 fizzy user push-subscription-delete SUB_ID --user ID
 ```
@@ -750,6 +754,7 @@ Webhooks notify external services when events occur on a board. Requires account
 
 ```bash
 fizzy webhook list --board ID [--page N] [--all]
+fizzy webhook deliveries --board ID WEBHOOK_ID [--page N] [--all]
 fizzy webhook show WEBHOOK_ID --board ID
 fizzy webhook create --board ID --name "Name" --url "https://..." [--actions card_published,card_closed,...]
 fizzy webhook update WEBHOOK_ID --board ID [--name "Name"] [--actions card_closed,...]
