@@ -109,7 +109,7 @@ Want to change something?
 | step | `step list --card NUMBER` | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
 | reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` | - |
 | tag | `tag list` | - | - | - | - | - |
-| user | `user list` | `user show ID`, `user export-show USER_ID EXPORT_ID` | `user export-create USER_ID` | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user push-subscription-create`, `user push-subscription-delete ID` |
+| user | `user list` | `user show ID`, `user export-show USER_ID EXPORT_ID` | `user export-create USER_ID`, `user email-change-request USER_ID --email user@example.com`, `user email-change-confirm USER_ID TOKEN` | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user push-subscription-create`, `user push-subscription-delete ID` |
 | notification | `notification list` | - | - | - | - | `notification tray`, `notification read-all`, `notification settings-show`, `notification settings-update` |
 | pin | `pin list` | - | - | - | - | `card pin NUMBER`, `card unpin NUMBER` |
 | webhook | `webhook list --board ID`, `webhook deliveries --board ID WEBHOOK_ID` | `webhook show ID --board ID` | `webhook create` | `webhook update ID` | `webhook delete ID` | `webhook reactivate ID` |
@@ -732,6 +732,8 @@ fizzy user role USER_ID --role ROLE            # Update user role (requires admi
 fizzy user avatar-remove USER_ID               # Remove user avatar
 fizzy user export-create USER_ID               # Create user data export
 fizzy user export-show USER_ID EXPORT_ID       # Show user data export status
+fizzy user email-change-request USER_ID --email user@example.com
+fizzy user email-change-confirm USER_ID TOKEN
 fizzy user push-subscription-create --user ID --endpoint URL --p256dh-key KEY --auth-key KEY
 fizzy user push-subscription-delete SUB_ID --user ID
 ```

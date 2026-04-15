@@ -301,6 +301,87 @@ func TestUserExport(t *testing.T) {
 	})
 }
 
+func TestUserEmailChange(t *testing.T) {
+	t.Run("requests email change", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{StatusCode: 204, Data: nil}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		userEmailChangeRequestEmail = "new@example.com"
+		err := userEmailChangeRequestCmd.RunE(userEmailChangeRequestCmd, []string{"user-1"})
+		userEmailChangeRequestEmail = ""
+
+		assertExitCode(t, err, 0)
+		if mock.PostCalls[0].Path != "/users/user-1/email_addresses.json" {
+			t.Errorf("expected path '/users/user-1/email_addresses.json', got '%s'", mock.PostCalls[0].Path)
+		}
+		body := mock.PostCalls[0].Body.(map[string]any)
+		if body["email_address"] != "new@example.com" {
+			t.Errorf("expected email_address 'new@example.com', got '%v'", body["email_address"])
+		}
+		data, ok := result.Response.Data.(map[string]any)
+		if !ok || data["requested"] != true {
+			t.Fatalf("expected explicit requested=true payload, got %#v", result.Response.Data)
+		}
+	})
+
+	t.Run("confirms email change", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{StatusCode: 204, Data: nil}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := userEmailChangeConfirmCmd.RunE(userEmailChangeConfirmCmd, []string{"user-1", "token-123"})
+
+		assertExitCode(t, err, 0)
+		if mock.PostCalls[0].Path != "/users/user-1/email_addresses/token-123/confirmation.json" {
+			t.Errorf("expected confirmation path, got '%s'", mock.PostCalls[0].Path)
+		}
+		data, ok := result.Response.Data.(map[string]any)
+		if !ok || data["confirmed"] != true {
+			t.Fatalf("expected explicit confirmed=true payload, got %#v", result.Response.Data)
+		}
+	})
+
+	t.Run("requires email flag", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		userEmailChangeRequestEmail = ""
+		err := userEmailChangeRequestCmd.RunE(userEmailChangeRequestCmd, []string{"user-1"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+
+	t.Run("request requires authentication", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("", "account", "https://api.example.com")
+		defer resetTest()
+
+		userEmailChangeRequestEmail = "new@example.com"
+		err := userEmailChangeRequestCmd.RunE(userEmailChangeRequestCmd, []string{"user-1"})
+		userEmailChangeRequestEmail = ""
+		assertExitCode(t, err, errors.ExitAuthFailure)
+	})
+
+	t.Run("confirm requires authentication", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := userEmailChangeConfirmCmd.RunE(userEmailChangeConfirmCmd, []string{"user-1", "token-123"})
+		assertExitCode(t, err, errors.ExitAuthFailure)
+	})
+}
+
 func TestUserPushSubscriptionCreate(t *testing.T) {
 	t.Run("creates push subscription", func(t *testing.T) {
 		mock := NewMockClient()

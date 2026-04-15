@@ -200,6 +200,8 @@ CMD fizzy upload help
 CMD fizzy user
 CMD fizzy user avatar-remove
 CMD fizzy user deactivate
+CMD fizzy user email-change-confirm
+CMD fizzy user email-change-request
 CMD fizzy user export-create
 CMD fizzy user export-show
 CMD fizzy user help
@@ -2819,6 +2821,35 @@ FLAG fizzy user deactivate --quiet type=bool
 FLAG fizzy user deactivate --styled type=bool
 FLAG fizzy user deactivate --token type=string
 FLAG fizzy user deactivate --verbose type=bool
+FLAG fizzy user email-change-confirm --agent type=bool
+FLAG fizzy user email-change-confirm --api-url type=string
+FLAG fizzy user email-change-confirm --count type=bool
+FLAG fizzy user email-change-confirm --help type=bool
+FLAG fizzy user email-change-confirm --ids-only type=bool
+FLAG fizzy user email-change-confirm --jq type=string
+FLAG fizzy user email-change-confirm --json type=bool
+FLAG fizzy user email-change-confirm --limit type=int
+FLAG fizzy user email-change-confirm --markdown type=bool
+FLAG fizzy user email-change-confirm --profile type=string
+FLAG fizzy user email-change-confirm --quiet type=bool
+FLAG fizzy user email-change-confirm --styled type=bool
+FLAG fizzy user email-change-confirm --token type=string
+FLAG fizzy user email-change-confirm --verbose type=bool
+FLAG fizzy user email-change-request --agent type=bool
+FLAG fizzy user email-change-request --api-url type=string
+FLAG fizzy user email-change-request --count type=bool
+FLAG fizzy user email-change-request --email type=string
+FLAG fizzy user email-change-request --help type=bool
+FLAG fizzy user email-change-request --ids-only type=bool
+FLAG fizzy user email-change-request --jq type=string
+FLAG fizzy user email-change-request --json type=bool
+FLAG fizzy user email-change-request --limit type=int
+FLAG fizzy user email-change-request --markdown type=bool
+FLAG fizzy user email-change-request --profile type=string
+FLAG fizzy user email-change-request --quiet type=bool
+FLAG fizzy user email-change-request --styled type=bool
+FLAG fizzy user email-change-request --token type=string
+FLAG fizzy user email-change-request --verbose type=bool
 FLAG fizzy user export-create --agent type=bool
 FLAG fizzy user export-create --api-url type=string
 FLAG fizzy user export-create --count type=bool
@@ -3360,6 +3391,8 @@ SUB fizzy upload help
 SUB fizzy user
 SUB fizzy user avatar-remove
 SUB fizzy user deactivate
+SUB fizzy user email-change-confirm
+SUB fizzy user email-change-request
 SUB fizzy user export-create
 SUB fizzy user export-show
 SUB fizzy user help
