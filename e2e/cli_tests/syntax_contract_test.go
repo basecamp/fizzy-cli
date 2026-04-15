@@ -68,3 +68,37 @@ func TestAccountEntropyRejectsInvalidZeroValue(t *testing.T) {
 	result := h.Run("account", "entropy", "--auto_postpone_period_in_days", "0")
 	assertResult(t, result, harness.ExitUsage)
 }
+
+func TestUserExportCommandsUsePositionalIDs(t *testing.T) {
+	h := newHarness(t)
+	userID := currentUserID(t, h)
+
+	create := h.Run("user", "export-create", userID)
+	assertOK(t, create)
+	exportID := create.GetDataString("id")
+	if exportID == "" {
+		exportID = mapValueString(create.GetDataMap(), "id")
+	}
+	if exportID == "" {
+		t.Fatal("expected export ID from user export-create")
+	}
+
+	assertOK(t, h.Run("user", "export-show", userID, exportID))
+}
+
+func TestWebhookDeliveriesUsesBoardFlagAndWebhookID(t *testing.T) {
+	h := newHarness(t)
+	boardID := createBoard(t, h)
+	cardNum := createCard(t, h, boardID)
+	create := h.Run("webhook", "create", "--board", boardID, "--name", "Syntax Contract Hook", "--url", "https://example.com/fizzy-cli-syntax", "--actions", "card_closed")
+	assertOK(t, create)
+	webhookID := create.GetIDFromLocation()
+	if webhookID == "" {
+		webhookID = create.GetDataString("id")
+	}
+	if webhookID == "" {
+		t.Fatal("expected webhook ID from webhook create")
+	}
+	assertOK(t, h.Run("card", "close", strconv.Itoa(cardNum)))
+	assertOK(t, h.Run("webhook", "deliveries", "--board", boardID, webhookID))
+}

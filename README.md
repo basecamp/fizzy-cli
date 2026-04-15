@@ -82,21 +82,28 @@ sudo rpm -i fizzy-cli_VERSION_linux_amd64.rpm
 
 </details>
 
-## Usage
+## Next Steps
+
+Start with a few common commands:
 
 ```bash
-fizzy board list                          # List boards
+fizzy board list
+fizzy card list
+fizzy card show 42
+fizzy search "authentication"
+fizzy comment create --card 42 --body "Looks good!"
+```
+
+Then branch out as needed:
+
+```bash
 fizzy board accesses --board ID           # Show board access settings and users
 fizzy activity list --board ID            # List recent board activity
-fizzy card list                           # List cards on default board
-fizzy card show 42                        # Show card details
-fizzy card create --board ID --title "Fix login bug"  # Create card
-fizzy card close 42                       # Close card
-fizzy search "authentication"             # Search across cards
-fizzy comment create --card 42 --body "Looks good!"   # Add comment
-fizzy webhook deliveries --board ID WEBHOOK_ID         # List webhook deliveries
-fizzy user export-create USER_ID          # Create a user data export
+fizzy webhook deliveries --board ID WEBHOOK_ID
+fizzy user export-create USER_ID
 ```
+
+For the full command surface, run `fizzy commands --json` or read [`skills/fizzy/SKILL.md`](skills/fizzy/SKILL.md).
 
 ### Attachments
 
