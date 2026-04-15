@@ -103,6 +103,7 @@ Want to change something?
 | board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board accesses --board ID`, `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
 | card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER`, `card publish NUMBER`, `card mark-read NUMBER`, `card mark-unread NUMBER` |
 | search | `search QUERY` | - | - | - | - | - |
+| activity | `activity list` | - | - | - | - | `activity list --board ID`, `activity list --creator ID` |
 | column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | `column move-left ID`, `column move-right ID` |
 | comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` | `comment attachments show --card NUMBER` |
 | step | `step list --card NUMBER` | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
@@ -489,6 +490,12 @@ fizzy search "login error"             # Search for cards containing both "login
 fizzy search "bug" --board BOARD_ID    # Search within a specific board
 fizzy search "bug" --indexed-by closed # Include closed cards
 fizzy search "feature" --sort newest   # Sort by newest first
+```
+
+### Activities
+
+```bash
+fizzy activity list [--board ID] [--creator ID] [--page N] [--all]
 ```
 
 ### Boards

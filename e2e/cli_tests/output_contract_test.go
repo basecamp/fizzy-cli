@@ -174,6 +174,7 @@ func TestOutputContractListCommands(t *testing.T) {
 		name string
 		args []string
 	}{
+		{"activity-list", []string{"activity", "list", "--board", fixture.BoardID}},
 		{"board-list", []string{"board", "list"}},
 		{"board-closed", []string{"board", "closed", "--board", fixture.BoardID}},
 		{"board-postponed", []string{"board", "postponed", "--board", fixture.BoardID}},

@@ -64,6 +64,13 @@ var (
 
 	searchColumns = cardColumns
 
+	activityColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "Action", Field: "action"},
+		{Header: "Description", Field: "description"},
+		{Header: "Created", Field: "created_at"},
+	}
+
 	attachmentColumns = render.Columns{
 		{Header: "#", Field: "index"},
 		{Header: "Filename", Field: "filename"},
