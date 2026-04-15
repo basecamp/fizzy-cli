@@ -1,4 +1,5 @@
 ARG fizzy account help 00 [command]
+ARG fizzy activity help 00 [command]
 ARG fizzy auth help 00 [command]
 ARG fizzy board help 00 [command]
 ARG fizzy card attachments download 00 [ATTACHMENT_INDEX]
@@ -38,6 +39,10 @@ CMD fizzy account join-code-update
 CMD fizzy account settings-update
 CMD fizzy account show
 CMD fizzy account view
+CMD fizzy activity
+CMD fizzy activity help
+CMD fizzy activity list
+CMD fizzy activity ls
 CMD fizzy auth
 CMD fizzy auth help
 CMD fizzy auth list
@@ -391,6 +396,70 @@ FLAG fizzy account view --quiet type=bool
 FLAG fizzy account view --styled type=bool
 FLAG fizzy account view --token type=string
 FLAG fizzy account view --verbose type=bool
+FLAG fizzy activity --agent type=bool
+FLAG fizzy activity --api-url type=string
+FLAG fizzy activity --count type=bool
+FLAG fizzy activity --help type=bool
+FLAG fizzy activity --ids-only type=bool
+FLAG fizzy activity --jq type=string
+FLAG fizzy activity --json type=bool
+FLAG fizzy activity --limit type=int
+FLAG fizzy activity --markdown type=bool
+FLAG fizzy activity --profile type=string
+FLAG fizzy activity --quiet type=bool
+FLAG fizzy activity --styled type=bool
+FLAG fizzy activity --token type=string
+FLAG fizzy activity --verbose type=bool
+FLAG fizzy activity help --agent type=bool
+FLAG fizzy activity help --api-url type=string
+FLAG fizzy activity help --count type=bool
+FLAG fizzy activity help --help type=bool
+FLAG fizzy activity help --ids-only type=bool
+FLAG fizzy activity help --jq type=string
+FLAG fizzy activity help --json type=bool
+FLAG fizzy activity help --limit type=int
+FLAG fizzy activity help --markdown type=bool
+FLAG fizzy activity help --profile type=string
+FLAG fizzy activity help --quiet type=bool
+FLAG fizzy activity help --styled type=bool
+FLAG fizzy activity help --token type=string
+FLAG fizzy activity help --verbose type=bool
+FLAG fizzy activity list --agent type=bool
+FLAG fizzy activity list --all type=bool
+FLAG fizzy activity list --api-url type=string
+FLAG fizzy activity list --board type=string
+FLAG fizzy activity list --count type=bool
+FLAG fizzy activity list --creator type=string
+FLAG fizzy activity list --help type=bool
+FLAG fizzy activity list --ids-only type=bool
+FLAG fizzy activity list --jq type=string
+FLAG fizzy activity list --json type=bool
+FLAG fizzy activity list --limit type=int
+FLAG fizzy activity list --markdown type=bool
+FLAG fizzy activity list --page type=int
+FLAG fizzy activity list --profile type=string
+FLAG fizzy activity list --quiet type=bool
+FLAG fizzy activity list --styled type=bool
+FLAG fizzy activity list --token type=string
+FLAG fizzy activity list --verbose type=bool
+FLAG fizzy activity ls --agent type=bool
+FLAG fizzy activity ls --all type=bool
+FLAG fizzy activity ls --api-url type=string
+FLAG fizzy activity ls --board type=string
+FLAG fizzy activity ls --count type=bool
+FLAG fizzy activity ls --creator type=string
+FLAG fizzy activity ls --help type=bool
+FLAG fizzy activity ls --ids-only type=bool
+FLAG fizzy activity ls --jq type=string
+FLAG fizzy activity ls --json type=bool
+FLAG fizzy activity ls --limit type=int
+FLAG fizzy activity ls --markdown type=bool
+FLAG fizzy activity ls --page type=int
+FLAG fizzy activity ls --profile type=string
+FLAG fizzy activity ls --quiet type=bool
+FLAG fizzy activity ls --styled type=bool
+FLAG fizzy activity ls --token type=string
+FLAG fizzy activity ls --verbose type=bool
 FLAG fizzy auth --agent type=bool
 FLAG fizzy auth --api-url type=string
 FLAG fizzy auth --count type=bool
@@ -3130,6 +3199,10 @@ SUB fizzy account join-code-update
 SUB fizzy account settings-update
 SUB fizzy account show
 SUB fizzy account view
+SUB fizzy activity
+SUB fizzy activity help
+SUB fizzy activity list
+SUB fizzy activity ls
 SUB fizzy auth
 SUB fizzy auth help
 SUB fizzy auth list
