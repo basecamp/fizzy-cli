@@ -10,6 +10,7 @@ import (
 func TestBoardBoardScopedCommandsUseBoardFlag(t *testing.T) {
 	h := newHarness(t)
 	for name, args := range map[string][]string{
+		"accesses":  {"board", "accesses", "--board", fixture.BoardID},
 		"closed":    {"board", "closed", "--board", fixture.BoardID},
 		"postponed": {"board", "postponed", "--board", fixture.BoardID},
 		"stream":    {"board", "stream", "--board", fixture.BoardID},

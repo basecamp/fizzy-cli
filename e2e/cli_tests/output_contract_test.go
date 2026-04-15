@@ -217,6 +217,7 @@ func TestOutputContractShowCommands(t *testing.T) {
 		args []string
 	}{
 		{"board-show", []string{"board", "show", fixture.BoardID}},
+		{"board-accesses", []string{"board", "accesses", "--board", fixture.BoardID}},
 		{"card-show", []string{"card", "show", cardNum}},
 		{"column-show", []string{"column", "show", fixture.ColumnID, "--board", fixture.BoardID}},
 		{"comment-show", []string{"comment", "show", fixture.CommentID, "--card", cardNum}},

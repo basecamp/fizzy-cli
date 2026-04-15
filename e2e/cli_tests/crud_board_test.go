@@ -134,6 +134,23 @@ func TestBoardViews(t *testing.T) {
 	}
 }
 
+func TestBoardAccesses(t *testing.T) {
+	h := newHarness(t)
+	boardID := createBoard(t, h)
+
+	result := h.Run("board", "accesses", "--board", boardID)
+	assertOK(t, result)
+	if got := result.GetDataString("board_id"); got != boardID {
+		t.Fatalf("expected board_id %q, got %q", boardID, got)
+	}
+	if _, ok := result.GetDataMap()["all_access"]; !ok {
+		t.Fatal("expected all_access in board accesses response")
+	}
+	if _, ok := result.GetDataMap()["users"]; !ok {
+		t.Fatal("expected users in board accesses response")
+	}
+}
+
 func TestBoardInvolvement(t *testing.T) {
 	h := newHarness(t)
 	boardID := createBoard(t, h)
