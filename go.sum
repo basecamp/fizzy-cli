@@ -8,8 +8,8 @@ github.com/aymanbagabas/go-udiff v0.3.1 h1:LV+qyBQ2pqe0u42ZsUEtPiCaUoqgA9gYRDs3v
 github.com/aymanbagabas/go-udiff v0.3.1/go.mod h1:G0fsKmG+P6ylD0r6N/KgQD/nWzgfnl8ZBcNLgcbrw8E=
 github.com/basecamp/cli v0.2.1 h1:8GyehPVtsTXla0oOPu4QgXRjwwzJ99prlByvyi+0HRQ=
 github.com/basecamp/cli v0.2.1/go.mod h1:p8tt/DatJ2LAzWO6N6tNfV8x3gF5T3IxDTo+U8FfWPo=
-github.com/basecamp/fizzy-sdk/go v0.1.2 h1:AX6ToXC2AI6iy+fvI02+W/Sk7Ar3bE9n4Clg+d5BDqM=
-github.com/basecamp/fizzy-sdk/go v0.1.2/go.mod h1:HpiKRY9LpWobnxISmFM0I6/Tw+Br00mnDm9vcct8IH8=
+github.com/basecamp/fizzy-sdk/go v0.1.3 h1:rKlWHsyiEnBp0bWnYoyrV0SIXY6COpGjzCpkywUkI24=
+github.com/basecamp/fizzy-sdk/go v0.1.3/go.mod h1:XvOTc+2/6NaECvb2mVhIMq2pNsl9P2wNqwvybIUtQ2g=
 github.com/catppuccin/go v0.3.0 h1:d+0/YicIq+hSTo5oPuRi5kOpqkVA5tAsU6dNhvRu+aY=
 github.com/catppuccin/go v0.3.0/go.mod h1:8IHJuMGaUUjQM82qBrGNBv7LFq6JI3NnQCF6MOlZjpc=
 github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7 h1:JFgG/xnwFfbezlUnFMJy0nusZvytYysV4SCS2cYbvws=
@@ -97,8 +97,8 @@ github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavM
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e/go.mod h1:RbqR21r5mrJuqunuUZ/Dhy/avygyECGrLceyNeo4LiM=
 github.com/yuin/goldmark v1.8.2 h1:kEGpgqJXdgbkhcOgBxkC0X0PmoPG1ZyoZ117rDVp4zE=
 github.com/yuin/goldmark v1.8.2/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
-github.com/zalando/go-keyring v0.2.7 h1:YbqBw40+g4g69UNk4WsRM/fV9YErfVWwozE2+7Bn+7g=
-github.com/zalando/go-keyring v0.2.7/go.mod h1:tsMo+VpRq5NGyKfxoBVjCuMrG47yj8cmakZDO5QGii0=
+github.com/zalando/go-keyring v0.2.8 h1:6sD/Ucpl7jNq10rM2pgqTs0sZ9V3qMrqfIIy5YPccHs=
+github.com/zalando/go-keyring v0.2.8/go.mod h1:tsMo+VpRq5NGyKfxoBVjCuMrG47yj8cmakZDO5QGii0=
 go.yaml.in/yaml/v3 v3.0.4/go.mod h1:DhzuOOF2ATzADvBadXxruRBLzYTpT36CKvDb3+aBEFg=
 golang.org/x/exp v0.0.0-20231006140011-7918f672742d h1:jtJma62tbqLibJ5sFQz8bKtEM8rJBtfilJ2qTU199MI=
 golang.org/x/exp v0.0.0-20231006140011-7918f672742d/go.mod h1:ldy0pHrwJyGW56pPQzzkH36rKxoZW1tw7ZJpeKx+hdo=
