@@ -87,6 +87,83 @@ func TestWebhookList(t *testing.T) {
 	})
 }
 
+func TestWebhookDeliveries(t *testing.T) {
+	t.Run("lists webhook deliveries", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "wd-1", "state": "ok", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:01Z"},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookDeliveriesBoard = "board-1"
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		webhookDeliveriesBoard = ""
+		webhookDeliveriesPage = 0
+		webhookDeliveriesAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks/wh-1/deliveries.json" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1/deliveries.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("handles page", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookDeliveriesBoard = "board-1"
+		webhookDeliveriesPage = 2
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		webhookDeliveriesBoard = ""
+		webhookDeliveriesPage = 0
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks/wh-1/deliveries.json?page=2" {
+			t.Errorf("expected path with page=2, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("handles all", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{map[string]any{"id": "wd-1"}}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookDeliveriesBoard = "board-1"
+		webhookDeliveriesAll = true
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		webhookDeliveriesBoard = ""
+		webhookDeliveriesAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks/wh-1/deliveries.json" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1/deliveries.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("requires board", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}
+
 func TestWebhookShow(t *testing.T) {
 	t.Run("shows webhook by ID", func(t *testing.T) {
 		mock := NewMockClient()

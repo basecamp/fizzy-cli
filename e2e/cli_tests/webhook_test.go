@@ -77,3 +77,57 @@ func TestWebhookCRUD(t *testing.T) {
 	}
 	assertResult(t, h.Run("webhook", "show", "--board", boardID, webhookID), harness.ExitNotFound)
 }
+
+func TestWebhookDeliveries(t *testing.T) {
+	h := newHarness(t)
+	boardID := createBoard(t, h)
+	cardNum := createCard(t, h, boardID)
+	name := "CLI Delivery Hook " + strconv.FormatInt(time.Now().UnixNano(), 10)
+
+	create := h.Run("webhook", "create",
+		"--board", boardID,
+		"--name", name,
+		"--url", "https://example.com/fizzy-cli-webhook-deliveries",
+		"--actions", "card_closed",
+	)
+	assertOK(t, create)
+	webhookID := create.GetIDFromLocation()
+	if webhookID == "" {
+		webhookID = create.GetDataString("id")
+	}
+	if webhookID == "" {
+		t.Fatal("no webhook ID in create response")
+	}
+	t.Cleanup(func() {
+		newHarness(t).Run("webhook", "delete", "--board", boardID, webhookID)
+	})
+
+	assertOK(t, h.Run("card", "close", strconv.Itoa(cardNum)))
+
+	var deliveries *harness.Result
+	for attempt := 0; attempt < 15; attempt++ {
+		r := h.Run("webhook", "deliveries", "--board", boardID, webhookID)
+		if r.ExitCode == harness.ExitSuccess && len(r.GetDataArray()) > 0 {
+			deliveries = r
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if deliveries == nil {
+		t.Fatal("expected at least one webhook delivery after triggering card_closed")
+	}
+
+	assertOK(t, deliveries)
+	if len(deliveries.GetDataArray()) == 0 {
+		t.Fatal("expected webhook deliveries to be non-empty")
+	}
+	first := asMap(deliveries.GetDataArray()[0])
+	if mapValueString(first, "id") == "" {
+		t.Fatal("expected delivery id")
+	}
+	if mapValueString(first, "state") == "" {
+		t.Fatal("expected delivery state")
+	}
+
+	assertOK(t, h.Run("webhook", "deliveries", "--board", boardID, webhookID, "--all"))
+}

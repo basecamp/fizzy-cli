@@ -57,34 +57,35 @@ var cardListCmd = &cobra.Command{
 			params = append(params, "board_ids[]="+boardID)
 		}
 
-		clientSideColumnFilter := ""
-		clientSideTriage := false
 		if columnFilter != "" {
 			if pseudo, ok := parsePseudoColumnID(columnFilter); ok {
 				switch pseudo.Kind {
 				case "not_now":
 					if effectiveIndexedBy != "" && effectiveIndexedBy != "not_now" {
-						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column maybe")
+						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column " + columnFilter)
 					}
 					effectiveIndexedBy = "not_now"
 				case "closed":
 					if effectiveIndexedBy != "" && effectiveIndexedBy != "closed" {
-						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column done")
+						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column " + columnFilter)
 					}
 					effectiveIndexedBy = "closed"
 				case "triage":
-					if effectiveIndexedBy != "" {
-						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column not-yet")
+					if effectiveIndexedBy != "" && effectiveIndexedBy != "maybe" {
+						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column " + columnFilter)
 					}
-					clientSideTriage = true
+					effectiveIndexedBy = "maybe"
 				default:
-					clientSideColumnFilter = columnFilter
+					if effectiveIndexedBy != "" {
+						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column")
+					}
+					params = append(params, "column_ids[]="+columnFilter)
 				}
 			} else {
 				if effectiveIndexedBy != "" {
 					return errors.NewInvalidArgsError("cannot combine --indexed-by with --column")
 				}
-				clientSideColumnFilter = columnFilter
+				params = append(params, "column_ids[]="+columnFilter)
 			}
 		}
 
@@ -128,10 +129,6 @@ var cardListCmd = &cobra.Command{
 			path += "?" + strings.Join(params, "&")
 		}
 
-		if (clientSideTriage || clientSideColumnFilter != "") && !cardListAll && cardListPage == 0 {
-			return errors.NewInvalidArgsError("Filtering by column requires --all (or --page) because it is applied client-side")
-		}
-
 		var items any
 		var linkNext string
 
@@ -148,46 +145,6 @@ var cardListCmd = &cobra.Command{
 			}
 			items = normalizeAny(data)
 			linkNext = parseSDKLinkNext(resp)
-		}
-
-		if clientSideTriage || clientSideColumnFilter != "" {
-			arr := toSliceAny(items)
-			if arr == nil {
-				return errors.NewError("Unexpected cards list response")
-			}
-
-			filtered := make([]any, 0, len(arr))
-			for _, item := range arr {
-				card, ok := item.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				columnID := ""
-				if v, ok := card["column_id"].(string); ok {
-					columnID = v
-				}
-				if columnID == "" {
-					if col, ok := card["column"].(map[string]any); ok {
-						if id, ok := col["id"].(string); ok {
-							columnID = id
-						}
-					}
-				}
-
-				if clientSideTriage {
-					if columnID == "" {
-						filtered = append(filtered, item)
-					}
-					continue
-				}
-
-				if clientSideColumnFilter != "" && columnID == clientSideColumnFilter {
-					filtered = append(filtered, item)
-				}
-			}
-
-			items = filtered
 		}
 
 		// Build summary
@@ -1082,9 +1039,9 @@ func init() {
 
 	// List
 	cardListCmd.Flags().StringVar(&cardListBoard, "board", "", "Filter by board ID")
-	cardListCmd.Flags().StringVar(&cardListColumn, "column", "", "Filter by column ID or pseudo column (not-yet, maybe, done)")
+	cardListCmd.Flags().StringVar(&cardListColumn, "column", "", "Filter by column ID or pseudo column (not-now, maybe, done)")
 	cardListCmd.Flags().StringVar(&cardListTag, "tag", "", "Filter by tag ID")
-	cardListCmd.Flags().StringVar(&cardListIndexedBy, "indexed-by", "", "Filter by lane/index (all, closed, not_now, stalled, postponing_soon, golden)")
+	cardListCmd.Flags().StringVar(&cardListIndexedBy, "indexed-by", "", "Filter by lane/index (all, closed, maybe, not_now, stalled, postponing_soon, golden)")
 	cardListCmd.Flags().StringVar(&cardListIndexedBy, "status", "", "Alias for --indexed-by")
 	_ = cardListCmd.Flags().MarkDeprecated("status", "use --indexed-by")
 	cardListCmd.Flags().StringVar(&cardListAssignee, "assignee", "", "Filter by assignee ID")

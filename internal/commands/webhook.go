@@ -90,6 +90,81 @@ var webhookListCmd = &cobra.Command{
 	},
 }
 
+// Webhook deliveries flags
+var webhookDeliveriesBoard string
+var webhookDeliveriesPage int
+var webhookDeliveriesAll bool
+
+var webhookDeliveriesCmd = &cobra.Command{
+	Use:   "deliveries WEBHOOK_ID",
+	Short: "List webhook deliveries",
+	Long:  "Lists deliveries for a webhook.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+		if err := checkLimitAll(webhookDeliveriesAll); err != nil {
+			return err
+		}
+
+		boardID, err := requireBoard(webhookDeliveriesBoard)
+		if err != nil {
+			return err
+		}
+
+		webhookID := args[0]
+		ac := getSDK()
+		path := fmt.Sprintf("/boards/%s/webhooks/%s/deliveries.json", boardID, webhookID)
+		if webhookDeliveriesPage > 0 {
+			path += fmt.Sprintf("?page=%d", webhookDeliveriesPage)
+		}
+
+		var items any
+		var linkNext string
+
+		if webhookDeliveriesAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			data, resp, err := ac.Webhooks().ListWebhookDeliveries(cmd.Context(), boardID, webhookID, path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
+		}
+
+		count := dataCount(items)
+		summary := fmt.Sprintf("%d webhook deliveries", count)
+		if webhookDeliveriesAll {
+			summary += " (all)"
+		} else if webhookDeliveriesPage > 0 {
+			summary += fmt.Sprintf(" (page %d)", webhookDeliveriesPage)
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("webhook", fmt.Sprintf("fizzy webhook show --board %s %s", boardID, webhookID), "View webhook"),
+			breadcrumb("webhooks", fmt.Sprintf("fizzy webhook list --board %s", boardID), "List webhooks"),
+		}
+
+		hasNext := linkNext != ""
+		if hasNext {
+			nextPage := webhookDeliveriesPage + 1
+			if webhookDeliveriesPage == 0 {
+				nextPage = 2
+			}
+			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy webhook deliveries --board %s %s --page %d", boardID, webhookID, nextPage), "Next page"))
+		}
+
+		printListPaginated(items, webhookDeliveryColumns, hasNext, linkNext, webhookDeliveriesAll, summary, breadcrumbs)
+		return nil
+	},
+}
+
 // Webhook show
 var webhookShowBoard string
 
@@ -341,6 +416,12 @@ func init() {
 	webhookListCmd.Flags().IntVar(&webhookListPage, "page", 0, "Page number")
 	webhookListCmd.Flags().BoolVar(&webhookListAll, "all", false, "Fetch all pages")
 	webhookCmd.AddCommand(webhookListCmd)
+
+	// Deliveries
+	webhookDeliveriesCmd.Flags().StringVar(&webhookDeliveriesBoard, "board", "", "Board ID (required)")
+	webhookDeliveriesCmd.Flags().IntVar(&webhookDeliveriesPage, "page", 0, "Page number")
+	webhookDeliveriesCmd.Flags().BoolVar(&webhookDeliveriesAll, "all", false, "Fetch all pages")
+	webhookCmd.AddCommand(webhookDeliveriesCmd)
 
 	// Show
 	webhookShowCmd.Flags().StringVar(&webhookShowBoard, "board", "", "Board ID (required)")

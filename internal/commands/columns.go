@@ -64,6 +64,13 @@ var (
 
 	searchColumns = cardColumns
 
+	activityColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "Action", Field: "action"},
+		{Header: "Description", Field: "description"},
+		{Header: "Created", Field: "created_at"},
+	}
+
 	attachmentColumns = render.Columns{
 		{Header: "#", Field: "index"},
 		{Header: "Filename", Field: "filename"},
@@ -76,5 +83,12 @@ var (
 		{Header: "Name", Field: "name"},
 		{Header: "URL", Field: "payload_url"},
 		{Header: "Active", Field: "active"},
+	}
+
+	webhookDeliveryColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "State", Field: "state"},
+		{Header: "Created", Field: "created_at"},
+		{Header: "Updated", Field: "updated_at"},
 	}
 )

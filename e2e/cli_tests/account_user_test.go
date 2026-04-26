@@ -122,3 +122,27 @@ func TestUserAvatarUpdateAndRemove(t *testing.T) {
 		t.Fatal("expected avatar endpoint to fall back to generated SVG after removal")
 	}
 }
+
+func TestUserExportCreateShow(t *testing.T) {
+	h := newHarness(t)
+	userID := currentUserID(t, h)
+
+	create := h.Run("user", "export-create", userID)
+	assertOK(t, create)
+	exportID := create.GetDataString("id")
+	if exportID == "" {
+		exportID = mapValueString(create.GetDataMap(), "id")
+	}
+	if exportID == "" {
+		t.Fatal("expected export ID in user export-create response")
+	}
+
+	show := h.Run("user", "export-show", userID, exportID)
+	assertOK(t, show)
+	if got := mapValueString(show.GetDataMap(), "id"); got != exportID {
+		t.Fatalf("expected export-show id %q, got %q", exportID, got)
+	}
+	if got := mapValueString(show.GetDataMap(), "status"); got == "" {
+		t.Fatal("expected export status in user export-show response")
+	}
+}

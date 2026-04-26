@@ -415,6 +415,50 @@ var boardEntropyCmd = &cobra.Command{
 	},
 }
 
+// Board accesses flags
+var boardAccessesBoard string
+var boardAccessesPage int
+
+var boardAccessesCmd = &cobra.Command{
+	Use:   "accesses",
+	Short: "Show board accesses",
+	Long:  "Shows access settings and users for a board.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		boardID, err := requireBoard(boardAccessesBoard)
+		if err != nil {
+			return err
+		}
+
+		var page *int64
+		if boardAccessesPage > 0 {
+			pageVal := int64(boardAccessesPage)
+			page = &pageVal
+		}
+
+		data, _, err := getSDK().Boards().ListBoardAccesses(cmd.Context(), boardID, page)
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		summary := "Board accesses"
+		if boardAccessesPage > 0 {
+			summary = fmt.Sprintf("Board accesses (page %d)", boardAccessesPage)
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("board", fmt.Sprintf("fizzy board show %s", boardID), "View board"),
+			breadcrumb("cards", fmt.Sprintf("fizzy card list --board %s", boardID), "List cards"),
+		}
+
+		printDetail(normalizeAny(data), summary, breadcrumbs)
+		return nil
+	},
+}
+
 // Board closed flags
 var boardClosedBoard string
 var boardClosedPage int
@@ -704,6 +748,11 @@ func init() {
 	// Entropy
 	boardEntropyCmd.Flags().IntVar(&boardEntropyAutoPostponePeriodInDays, "auto_postpone_period_in_days", 0, "Auto postpone period in days ("+validAutoPostponePeriodsHelp+")")
 	boardCmd.AddCommand(boardEntropyCmd)
+
+	// Accesses
+	boardAccessesCmd.Flags().StringVar(&boardAccessesBoard, "board", "", "Board ID (required)")
+	boardAccessesCmd.Flags().IntVar(&boardAccessesPage, "page", 0, "Page number")
+	boardCmd.AddCommand(boardAccessesCmd)
 
 	// Closed cards
 	boardClosedCmd.Flags().StringVar(&boardClosedBoard, "board", "", "Board ID (required)")
