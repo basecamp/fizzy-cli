@@ -73,9 +73,16 @@ notarize:
 changelog:
   use: github-native
 
+release:
+  prerelease: auto
+  # Keep prerelease tags out of GitHub's latest release/install-script path.
+  make_latest: "{{ if .Prerelease }}false{{ else }}auto{{ end }}"
+
 homebrew_casks:
   - name: fizzy
     ids: [default]
+    # Do not update the normal tap for prerelease tags.
+    skip_upload: auto
     repository:
       owner: basecamp
       name: homebrew-tap
@@ -92,6 +99,8 @@ homebrew_casks:
 scoops:
   - name: fizzy
     ids: [default]
+    # Do not update the normal bucket manifest for prerelease tags.
+    skip_upload: auto
     repository:
       owner: basecamp
       name: homebrew-tap
