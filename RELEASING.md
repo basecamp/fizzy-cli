@@ -16,10 +16,10 @@ Pushing the tag triggers the GitHub Actions release workflow, which:
 3. Signs macOS binaries (Developer ID + notarization)
 4. Signs checksums with cosign (keyless, OIDC)
 5. Generates SBOMs with Syft
-6. Publishes Homebrew cask to `basecamp/homebrew-tap`
-7. Publishes Scoop manifest to `basecamp/homebrew-tap`
-8. Builds .deb and .rpm packages
-9. Publishes to AUR (if `AUR_KEY` configured)
+6. Builds .deb and .rpm packages
+7. For stable tags only, publishes the Homebrew cask to `basecamp/homebrew-tap`
+8. For stable tags only, publishes the Scoop manifest to `basecamp/homebrew-tap`
+9. For stable tags only, publishes to AUR (if `AUR_KEY` configured)
 
 ## Versioning
 

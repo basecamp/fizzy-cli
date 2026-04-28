@@ -76,7 +76,7 @@ changelog:
 release:
   prerelease: auto
   # Keep prerelease tags out of GitHub's latest release/install-script path.
-  make_latest: "{{ if .Prerelease }}false{{ else }}true{{ end }}"
+  make_latest: "{{ if .Prerelease }}false{{ else }}auto{{ end }}"
 
 homebrew_casks:
   - name: fizzy
