@@ -1,0 +1,34 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "35bb4a7fb3ec1707128aae2b96eddb192cb1738a",
+  "prompts": {
+    "5c1c8185e51bd837": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a29f646a-0777-462e-8a24-9c0d21ac88a8",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Jeremy Daer",
+      "messages": [],
+      "total_additions": 4936,
+      "total_deletions": 0,
+      "accepted_lines": 4936,
+      "overriden_lines": 0
+    },
+    "a77df86bca4642d2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1600a1f3-db22-45bd-af28-0f93ee8c8c8d",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Jeremy Daer",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 12,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
