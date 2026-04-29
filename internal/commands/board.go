@@ -423,6 +423,7 @@ var boardAccessesCmd = &cobra.Command{
 	Use:   "accesses",
 	Short: "Show board accesses",
 	Long:  "Shows access settings and users for a board.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
 			return err

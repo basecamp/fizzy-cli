@@ -761,6 +761,12 @@ func TestBoardAccesses(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects positional args", func(t *testing.T) {
+		if err := boardAccessesCmd.Args(boardAccessesCmd, []string{"unexpected"}); err == nil {
+			t.Fatal("expected positional args to be rejected")
+		}
+	})
+
 	t.Run("requires board", func(t *testing.T) {
 		mock := NewMockClient()
 		SetTestModeWithSDK(mock)

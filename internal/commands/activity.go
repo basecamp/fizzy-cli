@@ -24,6 +24,7 @@ var activityListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List activities",
 	Long:  "Lists activities with optional board and creator filters.",
+	Args:  cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if err := requireAuthAndAccount(); err != nil {
 			return err

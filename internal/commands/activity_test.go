@@ -160,6 +160,12 @@ func TestActivityList(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects positional args", func(t *testing.T) {
+		if err := activityListCmd.Args(activityListCmd, []string{"unexpected"}); err == nil {
+			t.Fatal("expected positional args to be rejected")
+		}
+	})
+
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
 		SetTestModeWithSDK(mock)

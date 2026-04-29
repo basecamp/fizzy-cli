@@ -76,10 +76,7 @@ var cardListCmd = &cobra.Command{
 					}
 					effectiveIndexedBy = "maybe"
 				default:
-					if effectiveIndexedBy != "" {
-						return errors.NewInvalidArgsError("cannot combine --indexed-by with --column")
-					}
-					params = append(params, "column_ids[]="+columnFilter)
+					return errors.NewInvalidArgsError("invalid pseudo-column kind: " + pseudo.Kind)
 				}
 			} else {
 				if effectiveIndexedBy != "" {

@@ -11,7 +11,8 @@ type pseudoColumn struct {
 var (
 	// "Not Now" contains postponed cards (indexed_by=not_now)
 	pseudoColumnNotNow = pseudoColumn{ID: "not-now", Name: "Not Now", Kind: "not_now"}
-	// "Maybe?" contains triage/backlog cards (indexed_by=maybe)
+	// "Maybe?" contains triage/backlog cards. Kind remains "triage" for triage endpoints/aliases;
+	// card listing maps this pseudo-column to indexed_by=maybe server-side.
 	pseudoColumnMaybe = pseudoColumn{ID: "maybe", Name: "Maybe?", Kind: "triage"}
 	// "Done" contains closed cards (indexed_by=closed)
 	pseudoColumnDone = pseudoColumn{ID: "done", Name: "Done", Kind: "closed"}
