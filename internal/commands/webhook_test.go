@@ -85,6 +85,31 @@ func TestWebhookList(t *testing.T) {
 			t.Errorf("expected path with page=3, got '%s'", got)
 		}
 	})
+
+	t.Run("--all honors --page as the start page", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookListBoard = "board-1"
+		webhookListPage = 2
+		webhookListAll = true
+		err := webhookListCmd.RunE(webhookListCmd, []string{})
+		webhookListBoard = ""
+		webhookListPage = 0
+		webhookListAll = false
+
+		assertExitCode(t, err, 0)
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/boards/board-1/webhooks.json?page=2" {
+			t.Errorf("expected --all to start from --page=2, got '%s'", got)
+		}
+	})
 }
 
 func TestWebhookDeliveries(t *testing.T) {

@@ -57,6 +57,9 @@ var webhookListCmd = &cobra.Command{
 		switch {
 		case webhookListAll:
 			path := fmt.Sprintf("/boards/%s/webhooks.json", boardID)
+			if webhookListPage > 0 {
+				path += fmt.Sprintf("?page=%d", webhookListPage)
+			}
 			pages, err := ac.GetAll(cmd.Context(), path)
 			if err != nil {
 				return convertSDKError(err)
