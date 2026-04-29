@@ -37,7 +37,7 @@ use 'fizzy card list' with --search and the relevant filter flags.`,
 
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", "fizzy card show <number>", "View card details"),
-			breadcrumb("filter", fmt.Sprintf("fizzy card list --search \"%s\" --board <id>", query), "Filter cards by criteria"),
+			breadcrumb("filter", fmt.Sprintf("fizzy card list --search %q --board <id>", query), "Filter cards by criteria"),
 		}
 
 		printList(items, searchColumns, summary, breadcrumbs)
