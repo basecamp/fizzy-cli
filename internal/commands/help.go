@@ -405,7 +405,7 @@ var commandExamples = map[string]string{
 	"fizzy config show":       "$ fizzy config show\n$ fizzy config show --verbose",
 	"fizzy config explain":    "$ fizzy config explain\n$ fizzy config explain --profile acme",
 	"fizzy doctor":            "$ fizzy doctor\n$ fizzy doctor --profile acme\n$ fizzy doctor --all-profiles",
-	"fizzy search":            "$ fizzy search \"billing bug\"\n$ fizzy search \"billing bug\" --board <id>",
+	"fizzy search":            "$ fizzy search \"billing bug\"\n$ fizzy card list --search \"billing bug\" --board <id>",
 	"fizzy notification":      "$ fizzy notification tray\n$ fizzy notification list",
 	"fizzy notification tray": "$ fizzy notification tray",
 	"fizzy user":              "$ fizzy user list\n$ fizzy user show <id>",

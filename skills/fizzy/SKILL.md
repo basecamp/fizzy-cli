@@ -163,7 +163,6 @@ Commands supporting `--all` and `--page`:
 - `board postponed`
 - `board stream`
 - `card list`
-- `search`
 - `comment list`
 - `tag list`
 - `user list`
@@ -469,26 +468,27 @@ The `auto_postpone_period_in_days` is the account-level default. Cards are autom
 
 ### Search
 
-Quick text search across cards. Multiple words are treated as separate terms (AND).
+Full-text search across cards. The query is sent as a single string to the
+dedicated search endpoint; if the query exactly matches a card ID, that card
+is returned directly.
 
 ```bash
-fizzy search QUERY [flags]
-  --board ID                           # Filter by board
-  --assignee ID                        # Filter by assignee user ID
-  --tag ID                             # Filter by tag ID
-  --indexed-by LANE                    # Filter: all, closed, maybe, not_now, golden
-  --sort ORDER                         # Sort: newest, oldest, or latest (default)
-  --page N                             # Page number
-  --all                                # Fetch all pages
+fizzy search QUERY
 ```
 
 **Examples:**
 ```bash
 fizzy search "bug"                     # Search for "bug"
-fizzy search "login error"             # Search for cards containing both "login" AND "error"
-fizzy search "bug" --board BOARD_ID    # Search within a specific board
-fizzy search "bug" --indexed-by closed # Include closed cards
-fizzy search "feature" --sort newest   # Sort by newest first
+fizzy search "login error"             # Single-string FTS query
+fizzy search 12345                     # Card-ID lookup shortcut
+```
+
+To filter cards by structured criteria (board, tag, assignee, status, sort,
+or AND-of-words term filtering), use `fizzy card list` with `--search` and
+the relevant filter flags:
+
+```bash
+fizzy card list --search "bug" --board BOARD_ID --indexed-by closed --sort newest
 ```
 
 ### Activities
@@ -909,11 +909,11 @@ fizzy card move 579 --to TARGET_BOARD_ID
 ### Search and Filter Cards
 
 ```bash
-# Quick search
+# Full-text search
 fizzy search "bug" --jq '[.data[] | {number, title}]'
 
-# Search with filters
-fizzy search "login" --board BOARD_ID --sort newest
+# Filter cards by criteria (use card list, not search)
+fizzy card list --search "login" --board BOARD_ID --sort newest
 
 # Find recently created cards
 fizzy card list --created today --sort newest

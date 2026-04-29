@@ -8,9 +8,17 @@ import (
 
 func TestSearch(t *testing.T) {
 	h := newHarness(t)
+	// Single-token query
 	assertOK(t, h.Run("search", "test"))
-	assertOK(t, h.Run("search", "test", "--board", fixture.BoardID))
-	assertOK(t, h.Run("search", "test", "--all"))
+	// Multi-arg joined into a single q string
+	assertOK(t, h.Run("search", "login", "error"))
+}
+
+func TestCardListWithSearch(t *testing.T) {
+	// Filter use cases that used to live on `fizzy search` now belong here.
+	h := newHarness(t)
+	assertOK(t, h.Run("card", "list", "--search", "test", "--board", fixture.BoardID))
+	assertOK(t, h.Run("card", "list", "--search", "test", "--all"))
 }
 
 func TestAuthInvalidToken(t *testing.T) {
