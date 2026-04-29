@@ -655,20 +655,6 @@ func printSuccess(data any) {
 	}
 }
 
-func printSuccessWithLocation(location string) {
-	switch out.EffectiveFormat() {
-	case output.FormatStyled:
-		writeOutputString(renderHumanData(nil, location, false))
-		captureResponse()
-	case output.FormatMarkdown:
-		writeOutputString(renderHumanData(nil, location, true))
-		captureResponse()
-	default:
-		recordOutputError(out.OK(nil, output.WithContext("location", location)))
-		captureResponse()
-	}
-}
-
 // breadcrumb creates a single breadcrumb.
 func breadcrumb(action, cmd, description string) Breadcrumb {
 	return Breadcrumb{Action: action, Cmd: cmd, Description: description}
