@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/basecamp/fizzy-cli/e2e/harness"
 )
 
 func TestAccessTokenCRUD(t *testing.T) {
@@ -18,8 +20,16 @@ func TestAccessTokenCRUD(t *testing.T) {
 	}
 	deleted := false
 	t.Cleanup(func() {
-		if !deleted {
-			newHarness(t).Run("token", "delete", tokenID)
+		if deleted {
+			return
+		}
+		cleanupDelete := newHarness(t).Run("token", "delete", tokenID)
+		if cleanupDelete.ExitCode != harness.ExitSuccess {
+			t.Errorf("cleanup failed deleting token %q: exit=%d stdout=%s stderr=%s", tokenID, cleanupDelete.ExitCode, cleanupDelete.Stdout, cleanupDelete.Stderr)
+			return
+		}
+		if !cleanupDelete.GetDataBool("deleted") {
+			t.Errorf("cleanup delete for token %q did not report deleted=true", tokenID)
 		}
 	})
 	if create.GetDataString("token") == "" {
