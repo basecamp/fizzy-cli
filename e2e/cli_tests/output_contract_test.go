@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/basecamp/fizzy-cli/e2e/harness"
 )
@@ -174,6 +175,7 @@ func TestOutputContractListCommands(t *testing.T) {
 		name string
 		args []string
 	}{
+		{"activity-list", []string{"activity", "list", "--board", fixture.BoardID}},
 		{"board-list", []string{"board", "list"}},
 		{"board-closed", []string{"board", "closed", "--board", fixture.BoardID}},
 		{"board-postponed", []string{"board", "postponed", "--board", fixture.BoardID}},
@@ -216,6 +218,7 @@ func TestOutputContractShowCommands(t *testing.T) {
 		args []string
 	}{
 		{"board-show", []string{"board", "show", fixture.BoardID}},
+		{"board-accesses", []string{"board", "accesses", "--board", fixture.BoardID}},
 		{"card-show", []string{"card", "show", cardNum}},
 		{"column-show", []string{"column", "show", fixture.ColumnID, "--board", fixture.BoardID}},
 		{"comment-show", []string{"comment", "show", fixture.CommentID, "--card", cardNum}},
@@ -236,6 +239,77 @@ func TestOutputContractShowCommands(t *testing.T) {
 					f.check(t, result)
 				})
 			}
+		})
+	}
+}
+
+func TestOutputContractWebhookDeliveries(t *testing.T) {
+	h := newHarness(t)
+	boardID := createBoard(t, h)
+	cardNum := createCard(t, h, boardID)
+	create := h.Run("webhook", "create", "--board", boardID, "--name", "Output Contract Hook", "--url", "https://example.com/fizzy-cli-output-contract", "--actions", "card_closed")
+	assertOK(t, create)
+	webhookID := create.GetIDFromLocation()
+	if webhookID == "" {
+		webhookID = create.GetDataString("id")
+	}
+	if webhookID == "" {
+		t.Fatal("expected webhook ID in create response")
+	}
+	t.Cleanup(func() { newHarness(t).Run("webhook", "delete", "--board", boardID, webhookID) })
+
+	assertOK(t, h.Run("card", "close", strconv.Itoa(cardNum)))
+
+	var ready bool
+	for attempt := 0; attempt < 15; attempt++ {
+		result := h.Run("webhook", "deliveries", "--board", boardID, webhookID)
+		if result.ExitCode == harness.ExitSuccess && len(result.GetDataArray()) > 0 {
+			ready = true
+			break
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	if !ready {
+		t.Fatal("expected webhook deliveries to contain at least one item")
+	}
+
+	baseArgs := []string{"webhook", "deliveries", "--board", boardID, webhookID}
+	for _, f := range listFlagSuite() {
+		f := f
+		t.Run(f.name, func(t *testing.T) {
+			args := append(append([]string(nil), baseArgs...), f.extra...)
+			result := h.Run(args...)
+			if result.ExitCode != harness.ExitSuccess {
+				t.Fatalf("expected exit code 0, got %d\nstdout: %s\nstderr: %s", result.ExitCode, result.Stdout, result.Stderr)
+			}
+			f.check(t, result)
+		})
+	}
+}
+
+func TestOutputContractUserExportShow(t *testing.T) {
+	h := newHarness(t)
+	userID := currentUserID(t, h)
+	create := h.Run("user", "export-create", userID)
+	assertOK(t, create)
+	exportID := create.GetDataString("id")
+	if exportID == "" {
+		exportID = mapValueString(create.GetDataMap(), "id")
+	}
+	if exportID == "" {
+		t.Fatal("expected user export ID in create response")
+	}
+
+	baseArgs := []string{"user", "export-show", userID, exportID}
+	for _, f := range showFlagSuite() {
+		f := f
+		t.Run(f.name, func(t *testing.T) {
+			args := append(append([]string(nil), baseArgs...), f.extra...)
+			result := h.Run(args...)
+			if result.ExitCode != harness.ExitSuccess {
+				t.Fatalf("expected exit code 0, got %d\nstdout: %s\nstderr: %s", result.ExitCode, result.Stdout, result.Stderr)
+			}
+			f.check(t, result)
 		})
 	}
 }

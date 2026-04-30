@@ -112,7 +112,7 @@ func init() {
 	searchCmd.Flags().StringVar(&searchBoard, "board", "", "Filter by board ID")
 	searchCmd.Flags().StringVar(&searchTag, "tag", "", "Filter by tag ID")
 	searchCmd.Flags().StringVar(&searchAssignee, "assignee", "", "Filter by assignee ID")
-	searchCmd.Flags().StringVar(&searchIndexedBy, "indexed-by", "", "Filter by status (all, closed, not_now, golden)")
+	searchCmd.Flags().StringVar(&searchIndexedBy, "indexed-by", "", "Filter by status (all, closed, maybe, not_now, golden)")
 	searchCmd.Flags().StringVar(&searchSort, "sort", "", "Sort order: newest, oldest, or latest (default)")
 	searchCmd.Flags().IntVar(&searchPage, "page", 0, "Page number")
 	searchCmd.Flags().BoolVar(&searchAll, "all", false, "Fetch all pages")

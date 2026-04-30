@@ -21,7 +21,7 @@ func TestCommandsStyledOutputRendersHumanCatalog(t *testing.T) {
 	if !strings.Contains(raw, "CORE COMMANDS") {
 		t.Fatalf("expected styled catalog heading, got:\n%s", raw)
 	}
-	if !strings.Contains(raw, "auth") || !strings.Contains(raw, "board") {
+	if !strings.Contains(raw, "auth") || !strings.Contains(raw, "activity") || !strings.Contains(raw, "board") {
 		t.Fatalf("expected styled catalog to include commands, got:\n%s", raw)
 	}
 	if strings.Contains(raw, "list, show") {
@@ -48,6 +48,25 @@ func TestCommandsFilterRendersMatchingHumanCatalog(t *testing.T) {
 	}
 	if !strings.Contains(raw, "list, login, logout, status, switch") {
 		t.Fatalf("expected filtered catalog to include action list, got:\n%s", raw)
+	}
+}
+
+func TestCommandsFilterFindsActivity(t *testing.T) {
+	mock := NewMockClient()
+	SetTestModeWithSDK(mock)
+	SetTestFormat(output.FormatStyled)
+	defer resetTest()
+
+	if err := commandsCmd.RunE(commandsCmd, []string{"activity"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	raw := TestOutput()
+	if !strings.Contains(raw, "activity") || !strings.Contains(raw, "list") {
+		t.Fatalf("expected filtered catalog to include activity list, got:\n%s", raw)
+	}
+	if strings.Contains(raw, "No commands match") {
+		t.Fatalf("expected activity to be discoverable, got:\n%s", raw)
 	}
 }
 

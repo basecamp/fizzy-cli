@@ -77,7 +77,7 @@ Full CLI coverage: boards, cards, columns, comments, steps, reactions, tags, use
 Need to find something?
 ├── Know the board? → fizzy card list --board <id>
 ├── Full-text search? → fizzy search "query"
-├── Filter by status? → fizzy card list --indexed-by closed|not_now|golden|stalled
+├── Filter by status? → fizzy card list --indexed-by maybe|closed|not_now|golden|stalled
 ├── Filter by person? → fizzy card list --assignee <id>
 ├── Filter by time? → fizzy card list --created today|thisweek|thismonth
 └── Cross-board? → fizzy search "query" (searches all boards)
@@ -100,18 +100,19 @@ Want to change something?
 | Resource | List | Show | Create | Update | Delete | Other |
 |----------|------|------|--------|--------|--------|-------|
 | account | - | `account show` | - | `account settings-update` | - | `account entropy`, `account export-create`, `account export-show EXPORT_ID`, `account join-code-show`, `account join-code-reset`, `account join-code-update` |
-| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
+| board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board accesses --board ID`, `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
 | card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER`, `card publish NUMBER`, `card mark-read NUMBER`, `card mark-unread NUMBER` |
 | search | `search QUERY` | - | - | - | - | - |
+| activity | `activity list` | - | - | - | - | `activity list --board ID`, `activity list --creator ID` |
 | column | `column list --board ID` | `column show ID --board ID` | `column create` | `column update ID` | `column delete ID` | `column move-left ID`, `column move-right ID` |
 | comment | `comment list --card NUMBER` | `comment show ID --card NUMBER` | `comment create` | `comment update ID` | `comment delete ID` | `comment attachments show --card NUMBER` |
 | step | `step list --card NUMBER` | `step show ID --card NUMBER` | `step create` | `step update ID` | `step delete ID` | - |
 | reaction | `reaction list` | - | `reaction create` | - | `reaction delete ID` | - |
 | tag | `tag list` | - | - | - | - | - |
-| user | `user list` | `user show ID` | - | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user push-subscription-create`, `user push-subscription-delete ID` |
+| user | `user list` | `user show ID` | - | `user update ID` | - | `user deactivate ID`, `user role ID`, `user avatar-remove ID`, `user export-create USER_ID`, `user export-show USER_ID EXPORT_ID`, `user email-change-request USER_ID --email user@example.com`, `user email-change-confirm USER_ID TOKEN`, `user push-subscription-create`, `user push-subscription-delete ID` |
 | notification | `notification list` | - | - | - | - | `notification tray`, `notification read-all`, `notification settings-show`, `notification settings-update` |
 | pin | `pin list` | - | - | - | - | `card pin NUMBER`, `card unpin NUMBER` |
-| webhook | `webhook list --board ID` | `webhook show ID --board ID` | `webhook create` | `webhook update ID` | `webhook delete ID` | `webhook reactivate ID` |
+| webhook | `webhook list --board ID`, `webhook deliveries --board ID WEBHOOK_ID` | `webhook show ID --board ID` | `webhook create` | `webhook update ID` | `webhook delete ID` | `webhook reactivate ID` |
 
 ---
 
@@ -360,9 +361,9 @@ Cards exist in different states. By default, `fizzy card list` returns **open ca
 You can also use pseudo-columns:
 
 ```bash
-fizzy card list --column done --all     # Same as --indexed-by closed
-fizzy card list --column not-now --all  # Same as --indexed-by not_now
-fizzy card list --column maybe --all    # Cards in triage (no column assigned)
+fizzy card list --column done      # Same as --indexed-by closed
+fizzy card list --column not-now   # Same as --indexed-by not_now
+fizzy card list --column maybe     # Same as --indexed-by maybe
 ```
 
 **Fetching all cards on a board:**
@@ -475,7 +476,7 @@ fizzy search QUERY [flags]
   --board ID                           # Filter by board
   --assignee ID                        # Filter by assignee user ID
   --tag ID                             # Filter by tag ID
-  --indexed-by LANE                    # Filter: all, closed, not_now, golden
+  --indexed-by LANE                    # Filter: all, closed, maybe, not_now, golden
   --sort ORDER                         # Sort: newest, oldest, or latest (default)
   --page N                             # Page number
   --all                                # Fetch all pages
@@ -490,6 +491,12 @@ fizzy search "bug" --indexed-by closed # Include closed cards
 fizzy search "feature" --sort newest   # Sort by newest first
 ```
 
+### Activities
+
+```bash
+fizzy activity list [--board ID] [--creator ID] [--page N] [--all]
+```
+
 ### Boards
 
 ```bash
@@ -501,6 +508,7 @@ fizzy board publish BOARD_ID
 fizzy board unpublish BOARD_ID
 fizzy board delete BOARD_ID
 fizzy board entropy BOARD_ID --auto_postpone_period_in_days N  # N: 3, 7, 11, 30, 90, 365
+fizzy board accesses --board ID [--page N]             # Show board access settings and users
 fizzy board closed --board ID [--page N] [--all]       # List closed cards
 fizzy board postponed --board ID [--page N] [--all]    # List postponed cards
 fizzy board stream --board ID [--page N] [--all]       # List stream cards
@@ -559,7 +567,7 @@ fizzy card list [flags]
   --column ID                          # Filter by column ID or pseudo: not-now, maybe, done
   --assignee ID                        # Filter by assignee user ID
   --tag ID                             # Filter by tag ID
-  --indexed-by LANE                    # Filter: all, closed, not_now, stalled, postponing_soon, golden
+  --indexed-by LANE                    # Filter: all, closed, maybe, not_now, stalled, postponing_soon, golden
   --search "terms"                     # Search by text (space-separated for multiple terms)
   --sort ORDER                         # Sort: newest, oldest, or latest (default)
   --creator ID                         # Filter by creator user ID
@@ -721,6 +729,10 @@ fizzy user update USER_ID --avatar /path.jpg  # Update user avatar
 fizzy user deactivate USER_ID                  # Deactivate user (requires admin/owner)
 fizzy user role USER_ID --role ROLE            # Update user role (requires admin/owner)
 fizzy user avatar-remove USER_ID               # Remove user avatar
+fizzy user export-create USER_ID               # Create user data export
+fizzy user export-show USER_ID EXPORT_ID       # Show user data export status
+fizzy user email-change-request USER_ID --email user@example.com
+fizzy user email-change-confirm USER_ID TOKEN
 fizzy user push-subscription-create --user ID --endpoint URL --p256dh-key KEY --auth-key KEY
 fizzy user push-subscription-delete SUB_ID --user ID
 ```
@@ -750,6 +762,7 @@ Webhooks notify external services when events occur on a board. Requires account
 
 ```bash
 fizzy webhook list --board ID [--page N] [--all]
+fizzy webhook deliveries --board ID WEBHOOK_ID [--page N] [--all]
 fizzy webhook show WEBHOOK_ID --board ID
 fizzy webhook create --board ID --name "Name" --url "https://..." [--actions card_published,card_closed,...]
 fizzy webhook update WEBHOOK_ID --board ID [--name "Name"] [--actions card_closed,...]

@@ -31,7 +31,7 @@ var commandCatalogTitles = map[string]string{
 }
 
 var commandCatalogGroups = map[string][]string{
-	"core":          {"board", "card", "column", "comment", "search", "step"},
+	"core":          {"activity", "board", "card", "column", "comment", "search", "step"},
 	"collaboration": {"notification", "pin", "reaction", "tag", "user"},
 	"admin":         {"auth", "account", "identity", "webhook", "upload", "migrate"},
 	"utilities":     {"setup", "signup", "completion", "doctor", "config", "skill", "commands", "version"},

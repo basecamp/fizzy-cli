@@ -664,6 +664,120 @@ func TestBoardEntropy(t *testing.T) {
 	})
 }
 
+func TestBoardAccesses(t *testing.T) {
+	t.Run("shows board accesses", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"board_id":   "123",
+				"all_access": true,
+				"users": []any{
+					map[string]any{"id": "user-1", "name": "User 1", "has_access": true},
+				},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardAccessesBoard = "123"
+		err := boardAccessesCmd.RunE(boardAccessesCmd, []string{})
+		boardAccessesBoard = ""
+		boardAccessesPage = 0
+
+		assertExitCode(t, err, 0)
+		if len(mock.GetCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetCalls))
+		}
+		if mock.GetCalls[0].Path != "/boards/123/accesses.json" {
+			t.Errorf("expected path '/boards/123/accesses.json', got '%s'", mock.GetCalls[0].Path)
+		}
+	})
+
+	t.Run("passes page", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       map[string]any{"board_id": "123", "all_access": false, "users": []any{}},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardAccessesBoard = "123"
+		boardAccessesPage = 2
+		err := boardAccessesCmd.RunE(boardAccessesCmd, []string{})
+		boardAccessesBoard = ""
+		boardAccessesPage = 0
+
+		assertExitCode(t, err, 0)
+		if len(mock.GetCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetCalls))
+		}
+		if mock.GetCalls[0].Path != "/boards/123/accesses.json?page=2" {
+			t.Errorf("expected path '/boards/123/accesses.json?page=2', got '%s'", mock.GetCalls[0].Path)
+		}
+	})
+
+	t.Run("includes next pagination context and breadcrumb", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       map[string]any{"board_id": "123", "all_access": false, "users": []any{}},
+			LinkNext:   "/boards/123/accesses.json?page=2",
+		}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		boardAccessesBoard = "123"
+		err := boardAccessesCmd.RunE(boardAccessesCmd, []string{})
+		boardAccessesBoard = ""
+		boardAccessesPage = 0
+
+		assertExitCode(t, err, 0)
+
+		var nextCmd string
+		for _, bc := range result.Response.Breadcrumbs {
+			if bc.Action == "next" {
+				nextCmd = bc.Cmd
+				break
+			}
+		}
+		if nextCmd != "fizzy board accesses --board 123 --page 2" {
+			t.Fatalf("expected next breadcrumb, got %q", nextCmd)
+		}
+
+		pagination, ok := result.Response.Context["pagination"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected pagination context, got %#v", result.Response.Context)
+		}
+		if pagination["has_next"] != true || pagination["next_url"] != "/boards/123/accesses.json?page=2" {
+			t.Fatalf("unexpected pagination context: %#v", pagination)
+		}
+	})
+
+	t.Run("rejects positional args", func(t *testing.T) {
+		if err := boardAccessesCmd.Args(boardAccessesCmd, []string{"unexpected"}); err == nil {
+			t.Fatal("expected positional args to be rejected")
+		}
+	})
+
+	t.Run("requires board", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := boardAccessesCmd.RunE(boardAccessesCmd, []string{})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
+	})
+}
+
 func TestBoardClosed(t *testing.T) {
 	t.Run("lists closed cards", func(t *testing.T) {
 		mock := NewMockClient()

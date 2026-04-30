@@ -88,29 +88,83 @@ func TestCardList(t *testing.T) {
 		}
 	})
 
-	t.Run("requires --all for client-side triage filter", func(t *testing.T) {
+	t.Run("supports legacy pseudo column aliases for listing", func(t *testing.T) {
+		t.Run("not_now", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardListColumn = "not_now"
+			err := cardListCmd.RunE(cardListCmd, []string{})
+			cardListColumn = ""
+
+			assertExitCode(t, err, 0)
+			if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=not_now" {
+				t.Errorf("expected legacy alias to map to indexed_by=not_now, got '%s'", mock.GetWithPaginationCalls[0].Path)
+			}
+		})
+
+		t.Run("triage", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardListColumn = "triage"
+			err := cardListCmd.RunE(cardListCmd, []string{})
+			cardListColumn = ""
+
+			assertExitCode(t, err, 0)
+			if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=maybe" {
+				t.Errorf("expected legacy alias to map to indexed_by=maybe, got '%s'", mock.GetWithPaginationCalls[0].Path)
+			}
+		})
+	})
+
+	t.Run("filters by real column server-side without client-side filtering", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestModeWithSDK(mock)
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "1", "title": "Column 1", "column_id": "col-1"},
+				map[string]any{"id": "2", "title": "Column 2", "column_id": "col-2"},
+			},
+		}
+
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
-		cardListColumn = "maybe"
-		cardListAll = false
-		cardListPage = 0
+		cardListColumn = "col-1"
 		err := cardListCmd.RunE(cardListCmd, []string{})
 		cardListColumn = ""
 
-		assertExitCode(t, err, errors.ExitInvalidArgs)
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?column_ids[]=col-1" {
+			t.Errorf("expected server-side column_ids filter, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+
+		arr, ok := result.Response.Data.([]any)
+		if !ok {
+			t.Fatalf("expected array response data, got %T", result.Response.Data)
+		}
+		if len(arr) != 2 {
+			t.Fatalf("expected server response to remain unfiltered client-side, got %d cards", len(arr))
+		}
 	})
 
-	t.Run("filters triage client-side with --all", func(t *testing.T) {
+	t.Run("filters by pseudo column maybe server-side without all", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
 				map[string]any{"id": "1", "title": "Triage", "column": nil},
-				map[string]any{"id": "2", "title": "In Column", "column": map[string]any{"id": "col-1"}},
-				map[string]any{"id": "3", "title": "In Column 2", "column_id": "col-2"},
+				map[string]any{"id": "2", "title": "Unexpected extra", "column_id": "col-1"},
 			},
 		}
 
@@ -119,26 +173,20 @@ func TestCardList(t *testing.T) {
 		defer resetTest()
 
 		cardListColumn = "maybe"
-		cardListAll = true
 		err := cardListCmd.RunE(cardListCmd, []string{})
 		cardListColumn = ""
-		cardListAll = false
 
 		assertExitCode(t, err, 0)
-
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=maybe" {
+			t.Errorf("expected server-side maybe filter, got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
+
 		arr, ok := result.Response.Data.([]any)
 		if !ok {
 			t.Fatalf("expected array response data, got %T", result.Response.Data)
 		}
-		if len(arr) != 1 {
-			t.Fatalf("expected 1 triage card, got %d", len(arr))
-		}
-		card := arr[0].(map[string]any)
-		if card["id"] != "1" {
-			t.Errorf("expected triage card id '1', got '%v'", card["id"])
+		if len(arr) != 2 {
+			t.Fatalf("expected server response to remain unfiltered client-side, got %d cards", len(arr))
 		}
 	})
 
@@ -328,6 +376,35 @@ func TestCardList(t *testing.T) {
 		assertExitCode(t, err, 0)
 		path := mock.GetWithPaginationCalls[0].Path
 		expected := "/cards.json?board_ids[]=123&terms[]=bug&sorted_by=newest&assignment_status=unassigned"
+		if path != expected {
+			t.Errorf("expected path '%s', got '%s'", expected, path)
+		}
+	})
+
+	t.Run("combines column with other filters without changing command shape", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardListBoard = "123"
+		cardListColumn = "col-1"
+		cardListTag = "tag-1"
+		cardListAssignee = "user-1"
+		err := cardListCmd.RunE(cardListCmd, []string{})
+		cardListBoard = ""
+		cardListColumn = ""
+		cardListTag = ""
+		cardListAssignee = ""
+
+		assertExitCode(t, err, 0)
+		path := mock.GetWithPaginationCalls[0].Path
+		expected := "/cards.json?board_ids[]=123&column_ids[]=col-1&tag_ids[]=tag-1&assignee_ids[]=user-1"
 		if path != expected {
 			t.Errorf("expected path '%s', got '%s'", expected, path)
 		}
@@ -799,6 +876,24 @@ func TestCardColumn(t *testing.T) {
 			}
 		})
 
+		t.Run("not_now alias", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardColumnColumn = "not_now"
+			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
+			cardColumnColumn = ""
+
+			assertExitCode(t, err, 0)
+			if len(mock.PostCalls) != 1 || mock.PostCalls[0].Path != "/cards/42/not_now.json" {
+				t.Errorf("expected post '/cards/42/not_now.json', got %+v", mock.PostCalls)
+			}
+		})
+
 		t.Run("maybe", func(t *testing.T) {
 			mock := NewMockClient()
 			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
@@ -808,6 +903,24 @@ func TestCardColumn(t *testing.T) {
 			defer resetTest()
 
 			cardColumnColumn = "maybe"
+			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
+			cardColumnColumn = ""
+
+			assertExitCode(t, err, 0)
+			if len(mock.DeleteCalls) != 1 || mock.DeleteCalls[0].Path != "/cards/42/triage.json" {
+				t.Errorf("expected delete '/cards/42/triage.json', got %+v", mock.DeleteCalls)
+			}
+		})
+
+		t.Run("triage alias", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardColumnColumn = "triage"
 			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
 			cardColumnColumn = ""
 

@@ -808,6 +808,11 @@ func printListPaginated(data any, cols render.Columns, hasNext bool, nextURL str
 
 // printDetail renders a single object with format-aware dispatch.
 func printDetail(data any, summary string, breadcrumbs []Breadcrumb) {
+	printDetailPaginated(data, summary, breadcrumbs, false, "")
+}
+
+// printDetailPaginated renders a single object and includes pagination context when present.
+func printDetailPaginated(data any, summary string, breadcrumbs []Breadcrumb, hasNext bool, nextURL string) {
 	switch out.EffectiveFormat() {
 	case output.FormatStyled:
 		body := render.StyledDetail(toMap(data), summary)
@@ -818,7 +823,18 @@ func printDetail(data any, summary string, breadcrumbs []Breadcrumb) {
 		writeOutputString(appendHumanSections(body, "", "", breadcrumbs, true))
 		captureResponse()
 	default:
-		printSuccessWithBreadcrumbs(data, summary, breadcrumbs)
+		opts := []output.ResponseOption{output.WithBreadcrumbs(breadcrumbs...)}
+		if summary != "" {
+			opts = append(opts, output.WithSummary(summary))
+		}
+		if hasNext || nextURL != "" {
+			opts = append(opts, output.WithContext("pagination", map[string]any{
+				"has_next": hasNext,
+				"next_url": nextURL,
+			}))
+		}
+		recordOutputError(out.OK(data, opts...))
+		captureResponse()
 	}
 }
 

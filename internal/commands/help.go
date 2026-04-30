@@ -379,7 +379,7 @@ var rootCommandGroupTitles = map[string]string{
 }
 
 var rootCommandGroups = map[string][]string{
-	"core":            {"auth", "board", "card", "search"},
+	"core":            {"auth", "activity", "board", "card", "search"},
 	"collaboration":   {"comment", "notification"},
 	"getting-started": {"setup", "signup"},
 	"discover":        {"doctor", "config", "commands", "version"},
@@ -389,6 +389,8 @@ var commandExamples = map[string]string{
 	"fizzy auth":              "$ fizzy auth status\n$ fizzy auth login TOKEN --profile acme",
 	"fizzy auth status":       "$ fizzy auth status",
 	"fizzy auth list":         "$ fizzy auth list\n$ fizzy auth switch acme",
+	"fizzy activity":          "$ fizzy activity list\n$ fizzy activity list --board <id>",
+	"fizzy activity list":     "$ fizzy activity list --board <id>\n$ fizzy activity list --creator <user_id>",
 	"fizzy board":             "$ fizzy board list\n$ fizzy board show <id>",
 	"fizzy board list":        "$ fizzy board list\n$ fizzy board list --page 2",
 	"fizzy board show":        "$ fizzy board show <id>",
