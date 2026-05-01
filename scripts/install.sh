@@ -93,4 +93,4 @@ if ! echo "$PATH" | tr ':' '\n' | grep -qx "$INSTALL_DIR"; then
 fi
 
 echo ""
-"$INSTALL_DIR/${BINARY}" setup || echo "Run '$INSTALL_DIR/${BINARY} setup' to get started."
+echo "Run '$INSTALL_DIR/${BINARY} setup' to get started."
