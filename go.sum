@@ -8,8 +8,8 @@ github.com/aymanbagabas/go-udiff v0.3.1 h1:LV+qyBQ2pqe0u42ZsUEtPiCaUoqgA9gYRDs3v
 github.com/aymanbagabas/go-udiff v0.3.1/go.mod h1:G0fsKmG+P6ylD0r6N/KgQD/nWzgfnl8ZBcNLgcbrw8E=
 github.com/basecamp/cli v0.2.1 h1:8GyehPVtsTXla0oOPu4QgXRjwwzJ99prlByvyi+0HRQ=
 github.com/basecamp/cli v0.2.1/go.mod h1:p8tt/DatJ2LAzWO6N6tNfV8x3gF5T3IxDTo+U8FfWPo=
-github.com/basecamp/fizzy-sdk/go v0.1.3 h1:rKlWHsyiEnBp0bWnYoyrV0SIXY6COpGjzCpkywUkI24=
-github.com/basecamp/fizzy-sdk/go v0.1.3/go.mod h1:XvOTc+2/6NaECvb2mVhIMq2pNsl9P2wNqwvybIUtQ2g=
+github.com/basecamp/fizzy-sdk/go v0.2.1 h1:4xRRBQWP0V5rMkppAramn9bSDILl+zY0RD7ax8IDjKQ=
+github.com/basecamp/fizzy-sdk/go v0.2.1/go.mod h1:XvOTc+2/6NaECvb2mVhIMq2pNsl9P2wNqwvybIUtQ2g=
 github.com/catppuccin/go v0.3.0 h1:d+0/YicIq+hSTo5oPuRi5kOpqkVA5tAsU6dNhvRu+aY=
 github.com/catppuccin/go v0.3.0/go.mod h1:8IHJuMGaUUjQM82qBrGNBv7LFq6JI3NnQCF6MOlZjpc=
 github.com/charmbracelet/bubbles v0.21.1-0.20250623103423-23b8fd6302d7 h1:JFgG/xnwFfbezlUnFMJy0nusZvytYysV4SCS2cYbvws=

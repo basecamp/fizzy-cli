@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/basecamp/cli v0.2.1
-	github.com/basecamp/fizzy-sdk/go v0.1.3
+	github.com/basecamp/fizzy-sdk/go v0.2.1
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/term v0.2.2

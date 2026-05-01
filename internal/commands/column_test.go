@@ -13,8 +13,8 @@ func TestColumnList(t *testing.T) {
 		mock.OnGet("/boards/123/columns.json", &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
-				map[string]any{"id": "1", "name": "To Do"},
-				map[string]any{"id": "2", "name": "In Progress"},
+				map[string]any{"id": "1", "name": "To Do", "color": map[string]any{"name": "Blue", "value": "var(--color-card-1)"}},
+				map[string]any{"id": "2", "name": "In Progress", "color": map[string]any{"name": "Green", "value": "var(--color-card-2)"}},
 			},
 		})
 
@@ -99,8 +99,9 @@ func TestColumnShow(t *testing.T) {
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: map[string]any{
-				"id":   "col-1",
-				"name": "In Progress",
+				"id":    "col-1",
+				"name":  "In Progress",
+				"color": map[string]any{"name": "Blue", "value": "var(--color-card-1)"},
 			},
 		}
 
