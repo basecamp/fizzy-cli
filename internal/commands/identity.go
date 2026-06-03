@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +38,40 @@ var identityShowCmd = &cobra.Command{
 	},
 }
 
+var identityTimezoneUpdateTimezone string
+
+var identityTimezoneUpdateCmd = &cobra.Command{
+	Use:   "timezone-update",
+	Short: "Update your timezone",
+	Long:  "Updates your timezone for the current account.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		if identityTimezoneUpdateTimezone == "" {
+			return newRequiredFlagError("timezone")
+		}
+
+		_, err := getSDKClient().Identity().UpdateMyTimezone(cmd.Context(), cfg.Account, &generated.UpdateMyTimezoneRequest{
+			TimezoneName: identityTimezoneUpdateTimezone,
+		})
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("show", "fizzy identity show", "View identity"),
+		}
+
+		printMutation(map[string]any{"timezone_name": identityTimezoneUpdateTimezone}, "Timezone updated", breadcrumbs)
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(identityCmd)
 	identityCmd.AddCommand(identityShowCmd)
+	identityTimezoneUpdateCmd.Flags().StringVar(&identityTimezoneUpdateTimezone, "timezone", "", "Timezone name, for example America/New_York (required)")
+	identityCmd.AddCommand(identityTimezoneUpdateCmd)
 }

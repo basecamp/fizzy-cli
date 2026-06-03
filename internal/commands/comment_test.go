@@ -323,7 +323,7 @@ func TestCommentUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestModeWithSDK(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
@@ -340,6 +340,13 @@ func TestCommentUpdate(t *testing.T) {
 		}
 		if mock.PatchCalls[0].Path != "/cards/42/comments/comment-1" {
 			t.Errorf("expected path '/cards/42/comments/comment-1', got '%s'", mock.PatchCalls[0].Path)
+		}
+		body, ok := responseDataMap(t, result)["body"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected update response body map, got %#v", responseDataMap(t, result)["body"])
+		}
+		if got := body["plain_text"]; got != "Updated comment" {
+			t.Errorf("expected update response body plain_text, got %#v", got)
 		}
 	})
 

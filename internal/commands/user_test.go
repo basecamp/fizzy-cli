@@ -80,11 +80,14 @@ func TestUserUpdate(t *testing.T) {
 	t.Run("updates user name", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchResponse = &client.APIResponse{
-			StatusCode: 204,
-			Data:       map[string]any{},
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":   "user-1",
+				"name": "New Name",
+			},
 		}
 
-		SetTestModeWithSDK(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
@@ -103,6 +106,9 @@ func TestUserUpdate(t *testing.T) {
 		body := mock.PatchCalls[0].Body.(map[string]any)
 		if body["name"] != "New Name" {
 			t.Errorf("expected name 'New Name', got '%v'", body["name"])
+		}
+		if got := responseDataMap(t, result)["name"]; got != "New Name" {
+			t.Errorf("expected update response body name, got %#v", got)
 		}
 	})
 

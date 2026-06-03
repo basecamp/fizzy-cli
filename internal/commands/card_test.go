@@ -1274,7 +1274,7 @@ func TestCardMove(t *testing.T) {
 			},
 		}
 
-		SetTestModeWithSDK(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
@@ -1293,6 +1293,9 @@ func TestCardMove(t *testing.T) {
 		body := mock.PatchCalls[0].Body.(map[string]any)
 		if body["board_id"] != "board-456" {
 			t.Errorf("expected board_id 'board-456', got '%v'", body["board_id"])
+		}
+		if got := responseDataMap(t, result)["title"]; got != "Test Card" {
+			t.Errorf("expected move response body title, got %#v", got)
 		}
 	})
 

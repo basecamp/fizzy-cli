@@ -100,6 +100,7 @@ Want to change something?
 | Resource | List | Show | Create | Update | Delete | Other |
 |----------|------|------|--------|--------|--------|-------|
 | account | - | `account show` | - | `account settings-update` | - | `account entropy`, `account export-create`, `account export-show EXPORT_ID`, `account join-code-show`, `account join-code-reset`, `account join-code-update` |
+| identity | - | `identity show` | - | `identity timezone-update --timezone NAME` | - | - |
 | board | `board list` | `board show ID` | `board create` | `board update ID` | `board delete ID` | `board accesses --board ID`, `board publish ID`, `board unpublish ID`, `board entropy ID`, `board closed`, `board postponed`, `board stream`, `board involvement ID`, `migrate board ID` |
 | card | `card list` | `card show NUMBER` | `card create` | `card update NUMBER` | `card delete NUMBER` | `card move NUMBER`, `card publish NUMBER`, `card mark-read NUMBER`, `card mark-unread NUMBER` |
 | search | `search QUERY` | - | - | - | - | - |
@@ -455,6 +456,7 @@ fizzy comment list --card 579 --jq '.data | length'
 
 ```bash
 fizzy identity show                    # Show your identity and accessible accounts
+fizzy identity timezone-update --timezone America/New_York  # Update your timezone for the current account
 ```
 
 ### Account

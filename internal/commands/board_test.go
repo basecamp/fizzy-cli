@@ -385,7 +385,7 @@ func TestBoardUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestModeWithSDK(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
@@ -403,6 +403,9 @@ func TestBoardUpdate(t *testing.T) {
 		}
 		if mock.PatchCalls[0].Path != "/boards/123" {
 			t.Errorf("expected path '/boards/123', got '%s'", mock.PatchCalls[0].Path)
+		}
+		if got := responseDataMap(t, result)["name"]; got != "Updated Name" {
+			t.Errorf("expected update response body name, got %#v", got)
 		}
 	})
 
