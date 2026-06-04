@@ -10,7 +10,13 @@ import (
 func TestIdentityTimezoneUpdate(t *testing.T) {
 	t.Run("updates timezone", func(t *testing.T) {
 		mock := NewMockClient()
-		mock.PatchResponse = &client.APIResponse{StatusCode: 204, Data: nil}
+		mock.PatchResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"timezone_name": "America/New_York",
+				"updated_at":    "2026-06-03T21:15:00Z",
+			},
+		}
 
 		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
@@ -41,6 +47,29 @@ func TestIdentityTimezoneUpdate(t *testing.T) {
 		}
 		if result.Response.Summary != "Timezone updated" {
 			t.Errorf("expected timezone summary, got %q", result.Response.Summary)
+		}
+		if got := responseDataMap(t, result)["updated_at"]; got != "2026-06-03T21:15:00Z" {
+			t.Errorf("expected timezone response body updated_at, got %#v", got)
+		}
+	})
+
+	t.Run("falls back to requested timezone for empty response", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.PatchResponse = &client.APIResponse{StatusCode: 204, Data: nil}
+
+		result := SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		identityTimezoneUpdateTimezone = "America/New_York"
+		defer func() {
+			identityTimezoneUpdateTimezone = ""
+			resetTest()
+		}()
+
+		err := identityTimezoneUpdateCmd.RunE(identityTimezoneUpdateCmd, []string{})
+		assertExitCode(t, err, 0)
+
+		if got := responseDataMap(t, result)["timezone_name"]; got != "America/New_York" {
+			t.Errorf("expected fallback timezone_name, got %#v", got)
 		}
 	})
 

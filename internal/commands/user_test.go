@@ -107,8 +107,12 @@ func TestUserUpdate(t *testing.T) {
 		if body["name"] != "New Name" {
 			t.Errorf("expected name 'New Name', got '%v'", body["name"])
 		}
-		if got := responseDataMap(t, result)["name"]; got != "New Name" {
+		data := responseDataMap(t, result)
+		if got := data["name"]; got != "New Name" {
 			t.Errorf("expected update response body name, got %#v", got)
+		}
+		if got := data["id"]; got != "user-1" {
+			t.Errorf("expected update response body id, got %#v", got)
 		}
 	})
 

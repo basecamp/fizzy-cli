@@ -53,18 +53,25 @@ var identityTimezoneUpdateCmd = &cobra.Command{
 			return newRequiredFlagError("timezone")
 		}
 
-		_, err := getSDKClient().Identity().UpdateMyTimezone(cmd.Context(), cfg.Account, &generated.UpdateMyTimezoneRequest{
+		resp, err := getSDKClient().Identity().UpdateMyTimezone(cmd.Context(), cfg.Account, &generated.UpdateMyTimezoneRequest{
 			TimezoneName: identityTimezoneUpdateTimezone,
 		})
 		if err != nil {
 			return convertSDKError(err)
 		}
 
+		data := any(map[string]any{"timezone_name": identityTimezoneUpdateTimezone})
+		if resp != nil && len(resp.Data) > 0 {
+			if normalized := normalizeAny(resp.Data); normalized != nil {
+				data = normalized
+			}
+		}
+
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("show", "fizzy identity show", "View identity"),
 		}
 
-		printMutation(map[string]any{"timezone_name": identityTimezoneUpdateTimezone}, "Timezone updated", breadcrumbs)
+		printMutation(data, "Timezone updated", breadcrumbs)
 		return nil
 	},
 }
