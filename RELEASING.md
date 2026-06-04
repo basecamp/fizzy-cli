@@ -14,7 +14,7 @@ Pushing the tag triggers the GitHub Actions release workflow, which:
 1. Runs the full test suite
 2. Builds binaries for all platforms (linux/darwin/windows/freebsd/openbsd x amd64/arm64)
 3. Signs macOS binaries (Developer ID + notarization)
-4. Signs checksums with cosign (keyless, OIDC)
+4. Signs checksums with a cosign keyless bundle (OIDC)
 5. Generates SBOMs with Syft
 6. Builds .deb and .rpm packages
 7. For stable tags only, publishes the Homebrew cask to `basecamp/homebrew-tap`
