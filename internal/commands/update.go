@@ -25,9 +25,11 @@ const fizzyUpdateRepo = "basecamp/fizzy-cli"
 var gitDescribeSuffixRE = regexp.MustCompile(`\d+-\d+-g[a-f0-9]{8}$`)
 
 var (
-	updateHTTPClient = &http.Client{Timeout: 5 * time.Second}
-	updateCancel     context.CancelFunc
-	updateMessage    chan *releaseInfo
+	updateHTTPClient     = &http.Client{Timeout: 5 * time.Second}
+	updateCancel         context.CancelFunc
+	updateMessage        chan *releaseInfo
+	machineOutputChecker = IsMachineOutput
+	terminalChecker      = isTerminal
 )
 
 type releaseInfo struct {
@@ -60,13 +62,14 @@ func startUpdateCheck() {
 
 	ctx, cancel := context.WithCancel(context.Background()) //nolint:gosec // G118: cancel is retained and called after command execution
 	updateCancel = cancel
-	updateMessage = make(chan *releaseInfo, 1)
+	message := make(chan *releaseInfo, 1)
+	updateMessage = message
 	go func() {
-		rel, err := checkForUpdate(ctx, updateHTTPClient, filepath.Join(stateDir, "state.yml"), fizzyUpdateRepo, current)
+		rel, err := checkForUpdate(ctx, updateHTTPClient, filepath.Join(stateDir, "state.yml"), current)
 		if err != nil && cfgVerbose {
 			fmt.Fprintf(os.Stderr, "warning: checking for update failed: %v\n", err)
 		}
-		updateMessage <- rel
+		message <- rel
 	}()
 }
 
@@ -75,8 +78,14 @@ func finishUpdateCheck() {
 		return
 	}
 
-	updateCancel()
-	rel := <-updateMessage
+	cancel := updateCancel
+	message := updateMessage
+	var rel *releaseInfo
+	select {
+	case rel = <-message:
+	case <-time.After(200 * time.Millisecond):
+	}
+	cancel()
 	updateCancel = nil
 	updateMessage = nil
 	if rel == nil {
@@ -89,7 +98,7 @@ func finishUpdateCheck() {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "\n\nA new release of fizzy is available: %s → %s\n",
+	fmt.Fprintf(os.Stderr, "\n\nA new release of Fizzy is available: %s → %s\n",
 		strings.TrimPrefix(currentVersion(), "v"),
 		strings.TrimPrefix(rel.Version, "v"))
 	if isHomebrew {
@@ -110,19 +119,22 @@ func shouldCheckForUpdate() bool {
 	if isCI() {
 		return false
 	}
-	if cfgAgent || cfgJSON || cfgQuiet || cfgIDsOnly || cfgCount || cfgJQ != "" {
+	if machineOutputChecker() {
 		return false
 	}
-	return isTerminal(os.Stdout) && isTerminal(os.Stderr)
+	return terminalChecker(os.Stderr)
 }
 
-func checkForUpdate(ctx context.Context, client *http.Client, stateFilePath, repo, currentVersion string) (*releaseInfo, error) {
-	stateEntry, _ := getUpdateStateEntry(stateFilePath)
+func checkForUpdate(ctx context.Context, client *http.Client, stateFilePath, currentVersion string) (*releaseInfo, error) {
+	stateEntry, err := getUpdateStateEntry(stateFilePath)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, err
+	}
 	if stateEntry != nil && time.Since(stateEntry.CheckedForUpdateAt).Hours() < 24 {
 		return nil, nil
 	}
 
-	rel, err := getLatestReleaseInfo(ctx, client, repo)
+	rel, err := getLatestReleaseInfo(ctx, client, fizzyUpdateRepo)
 	if err != nil {
 		return nil, err
 	}

@@ -1391,6 +1391,8 @@ func ResetTestMode() {
 	}
 	updateCancel = nil
 	updateMessage = nil
+	machineOutputChecker = IsMachineOutput
+	terminalChecker = isTerminal
 }
 
 // GetRootCmd returns the root command for testing.

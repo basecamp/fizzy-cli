@@ -247,13 +247,12 @@ func StateDir() (string, error) {
 		return testConfigDir, nil
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
 	base := os.Getenv("XDG_STATE_HOME")
 	if base == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
 		base = filepath.Join(home, ".local", "state")
 	}
 	dir := filepath.Join(base, "fizzy")

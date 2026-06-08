@@ -27,7 +27,7 @@ func TestCheckForUpdateFindsNewRelease(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 	})}
 
-	rel, err := checkForUpdate(context.Background(), client, stateFile, "basecamp/fizzy-cli", "v3.0.2")
+	rel, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -36,6 +36,27 @@ func TestCheckForUpdateFindsNewRelease(t *testing.T) {
 	}
 	if _, err := os.Stat(stateFile); err != nil {
 		t.Fatalf("state file not written: %v", err)
+	}
+}
+
+func TestCheckForUpdateReturnsStateReadErrors(t *testing.T) {
+	stateFile := filepath.Join(t.TempDir(), "state.yml")
+	if err := os.WriteFile(stateFile, []byte("checked_for_update_at: ["), 0o600); err != nil {
+		t.Fatalf("failed to write state: %v", err)
+	}
+
+	called := false
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		called = true
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})}
+
+	_, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.2")
+	if err == nil {
+		t.Fatal("expected state read error")
+	}
+	if called {
+		t.Fatal("expected state read error to skip HTTP request")
 	}
 }
 
@@ -52,7 +73,7 @@ func TestCheckForUpdateSkipsRecentState(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
 	})}
 
-	rel, err := checkForUpdate(context.Background(), client, stateFile, "basecamp/fizzy-cli", "v3.0.2")
+	rel, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.2")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -86,6 +107,20 @@ func TestVersionGreaterThan(t *testing.T) {
 }
 
 func TestShouldCheckForUpdateHonorsOptOut(t *testing.T) {
+	for _, name := range []string{"CODESPACES", "CI", "GITHUB_ACTIONS", "BUILDKITE", "CIRCLECI", "GITLAB_CI", "JENKINS_URL", "TEAMCITY_VERSION", "TF_BUILD"} {
+		t.Setenv(name, "")
+	}
+	machineOutputChecker = func() bool { return false }
+	terminalChecker = func(*os.File) bool { return true }
+	defer func() {
+		machineOutputChecker = IsMachineOutput
+		terminalChecker = isTerminal
+	}()
+
+	if !shouldCheckForUpdate() {
+		t.Fatal("expected update checks to be enabled before opt-out")
+	}
+
 	t.Setenv("FIZZY_NO_UPDATE_NOTIFIER", "1")
 	if shouldCheckForUpdate() {
 		t.Fatal("expected FIZZY_NO_UPDATE_NOTIFIER to disable update checks")
