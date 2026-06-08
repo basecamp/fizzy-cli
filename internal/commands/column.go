@@ -131,10 +131,15 @@ var columnCreateCmd = &cobra.Command{
 			return newRequiredFlagError("name")
 		}
 
+		color, err := normalizeColumnColor(columnCreateColor)
+		if err != nil {
+			return err
+		}
+
 		ac := getSDK()
 		req := &generated.CreateColumnRequest{Name: columnCreateName}
-		if columnCreateColor != "" {
-			req.Color = columnCreateColor
+		if color != "" {
+			req.Color = color
 		}
 
 		data, resp, err := ac.Columns().Create(cmd.Context(), boardID, req)
@@ -199,12 +204,17 @@ var columnUpdateCmd = &cobra.Command{
 
 		columnID := args[0]
 
+		color, err := normalizeColumnColor(columnUpdateColor)
+		if err != nil {
+			return err
+		}
+
 		req := &generated.UpdateColumnRequest{}
 		if columnUpdateName != "" {
 			req.Name = columnUpdateName
 		}
-		if columnUpdateColor != "" {
-			req.Color = columnUpdateColor
+		if color != "" {
+			req.Color = color
 		}
 
 		data, _, err := getSDK().Columns().Update(cmd.Context(), boardID, columnID, req)
@@ -343,13 +353,13 @@ func init() {
 	// Create
 	columnCreateCmd.Flags().StringVar(&columnCreateBoard, "board", "", "Board ID (required)")
 	columnCreateCmd.Flags().StringVar(&columnCreateName, "name", "", "Column name (required)")
-	columnCreateCmd.Flags().StringVar(&columnCreateColor, "color", "", "Column color")
+	columnCreateCmd.Flags().StringVar(&columnCreateColor, "color", "", "Column color ("+columnColorNamesHelp+"; or API color value)")
 	columnCmd.AddCommand(columnCreateCmd)
 
 	// Update
 	columnUpdateCmd.Flags().StringVar(&columnUpdateBoard, "board", "", "Board ID (required)")
 	columnUpdateCmd.Flags().StringVar(&columnUpdateName, "name", "", "Column name")
-	columnUpdateCmd.Flags().StringVar(&columnUpdateColor, "color", "", "Column color")
+	columnUpdateCmd.Flags().StringVar(&columnUpdateColor, "color", "", "Column color ("+columnColorNamesHelp+"; or API color value)")
 	columnCmd.AddCommand(columnUpdateCmd)
 
 	// Delete

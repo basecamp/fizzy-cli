@@ -235,7 +235,7 @@ func TestColumnCreate(t *testing.T) {
 
 		columnCreateBoard = "123"
 		columnCreateName = "Test"
-		columnCreateColor = "blue"
+		columnCreateColor = "aqua"
 		err := columnCreateCmd.RunE(columnCreateCmd, []string{})
 		columnCreateBoard = ""
 		columnCreateName = ""
@@ -247,8 +247,8 @@ func TestColumnCreate(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 		body := mock.PostCalls[0].Body.(map[string]any)
-		if body["color"] != "blue" {
-			t.Errorf("expected color 'blue', got '%v'", body["color"])
+		if body["color"] != "var(--color-card-5)" {
+			t.Errorf("expected color 'var(--color-card-5)', got '%v'", body["color"])
 		}
 	})
 }
