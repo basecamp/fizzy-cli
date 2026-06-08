@@ -136,6 +136,9 @@ func checkForUpdate(ctx context.Context, client *http.Client, stateFilePath, cur
 		stateEntry = nil
 	}
 	if stateEntry != nil && time.Since(stateEntry.CheckedForUpdateAt).Hours() < 24 {
+		if versionGreaterThan(stateEntry.LatestRelease.Version, currentVersion) {
+			return &stateEntry.LatestRelease, nil
+		}
 		return nil, nil
 	}
 
@@ -160,6 +163,7 @@ func getLatestReleaseInfo(ctx context.Context, client *http.Client, repo string)
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("User-Agent", "fizzy-cli/"+currentVersion())
 
 	res, err := client.Do(req)
 	if err != nil {

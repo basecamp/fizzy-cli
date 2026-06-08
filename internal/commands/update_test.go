@@ -23,6 +23,9 @@ func TestCheckForUpdateFindsNewRelease(t *testing.T) {
 		if req.URL.String() != "https://api.github.com/repos/basecamp/fizzy-cli/releases/latest" {
 			t.Fatalf("unexpected URL %s", req.URL.String())
 		}
+		if ua := req.Header.Get("User-Agent"); ua != "fizzy-cli/"+currentVersion() {
+			t.Fatalf("User-Agent = %q, want fizzy-cli/%s", ua, currentVersion())
+		}
 		body := `{"tag_name":"v3.0.3","html_url":"https://github.com/basecamp/fizzy-cli/releases/tag/v3.0.3","published_at":"2026-03-02T21:19:42Z"}`
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 	})}
@@ -64,7 +67,7 @@ func TestCheckForUpdateRecoversCorruptState(t *testing.T) {
 	}
 }
 
-func TestCheckForUpdateSkipsRecentState(t *testing.T) {
+func TestCheckForUpdateUsesRecentCachedRelease(t *testing.T) {
 	stateFile := filepath.Join(t.TempDir(), "state.yml")
 	err := setUpdateStateEntry(stateFile, time.Now().Add(-time.Hour), releaseInfo{Version: "v3.0.3"})
 	if err != nil {
@@ -78,6 +81,31 @@ func TestCheckForUpdateSkipsRecentState(t *testing.T) {
 	})}
 
 	rel, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if rel == nil || rel.Version != "v3.0.3" {
+		t.Fatalf("release = %#v, want cached v3.0.3", rel)
+	}
+	if called {
+		t.Fatal("expected recent state to skip HTTP request")
+	}
+}
+
+func TestCheckForUpdateSkipsCurrentCachedRelease(t *testing.T) {
+	stateFile := filepath.Join(t.TempDir(), "state.yml")
+	err := setUpdateStateEntry(stateFile, time.Now().Add(-time.Hour), releaseInfo{Version: "v3.0.3"})
+	if err != nil {
+		t.Fatalf("failed to write state: %v", err)
+	}
+
+	called := false
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		called = true
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+	})}
+
+	rel, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.3")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
