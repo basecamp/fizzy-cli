@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -128,7 +129,11 @@ func shouldCheckForUpdate() bool {
 func checkForUpdate(ctx context.Context, client *http.Client, stateFilePath, currentVersion string) (*releaseInfo, error) {
 	stateEntry, err := getUpdateStateEntry(stateFilePath)
 	if err != nil && !os.IsNotExist(err) {
-		return nil, err
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
+			return nil, err
+		}
+		stateEntry = nil
 	}
 	if stateEntry != nil && time.Since(stateEntry.CheckedForUpdateAt).Hours() < 24 {
 		return nil, nil

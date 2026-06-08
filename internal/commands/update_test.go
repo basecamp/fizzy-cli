@@ -39,7 +39,7 @@ func TestCheckForUpdateFindsNewRelease(t *testing.T) {
 	}
 }
 
-func TestCheckForUpdateReturnsStateReadErrors(t *testing.T) {
+func TestCheckForUpdateRecoversCorruptState(t *testing.T) {
 	stateFile := filepath.Join(t.TempDir(), "state.yml")
 	if err := os.WriteFile(stateFile, []byte("checked_for_update_at: ["), 0o600); err != nil {
 		t.Fatalf("failed to write state: %v", err)
@@ -48,15 +48,19 @@ func TestCheckForUpdateReturnsStateReadErrors(t *testing.T) {
 	called := false
 	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 		called = true
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{}`))}, nil
+		body := `{"tag_name":"v3.0.3","html_url":"https://github.com/basecamp/fizzy-cli/releases/tag/v3.0.3","published_at":"2026-03-02T21:19:42Z"}`
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body))}, nil
 	})}
 
-	_, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.2")
-	if err == nil {
-		t.Fatal("expected state read error")
+	rel, err := checkForUpdate(context.Background(), client, stateFile, "v3.0.2")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if called {
-		t.Fatal("expected state read error to skip HTTP request")
+	if !called {
+		t.Fatal("expected corrupt state to fetch latest release")
+	}
+	if rel == nil || rel.Version != "v3.0.3" {
+		t.Fatalf("release = %#v, want v3.0.3", rel)
 	}
 }
 
