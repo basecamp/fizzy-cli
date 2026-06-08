@@ -54,6 +54,9 @@ func TestNormalizeColumnColorRejectsUnknownColor(t *testing.T) {
 			t.Fatalf("expected error to include %s, got %v", name, err)
 		}
 	}
+	if !strings.Contains(err.Error(), "supported API color value") {
+		t.Fatalf("expected error to clarify supported API color values, got %v", err)
+	}
 }
 
 func TestColumnCreateRejectsUnknownColor(t *testing.T) {
@@ -178,6 +181,9 @@ func TestColumnColorHelpIncludesLowercaseFriendlyNames(t *testing.T) {
 				if strings.Contains(flagUsage, name) {
 					t.Fatalf("expected --color help to use lowercase aliases, got %q", flagUsage)
 				}
+			}
+			if !strings.Contains(flagUsage, "supported API color value") {
+				t.Fatalf("expected --color help to clarify supported API color values, got %q", flagUsage)
 			}
 		})
 	}

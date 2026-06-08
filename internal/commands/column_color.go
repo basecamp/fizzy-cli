@@ -44,5 +44,5 @@ func normalizeColumnColor(input string) (string, error) {
 		}
 	}
 
-	return "", errors.NewInvalidArgsError(fmt.Sprintf("--color must be one of: %s; or an API color value like %s (got %q)", columnColorNamesHelp, columnColors[0].Value, input))
+	return "", errors.NewInvalidArgsError(fmt.Sprintf("--color must be one of: %s; or a supported API color value like %s (got %q)", columnColorNamesHelp, columnColors[0].Value, input))
 }

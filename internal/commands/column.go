@@ -353,13 +353,13 @@ func init() {
 	// Create
 	columnCreateCmd.Flags().StringVar(&columnCreateBoard, "board", "", "Board ID (required)")
 	columnCreateCmd.Flags().StringVar(&columnCreateName, "name", "", "Column name (required)")
-	columnCreateCmd.Flags().StringVar(&columnCreateColor, "color", "", "Column color ("+columnColorNamesHelp+"; or API color value)")
+	columnCreateCmd.Flags().StringVar(&columnCreateColor, "color", "", "Column color ("+columnColorNamesHelp+"; or supported API color value)")
 	columnCmd.AddCommand(columnCreateCmd)
 
 	// Update
 	columnUpdateCmd.Flags().StringVar(&columnUpdateBoard, "board", "", "Board ID (required)")
 	columnUpdateCmd.Flags().StringVar(&columnUpdateName, "name", "", "Column name")
-	columnUpdateCmd.Flags().StringVar(&columnUpdateColor, "color", "", "Column color ("+columnColorNamesHelp+"; or API color value)")
+	columnUpdateCmd.Flags().StringVar(&columnUpdateColor, "color", "", "Column color ("+columnColorNamesHelp+"; or supported API color value)")
 	columnCmd.AddCommand(columnUpdateCmd)
 
 	// Delete
