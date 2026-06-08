@@ -183,6 +183,8 @@ Configuration priority (highest to lowest):
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
+`FIZZY_NO_UPDATE_NOTIFIER=1` runs commands without update notifications.
+
 Inspect the effective config and precedence:
 
 ```bash

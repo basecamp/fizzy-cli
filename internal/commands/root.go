@@ -171,6 +171,7 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
+		startUpdateCheck()
 		return nil
 	},
 	PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
@@ -182,6 +183,7 @@ var rootCmd = &cobra.Command{
 		if RefreshSkillsIfVersionChanged() && !IsMachineOutput() {
 			fmt.Fprintf(os.Stderr, "Agent skill updated to match CLI %s\n", currentVersion())
 		}
+		finishUpdateCheck()
 		return nil
 	},
 	SilenceUsage:  true,
@@ -1384,6 +1386,11 @@ func ResetTestMode() {
 	cfgLimit = 0
 	cfgJQ = ""
 	cfgProfile = ""
+	if updateCancel != nil {
+		updateCancel()
+	}
+	updateCancel = nil
+	updateMessage = nil
 }
 
 // GetRootCmd returns the root command for testing.
