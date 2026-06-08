@@ -238,6 +238,30 @@ func ConfigPath() (string, error) {
 	return preferred, nil
 }
 
+// StateDir returns the directory where Fizzy stores command state.
+func StateDir() (string, error) {
+	if testConfigDir != "" {
+		if err := os.MkdirAll(testConfigDir, 0o700); err != nil {
+			return "", err
+		}
+		return testConfigDir, nil
+	}
+
+	base := os.Getenv("XDG_STATE_HOME")
+	if base == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		base = filepath.Join(home, ".local", "state")
+	}
+	dir := filepath.Join(base, "fizzy")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 // Save saves the configuration to the global config file.
 func (c *Config) Save() error {
 	path, err := ConfigPath()

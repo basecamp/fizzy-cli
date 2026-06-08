@@ -674,6 +674,24 @@ func TestSetTestConfigDir(t *testing.T) {
 	}
 }
 
+func TestStateDirUsesXDGStateHome(t *testing.T) {
+	stateHome := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", stateHome)
+
+	dir, err := StateDir()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	expected := filepath.Join(stateHome, "fizzy")
+	if dir != expected {
+		t.Fatalf("StateDir() = %q, want %q", dir, expected)
+	}
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatalf("state dir not created: %v", err)
+	}
+}
+
 func TestHTTPWarning(t *testing.T) {
 	t.Run("warns on non-localhost HTTP URL", func(t *testing.T) {
 		// Capture stderr
