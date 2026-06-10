@@ -56,11 +56,14 @@ Latest stable Fizzy 3.x is available from the original tap:
 brew install robzolkos/fizzy-cli/fizzy-cli
 ```
 
-Fizzy 4 release candidates are available from [Releases](https://github.com/basecamp/fizzy-cli/releases). Fizzy 4 stable will be published from Basecamp's Homebrew tap:
+Fizzy 4 release candidates are available from [Releases](https://github.com/basecamp/fizzy-cli/releases).
 
-```bash
-brew install --cask basecamp/tap/fizzy
-```
+> [!WARNING]
+> The Basecamp Homebrew tap command is for Fizzy 4 stable once it is released. Release candidates are not published to Homebrew.
+>
+> ```bash
+> brew install --cask basecamp/tap/fizzy
+> ```
 
 **Scoop (Windows):**
 ```bash
