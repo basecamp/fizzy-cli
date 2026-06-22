@@ -5,7 +5,6 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/basecamp/cli/output"
 	"github.com/basecamp/fizzy-cli/internal/harness"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -316,8 +315,7 @@ func newSetupAgentCmds() []*cobra.Command {
 				}
 
 				if out != nil {
-					_ = out.OK(result, output.WithSummary(summary))
-					captureResponse()
+					printMutation(result, summary, nil)
 				}
 				return nil
 			},

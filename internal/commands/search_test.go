@@ -8,12 +8,12 @@ import (
 )
 
 func TestSearch(t *testing.T) {
-	t.Run("searches cards with single term", func(t *testing.T) {
+	t.Run("single-word query hits /search.json with q param", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
-				map[string]any{"id": "1", "title": "Bug fix"},
+				map[string]any{"id": "1", "number": float64(42), "title": "Bug fix"},
 			},
 		}
 
@@ -24,19 +24,18 @@ func TestSearch(t *testing.T) {
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		assertExitCode(t, err, 0)
 
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
 		if !result.Response.OK {
 			t.Error("expected success response")
 		}
-		path := mock.GetWithPaginationCalls[0].Path
-		if path != "/cards.json?terms[]=bug" {
-			t.Errorf("expected path '/cards.json?terms[]=bug', got '%s'", path)
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/search.json?q=bug" {
+			t.Errorf("expected '/search.json?q=bug', got '%s'", got)
 		}
 	})
 
-	t.Run("searches cards with multiple terms", func(t *testing.T) {
+	t.Run("multiple args joined into a single q string", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
@@ -47,16 +46,18 @@ func TestSearch(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
-		err := searchCmd.RunE(searchCmd, []string{"login error"})
+		err := searchCmd.RunE(searchCmd, []string{"login", "error"})
 		assertExitCode(t, err, 0)
 
-		path := mock.GetWithPaginationCalls[0].Path
-		if path != "/cards.json?terms[]=login&terms[]=error" {
-			t.Errorf("expected path with multiple terms, got '%s'", path)
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/search.json?q=login+error" {
+			t.Errorf("expected '/search.json?q=login+error', got '%s'", got)
 		}
 	})
 
-	t.Run("combines search with board filter", func(t *testing.T) {
+	t.Run("query with special chars is URL-encoded", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
@@ -67,58 +68,43 @@ func TestSearch(t *testing.T) {
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
-		searchBoard = "123"
+		err := searchCmd.RunE(searchCmd, []string{"foo&bar=baz"})
+		assertExitCode(t, err, 0)
+
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/search.json?q=foo%26bar%3Dbaz" {
+			t.Errorf("expected URL-encoded q, got '%s'", got)
+		}
+	})
+
+	t.Run("no default board injection", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		cfg.Board = "default-board-id"
+		defer resetTest()
+
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
-		searchBoard = ""
-
 		assertExitCode(t, err, 0)
-		path := mock.GetWithPaginationCalls[0].Path
-		if path != "/cards.json?terms[]=bug&board_ids[]=123" {
-			t.Errorf("expected path with board filter, got '%s'", path)
+
+		if len(mock.GetWithPaginationCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetWithPaginationCalls))
+		}
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/search.json?q=bug" {
+			t.Errorf("expected no board params in path, got '%s'", got)
 		}
 	})
 
-	t.Run("applies sort parameter", func(t *testing.T) {
-		mock := NewMockClient()
-		mock.GetWithPaginationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       []any{},
-		}
-
-		SetTestModeWithSDK(mock)
-		SetTestConfig("token", "account", "https://api.example.com")
-		defer resetTest()
-
-		searchSort = "newest"
-		err := searchCmd.RunE(searchCmd, []string{"bug"})
-		searchSort = ""
-
-		assertExitCode(t, err, 0)
-		path := mock.GetWithPaginationCalls[0].Path
-		if path != "/cards.json?terms[]=bug&sorted_by=newest" {
-			t.Errorf("expected path with sort, got '%s'", path)
-		}
-	})
-
-	t.Run("applies indexed-by parameter", func(t *testing.T) {
-		mock := NewMockClient()
-		mock.GetWithPaginationResponse = &client.APIResponse{
-			StatusCode: 200,
-			Data:       []any{},
-		}
-
-		SetTestModeWithSDK(mock)
-		SetTestConfig("token", "account", "https://api.example.com")
-		defer resetTest()
-
-		searchIndexedBy = "closed"
-		err := searchCmd.RunE(searchCmd, []string{"bug"})
-		searchIndexedBy = ""
-
-		assertExitCode(t, err, 0)
-		path := mock.GetWithPaginationCalls[0].Path
-		if path != "/cards.json?terms[]=bug&indexed_by=closed" {
-			t.Errorf("expected path with indexed_by, got '%s'", path)
+	t.Run("requires at least one arg", func(t *testing.T) {
+		if err := searchCmd.Args(searchCmd, []string{}); err == nil {
+			t.Error("expected error when no query args provided")
 		}
 	})
 
@@ -130,5 +116,17 @@ func TestSearch(t *testing.T) {
 
 		err := searchCmd.RunE(searchCmd, []string{"bug"})
 		assertExitCode(t, err, errors.ExitAuthFailure)
+	})
+
+	t.Run("propagates not-found from server", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetError = errors.NewNotFoundError("not found")
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := searchCmd.RunE(searchCmd, []string{"bug"})
+		assertExitCode(t, err, errors.ExitNotFound)
 	})
 }

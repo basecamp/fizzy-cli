@@ -170,6 +170,49 @@ func (c *Client) Delete(path string) (*APIResponse, error) {
 	return c.request("DELETE", path, nil)
 }
 
+// GetHTML performs a GET request expecting an HTML response.
+// Unlike Get, it sets Accept: text/html and does not attempt JSON parsing.
+func (c *Client) GetHTML(path string) (*APIResponse, error) {
+	requestURL := c.buildURL(path)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", requestURL, nil)
+	if err != nil {
+		return nil, errors.NewNetworkError(fmt.Sprintf("Failed to create request: %v", err))
+	}
+
+	c.setHeaders(req)
+	req.Header.Set("Accept", "text/html")
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "> GET %s (HTML)\n", requestURL)
+	}
+
+	resp, err := c.doWithRetry(req)
+	if err != nil {
+		return nil, errors.NewNetworkError(fmt.Sprintf("Request failed: %v", err))
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.NewNetworkError(fmt.Sprintf("Failed to read response: %v", err))
+	}
+
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "< %d %s\n", resp.StatusCode, http.StatusText(resp.StatusCode))
+	}
+
+	apiResp := &APIResponse{
+		StatusCode: resp.StatusCode,
+		Body:       respBody,
+	}
+
+	if resp.StatusCode >= 400 {
+		return apiResp, c.errorFromResponse(resp.StatusCode, respBody, resp.Header)
+	}
+
+	return apiResp, nil
+}
+
 func (c *Client) request(method, path string, body any) (*APIResponse, error) {
 	requestURL := c.buildURL(path)
 

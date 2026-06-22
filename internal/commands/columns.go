@@ -39,6 +39,13 @@ var (
 		{Header: "Name", Field: "name"},
 	}
 
+	authProfileColumns = render.Columns{
+		{Header: "Profile", Field: "profile"},
+		{Header: "Active", Field: "active"},
+		{Header: "Board", Field: "board"},
+		{Header: "Base URL", Field: "base_url"},
+	}
+
 	notificationColumns = render.Columns{
 		{Header: "ID", Field: "id"},
 		{Header: "Message", Field: "message"},
@@ -57,6 +64,13 @@ var (
 
 	searchColumns = cardColumns
 
+	activityColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "Action", Field: "action"},
+		{Header: "Description", Field: "description"},
+		{Header: "Created", Field: "created_at"},
+	}
+
 	attachmentColumns = render.Columns{
 		{Header: "#", Field: "index"},
 		{Header: "Filename", Field: "filename"},
@@ -69,5 +83,19 @@ var (
 		{Header: "Name", Field: "name"},
 		{Header: "URL", Field: "payload_url"},
 		{Header: "Active", Field: "active"},
+	}
+
+	webhookDeliveryColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "State", Field: "state"},
+		{Header: "Created", Field: "created_at"},
+		{Header: "Updated", Field: "updated_at"},
+	}
+
+	tokenColumns = render.Columns{
+		{Header: "ID", Field: "id"},
+		{Header: "Description", Field: "description"},
+		{Header: "Permission", Field: "permission"},
+		{Header: "Created", Field: "created_at"},
 	}
 )

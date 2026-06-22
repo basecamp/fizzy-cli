@@ -68,12 +68,16 @@ func MarkdownDetail(data map[string]any, summary string) string {
 	return sb.String()
 }
 
-// MarkdownSummary renders a single-line summary message for mutations.
+// MarkdownSummary renders a summary message for mutations.
+// If structured data is present, include it below the summary.
 func MarkdownSummary(data map[string]any, summary string) string {
 	if summary != "" {
-		return fmt.Sprintf("> %s\n", summary)
+		if len(data) == 0 {
+			return fmt.Sprintf("> %s\n", summary)
+		}
+		return fmt.Sprintf("> %s\n\n%s", summary, MarkdownDetail(data, ""))
 	}
-	if data == nil {
+	if len(data) == 0 {
 		return "> Done\n"
 	}
 	return MarkdownDetail(data, "")

@@ -1,9 +1,17 @@
-.PHONY: test test-unit test-e2e test-go test-file test-run build clean tidy help \
+.PHONY: test test-unit test-e2e e2e test-go test-file e2e-file test-run e2e-run build clean tidy help \
 	check-toolchain fmt fmt-check vet lint tidy-check race-test vuln secrets \
 	replace-check security check release-check release tools \
-	surface-snapshot surface-check sync-skill lint-actions
+	surface-snapshot surface-check lint-actions
 
 BINARY := $(CURDIR)/bin/fizzy
+FIZZY_TEST_BINARY ?= $(BINARY)
+
+# Load local test credentials if present, but refuse tracked local secret files.
+ifneq ($(shell git ls-files --error-unmatch .env.test >/dev/null 2>&1 && echo tracked),)
+$(error .env.test is tracked by Git. Remove it from version control and keep local secret files untracked)
+endif
+-include .env.test
+export FIZZY_TEST_TOKEN FIZZY_TEST_ACCOUNT FIZZY_TEST_API_URL FIZZY_TEST_BINARY
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.version=$(VERSION)
 
@@ -20,10 +28,13 @@ help:
 	@echo "Usage:"
 	@echo "  make build          Build the CLI"
 	@echo "  make test-unit      Run unit tests (no API required)"
-	@echo "  make test-e2e       Run e2e tests (requires API credentials)"
-	@echo "  make test           Alias for test-e2e"
-	@echo "  make test-file      Run a specific e2e test file"
-	@echo "  make test-run       Run a specific e2e test by name"
+	@echo "  make e2e            Run owner-only CLI contract e2e tests"
+	@echo "  make test-e2e       Alias for e2e"
+	@echo "  make test           Alias for e2e"
+	@echo "  make e2e-file       Run a specific CLI contract e2e test file"
+	@echo "  make test-file      Alias for e2e-file"
+	@echo "  make e2e-run        Run a specific CLI contract e2e test by name"
+	@echo "  make test-run       Alias for e2e-run"
 	@echo "  make clean          Remove build artifacts"
 	@echo "  make tidy           Tidy dependencies"
 	@echo ""
@@ -45,17 +56,19 @@ help:
 	@echo "  make tools          Install dev tools"
 	@echo ""
 	@echo "Environment variables (required for e2e tests):"
-	@echo "  FIZZY_TEST_TOKEN   API token"
-	@echo "  FIZZY_TEST_ACCOUNT Account slug"
-	@echo "  FIZZY_TEST_API_URL API base URL (default: https://app.fizzy.do)"
-	@echo "  FIZZY_TEST_USER_ID User ID for user update/deactivate tests (optional)"
+	@echo "  FIZZY_TEST_TOKEN        API token"
+	@echo "  FIZZY_TEST_ACCOUNT      Account slug"
+	@echo "  FIZZY_TEST_API_URL      API base URL (default: https://app.fizzy.do)"
+	@echo "  FIZZY_TEST_BINARY       Prebuilt binary path (optional)"
+	@echo "  FIZZY_E2E_KEEP_FIXTURE  Set to 1 to skip final fixture teardown"
+	@echo "  FIZZY_E2E_TEARDOWN_DELAY  Delay teardown by N seconds"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build"
 	@echo "  make test-unit"
 	@echo "  export FIZZY_TEST_TOKEN=your-token"
 	@echo "  export FIZZY_TEST_ACCOUNT=your-account"
-	@echo "  make test-e2e"
+	@echo "  make e2e"
 
 # Toolchain guard — fails fast when PATH go and GOROOT go disagree
 check-toolchain:
@@ -80,28 +93,33 @@ test-unit: check-toolchain
 	go test -v ./internal/...
 
 # Run e2e tests (requires API credentials)
-test-e2e: build
+e2e: build
 	@if [ -z "$$FIZZY_TEST_TOKEN" ]; then echo "Error: FIZZY_TEST_TOKEN not set"; exit 1; fi
 	@if [ -z "$$FIZZY_TEST_ACCOUNT" ]; then echo "Error: FIZZY_TEST_ACCOUNT not set"; exit 1; fi
-	FIZZY_TEST_BINARY=$(BINARY) go test -v ./e2e/tests/...
+	go test -v -count=1 -timeout 10m ./e2e/cli_tests/...
 
-# Alias for test-e2e
-test: test-e2e
-test-go: test-e2e
+test-e2e: e2e
 
-# Run a single test file (e.g., make test-file FILE=board)
-test-file: build
-	@if [ -z "$(FILE)" ]; then echo "Usage: make test-file FILE=board"; exit 1; fi
+test: e2e
+test-go: e2e
+
+# Run a single test file (e.g., make e2e-file FILE=crud_board)
+e2e-file: build
+	@if [ -z "$(FILE)" ]; then echo "Usage: make e2e-file FILE=crud_board"; exit 1; fi
 	@if [ -z "$$FIZZY_TEST_TOKEN" ]; then echo "Error: FIZZY_TEST_TOKEN not set"; exit 1; fi
 	@if [ -z "$$FIZZY_TEST_ACCOUNT" ]; then echo "Error: FIZZY_TEST_ACCOUNT not set"; exit 1; fi
-	FIZZY_TEST_BINARY=$(BINARY) go test -v ./e2e/tests/$(FILE)_test.go
+	go test -v -count=1 ./e2e/cli_tests/$(FILE)_test.go
 
-# Run a single test by name (e.g., make test-run NAME=TestBoardCRUD)
-test-run: build
-	@if [ -z "$(NAME)" ]; then echo "Usage: make test-run NAME=TestBoardCRUD"; exit 1; fi
+test-file: e2e-file
+
+# Run a single test by name (e.g., make e2e-run NAME=TestBoardList)
+e2e-run: build
+	@if [ -z "$(NAME)" ]; then echo "Usage: make e2e-run NAME=TestBoardList"; exit 1; fi
 	@if [ -z "$$FIZZY_TEST_TOKEN" ]; then echo "Error: FIZZY_TEST_TOKEN not set"; exit 1; fi
 	@if [ -z "$$FIZZY_TEST_ACCOUNT" ]; then echo "Error: FIZZY_TEST_ACCOUNT not set"; exit 1; fi
-	FIZZY_TEST_BINARY=$(BINARY) go test -v -run $(NAME) ./e2e/tests/...
+	go test -v -count=1 -run $(NAME) ./e2e/cli_tests/...
+
+test-run: e2e-run
 
 # Format Go source
 fmt:
@@ -193,10 +211,6 @@ tools:
 # Regenerate SURFACE.txt
 surface-snapshot:
 	GENERATE_SURFACE=1 go test ./internal/commands/ -run TestGenerateSurfaceSnapshot -v
-
-# Sync embedded SKILL.md from canonical source
-sync-skill:
-	cp skills/fizzy/SKILL.md internal/skills/SKILL.md
 
 # CI check: SURFACE.txt is up to date
 surface-check:

@@ -20,6 +20,7 @@
 - Works standalone or with any AI agent (Claude, Codex, Copilot, Gemini)
 - JSON output with breadcrumbs for easy navigation
 - Token authentication via personal access tokens
+- Includes agent skill and Claude plugin setup
 
 ## Quick Start
 
@@ -28,7 +29,16 @@ curl -fsSL https://raw.githubusercontent.com/basecamp/fizzy-cli/master/scripts/i
 fizzy setup
 ```
 
-That's it. The installer detects your platform and architecture, downloads the right binary, and verifies checksums. The setup wizard then walks you through configuring your token, selecting your account, and optionally setting a default board. Try `fizzy board list` to verify everything is working.
+That's it. The installer detects your platform and architecture, downloads the right binary, and verifies checksums. The setup wizard then walks you through configuring your token, selecting your account, and optionally setting a default board.
+
+Recommended first checks:
+
+```bash
+fizzy doctor
+fizzy board list
+```
+
+Use `fizzy doctor` any time you want a full health check of your install, config, auth, API connectivity, board context, and agent setup.
 
 <details>
 <summary>Other installation methods</summary>
@@ -72,24 +82,59 @@ sudo rpm -i fizzy-cli_VERSION_linux_amd64.rpm
 
 </details>
 
-## Usage
+## Next Steps
+
+Start with a few common commands:
 
 ```bash
-fizzy board list                          # List boards
-fizzy card list                           # List cards on default board
-fizzy card show 42                        # Show card details
-fizzy card create --board ID --title "Fix login bug"  # Create card
-fizzy card close 42                       # Close card
-fizzy search "authentication"             # Search across cards
-fizzy comment create --card 42 --body "Looks good!"   # Add comment
+fizzy board list
+fizzy card list
+fizzy card show 42
+fizzy search "authentication"
+fizzy comment create --card 42 --body "Looks good!"
 ```
+
+Then branch out as needed:
+
+```bash
+fizzy board accesses --board ID           # Show board access settings and users
+fizzy activity list --board ID            # List recent board activity
+fizzy webhook deliveries --board ID WEBHOOK_ID
+fizzy user export-create USER_ID
+```
+
+For the full command surface, run `fizzy commands --json` or read [`skills/fizzy/SKILL.md`](skills/fizzy/SKILL.md).
+
+### Attachments
+
+Simple mode uses repeatable `--attach` and appends inline attachments to the end of card descriptions or comment bodies:
+
+```bash
+fizzy card create --board ID --title "Bug report" --description "See attached" --attach screenshot.png
+fizzy comment create --card 42 --attach logs.txt
+fizzy comment create --card 42 --body_file comment.md --attach screenshot.png --attach trace.txt
+```
+
+Advanced mode still works when exact placement matters:
+
+```bash
+SGID=$(fizzy upload file screenshot.png --jq '.data.attachable_sgid')
+fizzy card create --board ID --title "Bug report" \
+  --description "<p>See screenshot</p><action-text-attachment sgid=\"$SGID\"></action-text-attachment>"
+```
+
+Use `signed_id` from `fizzy upload file` only for card header images via `--image`.
 
 ### Output Formats
 
 ```bash
-fizzy board list               # JSON output
-fizzy board list | jq '.data'  # Pipe through jq for raw data
+fizzy board list                                 # JSON output
+fizzy board list --jq '.data[0].name'            # Filter the JSON envelope (built-in, no external jq required)
+fizzy board list --quiet --jq '.[0].name'        # Filter raw data without the envelope
+fizzy board list --jq '[.data[] | {id, name}]'   # Extract specific fields
 ```
+
+`--jq` is for machine-readable JSON output. It implies `--json` and cannot be combined with `--styled`, `--markdown`, `--ids-only`, or `--count`.
 
 ### JSON Envelope
 
@@ -110,11 +155,13 @@ Breadcrumbs suggest next commands, making it easy for humans and agents to navig
 
 `fizzy` works with any AI agent that can run shell commands.
 
-```bash
-fizzy skill
-```
+**Claude Code:** `fizzy setup claude` — installs the Claude plugin from the marketplace and links the embedded Fizzy skill into Claude's skills directory.
 
-This interactive command installs the [SKILL.md](skills/fizzy/SKILL.md) file to your preferred AI assistant (Claude Code, OpenCode, Codex, or a custom path).
+**Other agents:** Point your agent at [`skills/fizzy/SKILL.md`](skills/fizzy/SKILL.md) for Fizzy workflow coverage. `fizzy skill` launches the interactive installer by default, while `fizzy skill install` installs the embedded skill directly.
+
+**Agent discovery:** Every command supports `--help --agent` for structured help output. Use `fizzy commands --json` for the full command catalog.
+
+**Troubleshooting:** Run `fizzy doctor` for a read-only health check with remediation hints and next steps.
 
 ## Configuration
 
@@ -136,13 +183,55 @@ Configuration priority (highest to lowest):
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
+Inspect the effective config and precedence:
+
+```bash
+fizzy config show
+fizzy config explain
+fizzy config explain --profile acme
+```
+
+## Troubleshooting
+
+```bash
+fizzy doctor                 # Full install/config/auth/API/agent health check
+fizzy doctor --profile acme  # Check one saved profile explicitly
+fizzy doctor --all-profiles  # Sweep every saved profile
+fizzy doctor --verbose       # Include effective config details and timings
+fizzy doctor --json          # Structured output for scripts and support
+```
+
+Common follow-up commands:
+
+```bash
+fizzy auth status
+fizzy config show
+fizzy config explain
+fizzy identity show
+fizzy board list
+fizzy setup
+fizzy setup claude
+fizzy skill install
+```
+
 ## Development
 
 ```bash
 make build            # Build binary
 make test-unit        # Run unit tests (no API required)
-make test-e2e         # Run e2e tests (requires FIZZY_TEST_TOKEN, FIZZY_TEST_ACCOUNT)
+make e2e              # Run owner-only CLI contract e2e suite
+make e2e-run NAME=TestBoardList
 ```
+
+E2E requirements:
+- `FIZZY_TEST_TOKEN`
+- `FIZZY_TEST_ACCOUNT`
+- optional: `FIZZY_TEST_API_URL`
+- optional: `FIZZY_TEST_BINARY`
+
+Useful local inspection modes:
+- `FIZZY_E2E_KEEP_FIXTURE=1 make e2e`
+- `FIZZY_E2E_TEARDOWN_DELAY=120 make e2e`
 
 ## License
 

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/basecamp/cli/credstore"
+	"github.com/basecamp/cli/output"
 	"github.com/basecamp/cli/profile"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"gopkg.in/yaml.v3"
@@ -505,6 +507,41 @@ func TestAuthList(t *testing.T) {
 		}
 		if len(profiles) != 0 {
 			t.Errorf("expected 0 profiles, got %d", len(profiles))
+		}
+	})
+
+	t.Run("renders styled output with next steps", func(t *testing.T) {
+		credDir := t.TempDir()
+		profileDir := t.TempDir()
+
+		os.Setenv("FIZZY_LIST_STYLED_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_LIST_STYLED_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-list-styled-test",
+			DisableEnvVar: "FIZZY_LIST_STYLED_NO_KR",
+			FallbackDir:   credDir,
+		})
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		profileStore.Create(&profile.Profile{Name: "acme", BaseURL: "https://app.fizzy.do"})
+		t1, _ := json.Marshal("token1")
+		store.Save("profile:acme", t1)
+
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestFormat(output.FormatStyled)
+		defer resetTest()
+
+		err := authListCmd.RunE(authListCmd, []string{})
+		assertExitCode(t, err, 0)
+
+		raw := TestOutput()
+		if !strings.Contains(raw, "Profile") {
+			t.Fatalf("expected styled table output, got:\n%s", raw)
+		}
+		if !strings.Contains(raw, "Next steps:") {
+			t.Fatalf("expected next steps section, got:\n%s", raw)
 		}
 	})
 }

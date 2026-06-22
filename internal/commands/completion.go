@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/basecamp/cli/output"
+	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -42,6 +43,9 @@ PowerShell:
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if cfgJQ != "" {
+			return errors.ErrJQNotSupported("completion script generation")
+		}
 		var err error
 		switch args[0] {
 		case "bash":

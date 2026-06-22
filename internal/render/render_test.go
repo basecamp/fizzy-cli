@@ -69,6 +69,17 @@ func TestStyledDetailRendersKV(t *testing.T) {
 	}
 }
 
+func TestStyledSummaryIncludesDataWhenPresent(t *testing.T) {
+	data := map[string]any{"id": "42", "name": "Test Board"}
+	result := StyledSummary(data, "Saved")
+	if !strings.Contains(result, "✓ Saved") {
+		t.Errorf("expected summary line, got %q", result)
+	}
+	if !strings.Contains(result, "Test Board") {
+		t.Errorf("expected detail output, got %q", result)
+	}
+}
+
 func TestFormatValue(t *testing.T) {
 	tests := []struct {
 		input    any

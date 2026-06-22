@@ -69,6 +69,14 @@ func globalConfigPaths() []string {
 	}
 }
 
+// GlobalConfigPaths returns the possible global configuration file paths in order of preference.
+func GlobalConfigPaths() []string {
+	paths := globalConfigPaths()
+	out := make([]string, len(paths))
+	copy(out, paths)
+	return out
+}
+
 // findLocalConfig walks up the directory tree looking for .fizzy.yaml
 func findLocalConfig() string {
 	var startDir string

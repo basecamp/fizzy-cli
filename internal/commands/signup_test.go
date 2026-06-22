@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/basecamp/cli/output"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -750,6 +751,98 @@ func TestSignupCompleteRejectsEmptyToken(t *testing.T) {
 
 		if err == nil {
 			t.Error("expected error for empty session token")
+		}
+	})
+}
+
+func TestSignupHumanOutputRedactsSecrets(t *testing.T) {
+	t.Run("signup start hides pending token in styled output", func(t *testing.T) {
+		resetSignupFlags()
+		server := newTestSignupServer(t, testSignupServerOpts{accessToken: "fizzy_test"})
+		defer server.Close()
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		SetTestFormat(output.FormatStyled)
+		SetTestConfig("", "", server.URL)
+		defer ResetTestMode()
+
+		signupStartCmd.Flags().Set("email", "test@example.com")
+		err := signupStartCmd.RunE(signupStartCmd, []string{})
+		assertExitCode(t, err, 0)
+
+		raw := TestOutput()
+		if strings.Contains(raw, "signed-pending-token-value") {
+			t.Fatalf("expected styled output to hide pending token, got:\n%s", raw)
+		}
+		if !strings.Contains(raw, "Magic link sent. Check your email for a 6-digit code.") {
+			t.Fatalf("expected styled output to include summary, got:\n%s", raw)
+		}
+		if !strings.Contains(raw, "TEST01") {
+			t.Fatalf("expected styled output to include non-secret dev code, got:\n%s", raw)
+		}
+		if !strings.Contains(raw, "Next steps:") {
+			t.Fatalf("expected styled output to include breadcrumbs, got:\n%s", raw)
+		}
+	})
+
+	t.Run("signup verify hides session token in styled output", func(t *testing.T) {
+		resetSignupFlags()
+		server := newTestSignupServer(t, testSignupServerOpts{
+			requiresCompletion: false,
+			accessToken:        "fizzy_test",
+		})
+		defer server.Close()
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		SetTestFormat(output.FormatStyled)
+		SetTestConfig("", "", server.URL)
+		defer ResetTestMode()
+
+		signupVerifyCmd.Flags().Set("code", "VALID1")
+		signupVerifyCmd.Flags().Set("pending-token", "signed-pending-token-value")
+		err := signupVerifyCmd.RunE(signupVerifyCmd, []string{})
+		assertExitCode(t, err, 0)
+
+		raw := TestOutput()
+		if strings.Contains(raw, "signed-session-token-value") {
+			t.Fatalf("expected styled output to hide session token, got:\n%s", raw)
+		}
+		if !strings.Contains(raw, "requires_signup_completion") {
+			t.Fatalf("expected styled output to retain non-secret fields, got:\n%s", raw)
+		}
+	})
+
+	t.Run("signup complete hides access token in styled output", func(t *testing.T) {
+		resetSignupFlags()
+		server := newTestSignupServer(t, testSignupServerOpts{
+			accessToken: "fizzy_generated_token",
+		})
+		defer server.Close()
+
+		config.SetTestConfigDir(t.TempDir())
+		defer config.ResetTestConfigDir()
+
+		mock := NewMockClient()
+		SetTestMode(mock)
+		SetTestFormat(output.FormatStyled)
+		SetTestConfig("", "", server.URL)
+		defer ResetTestMode()
+
+		restoreStdin := pipeSessionToken("signed-session-token-value")
+		defer restoreStdin()
+
+		signupCompleteCmd.Flags().Set("account", "123456")
+		err := signupCompleteCmd.RunE(signupCompleteCmd, []string{})
+		assertExitCode(t, err, 0)
+
+		raw := TestOutput()
+		if strings.Contains(raw, "fizzy_generated_token") {
+			t.Fatalf("expected styled output to hide generated token, got:\n%s", raw)
+		}
+		if !strings.Contains(raw, "123456") {
+			t.Fatalf("expected styled output to retain account, got:\n%s", raw)
 		}
 	})
 }

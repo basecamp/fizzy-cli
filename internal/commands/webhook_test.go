@@ -18,9 +18,9 @@ func TestWebhookList(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookListBoard = "board-1"
 		err := webhookListCmd.RunE(webhookListCmd, []string{})
@@ -31,18 +31,18 @@ func TestWebhookList(t *testing.T) {
 			t.Error("expected success response")
 		}
 		if len(mock.GetWithPaginationCalls) != 1 {
-			t.Errorf("expected 1 GetWithPagination call, got %d", len(mock.GetWithPaginationCalls))
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetWithPaginationCalls))
 		}
-		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks.json" {
-			t.Errorf("expected path '/boards/board-1/webhooks.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/boards/board-1/webhooks.json" {
+			t.Errorf("expected path '/boards/board-1/webhooks.json', got '%s'", got)
 		}
 	})
 
 	t.Run("requires board", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookListBoard = ""
 		err := webhookListCmd.RunE(webhookListCmd, []string{})
@@ -52,9 +52,9 @@ func TestWebhookList(t *testing.T) {
 
 	t.Run("requires authentication", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookListBoard = "board-1"
 		err := webhookListCmd.RunE(webhookListCmd, []string{})
@@ -70,9 +70,9 @@ func TestWebhookList(t *testing.T) {
 			Data:       []any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookListBoard = "board-1"
 		webhookListPage = 3
@@ -81,9 +81,111 @@ func TestWebhookList(t *testing.T) {
 		webhookListPage = 0
 
 		assertExitCode(t, err, 0)
-		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks.json?page=3" {
-			t.Errorf("expected path with page=3, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/boards/board-1/webhooks.json?page=3" {
+			t.Errorf("expected path with page=3, got '%s'", got)
 		}
+	})
+
+	t.Run("--all honors --page as the start page", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookListBoard = "board-1"
+		webhookListPage = 2
+		webhookListAll = true
+		err := webhookListCmd.RunE(webhookListCmd, []string{})
+		webhookListBoard = ""
+		webhookListPage = 0
+		webhookListAll = false
+
+		assertExitCode(t, err, 0)
+		if got := mock.GetWithPaginationCalls[0].Path; got != "/boards/board-1/webhooks.json?page=2" {
+			t.Errorf("expected --all to start from --page=2, got '%s'", got)
+		}
+	})
+}
+
+func TestWebhookDeliveries(t *testing.T) {
+	t.Run("lists webhook deliveries", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "wd-1", "state": "ok", "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:01Z"},
+			},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookDeliveriesBoard = "board-1"
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		webhookDeliveriesBoard = ""
+		webhookDeliveriesPage = 0
+		webhookDeliveriesAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks/wh-1/deliveries.json" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1/deliveries.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("handles page", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookDeliveriesBoard = "board-1"
+		webhookDeliveriesPage = 2
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		webhookDeliveriesBoard = ""
+		webhookDeliveriesPage = 0
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks/wh-1/deliveries.json?page=2" {
+			t.Errorf("expected path with page=2, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("handles all", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{map[string]any{"id": "wd-1"}}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		webhookDeliveriesBoard = "board-1"
+		webhookDeliveriesAll = true
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		webhookDeliveriesBoard = ""
+		webhookDeliveriesAll = false
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/boards/board-1/webhooks/wh-1/deliveries.json" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1/deliveries.json', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("requires board", func(t *testing.T) {
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		err := webhookDeliveriesCmd.RunE(webhookDeliveriesCmd, []string{"wh-1"})
+		assertExitCode(t, err, errors.ExitInvalidArgs)
 	})
 }
 
@@ -101,9 +203,9 @@ func TestWebhookShow(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookShowBoard = "board-1"
 		err := webhookShowCmd.RunE(webhookShowCmd, []string{"wh-1"})
@@ -113,8 +215,11 @@ func TestWebhookShow(t *testing.T) {
 		if !result.Response.OK {
 			t.Error("expected success response")
 		}
-		if mock.GetCalls[0].Path != "/boards/board-1/webhooks/wh-1.json" {
-			t.Errorf("expected path '/boards/board-1/webhooks/wh-1.json', got '%s'", mock.GetCalls[0].Path)
+		if len(mock.GetCalls) != 1 {
+			t.Fatalf("expected 1 GET call, got %d", len(mock.GetCalls))
+		}
+		if got := mock.GetCalls[0].Path; got != "/boards/board-1/webhooks/wh-1" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1', got '%s'", got)
 		}
 	})
 
@@ -122,9 +227,9 @@ func TestWebhookShow(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetError = errors.NewNotFoundError("Webhook not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookShowBoard = "board-1"
 		err := webhookShowCmd.RunE(webhookShowCmd, []string{"bad-id"})
@@ -139,11 +244,7 @@ func TestWebhookCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/boards/board-1/webhooks/wh-new",
-			Data:       map[string]any{"id": "wh-new"},
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
+			Location:   "/boards/board-1/webhooks/wh-new",
 			Data: map[string]any{
 				"id":          "wh-new",
 				"name":        "My Hook",
@@ -152,9 +253,9 @@ func TestWebhookCreate(t *testing.T) {
 			},
 		}
 
-		result := SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookCreateBoard = "board-1"
 		webhookCreateName = "My Hook"
@@ -173,12 +274,14 @@ func TestWebhookCreate(t *testing.T) {
 		}
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		webhookParams := body["webhook"].(map[string]any)
-		if webhookParams["name"] != "My Hook" {
-			t.Errorf("expected name 'My Hook', got '%v'", webhookParams["name"])
+		if body["name"] != "My Hook" {
+			t.Errorf("expected name 'My Hook', got '%v'", body["name"])
 		}
-		if webhookParams["url"] != "https://example.com/hook" {
-			t.Errorf("expected url 'https://example.com/hook', got '%v'", webhookParams["url"])
+		if body["url"] != "https://example.com/hook" {
+			t.Errorf("expected url 'https://example.com/hook', got '%v'", body["url"])
+		}
+		if got := result.Response.Context["location"]; got != "/boards/board-1/webhooks/wh-new" {
+			t.Errorf("expected location context, got %v", got)
 		}
 	})
 
@@ -186,16 +289,12 @@ func TestWebhookCreate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PostResponse = &client.APIResponse{
 			StatusCode: 201,
-			Location:   "https://api.example.com/boards/board-1/webhooks/wh-new",
-		}
-		mock.FollowLocationResponse = &client.APIResponse{
-			StatusCode: 200,
 			Data:       map[string]any{"id": "wh-new"},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookCreateBoard = "board-1"
 		webhookCreateName = "My Hook"
@@ -210,8 +309,10 @@ func TestWebhookCreate(t *testing.T) {
 		assertExitCode(t, err, 0)
 
 		body := mock.PostCalls[0].Body.(map[string]any)
-		webhookParams := body["webhook"].(map[string]any)
-		actions := webhookParams["subscribed_actions"].([]string)
+		actions, ok := body["subscribed_actions"].([]any)
+		if !ok {
+			t.Fatalf("expected subscribed_actions []any, got %T", body["subscribed_actions"])
+		}
 		if len(actions) != 2 || actions[0] != "card_published" || actions[1] != "card_closed" {
 			t.Errorf("expected actions [card_published, card_closed], got %v", actions)
 		}
@@ -219,9 +320,9 @@ func TestWebhookCreate(t *testing.T) {
 
 	t.Run("requires name flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookCreateBoard = "board-1"
 		webhookCreateName = ""
@@ -235,9 +336,9 @@ func TestWebhookCreate(t *testing.T) {
 
 	t.Run("requires url flag", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookCreateBoard = "board-1"
 		webhookCreateName = "My Hook"
@@ -261,9 +362,9 @@ func TestWebhookUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookUpdateBoard = "board-1"
 		webhookUpdateName = "Updated Name"
@@ -272,14 +373,13 @@ func TestWebhookUpdate(t *testing.T) {
 		webhookUpdateName = ""
 
 		assertExitCode(t, err, 0)
-		if mock.PatchCalls[0].Path != "/boards/board-1/webhooks/wh-1.json" {
-			t.Errorf("expected path '/boards/board-1/webhooks/wh-1.json', got '%s'", mock.PatchCalls[0].Path)
+		if mock.PatchCalls[0].Path != "/boards/board-1/webhooks/wh-1" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1', got '%s'", mock.PatchCalls[0].Path)
 		}
 
 		body := mock.PatchCalls[0].Body.(map[string]any)
-		webhookParams := body["webhook"].(map[string]any)
-		if webhookParams["name"] != "Updated Name" {
-			t.Errorf("expected name 'Updated Name', got '%v'", webhookParams["name"])
+		if body["name"] != "Updated Name" {
+			t.Errorf("expected name 'Updated Name', got '%v'", body["name"])
 		}
 	})
 
@@ -290,9 +390,9 @@ func TestWebhookUpdate(t *testing.T) {
 			Data:       map[string]any{"id": "wh-1"},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookUpdateBoard = "board-1"
 		webhookUpdateActions = []string{"card_closed"}
@@ -303,8 +403,10 @@ func TestWebhookUpdate(t *testing.T) {
 		assertExitCode(t, err, 0)
 
 		body := mock.PatchCalls[0].Body.(map[string]any)
-		webhookParams := body["webhook"].(map[string]any)
-		actions := webhookParams["subscribed_actions"].([]string)
+		actions, ok := body["subscribed_actions"].([]any)
+		if !ok {
+			t.Fatalf("expected subscribed_actions []any, got %T", body["subscribed_actions"])
+		}
 		if len(actions) != 1 || actions[0] != "card_closed" {
 			t.Errorf("expected actions [card_closed], got %v", actions)
 		}
@@ -314,9 +416,9 @@ func TestWebhookUpdate(t *testing.T) {
 		mock := NewMockClient()
 		mock.PatchError = errors.NewValidationError("Invalid webhook")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookUpdateBoard = "board-1"
 		webhookUpdateName = "Test"
@@ -336,17 +438,17 @@ func TestWebhookDelete(t *testing.T) {
 			Data:       map[string]any{},
 		}
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookDeleteBoard = "board-1"
 		err := webhookDeleteCmd.RunE(webhookDeleteCmd, []string{"wh-1"})
 		webhookDeleteBoard = ""
 
 		assertExitCode(t, err, 0)
-		if mock.DeleteCalls[0].Path != "/boards/board-1/webhooks/wh-1.json" {
-			t.Errorf("expected path '/boards/board-1/webhooks/wh-1.json', got '%s'", mock.DeleteCalls[0].Path)
+		if mock.DeleteCalls[0].Path != "/boards/board-1/webhooks/wh-1" {
+			t.Errorf("expected path '/boards/board-1/webhooks/wh-1', got '%s'", mock.DeleteCalls[0].Path)
 		}
 	})
 
@@ -354,9 +456,9 @@ func TestWebhookDelete(t *testing.T) {
 		mock := NewMockClient()
 		mock.DeleteError = errors.NewNotFoundError("Webhook not found")
 
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookDeleteBoard = "board-1"
 		err := webhookDeleteCmd.RunE(webhookDeleteCmd, []string{"bad-id"})
@@ -377,9 +479,9 @@ func TestWebhookReactivate(t *testing.T) {
 			},
 		}
 
-		SetTestMode(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookReactivateBoard = "board-1"
 		err := webhookReactivateCmd.RunE(webhookReactivateCmd, []string{"wh-1"})
@@ -389,13 +491,20 @@ func TestWebhookReactivate(t *testing.T) {
 		if mock.PostCalls[0].Path != "/boards/board-1/webhooks/wh-1/activation.json" {
 			t.Errorf("expected path '/boards/board-1/webhooks/wh-1/activation.json', got '%s'", mock.PostCalls[0].Path)
 		}
+		data, ok := result.Response.Data.(map[string]any)
+		if !ok {
+			t.Fatalf("expected response data map, got %T", result.Response.Data)
+		}
+		if data["id"] != "wh-1" || data["active"] != true {
+			t.Fatalf("expected activated webhook data, got %#v", data)
+		}
 	})
 
 	t.Run("requires board", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestMode(mock)
+		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		defer ResetTestMode()
+		defer resetTest()
 
 		webhookReactivateBoard = ""
 		err := webhookReactivateCmd.RunE(webhookReactivateCmd, []string{"wh-1"})

@@ -120,6 +120,18 @@ func LoadConfig() *Config {
 	}
 }
 
+// MissingVars returns names of any required env vars that are not set.
+func (c *Config) MissingVars() []string {
+	var missing []string
+	if c.Token == "" {
+		missing = append(missing, "FIZZY_TEST_TOKEN")
+	}
+	if c.Account == "" {
+		missing = append(missing, "FIZZY_TEST_ACCOUNT")
+	}
+	return missing
+}
+
 func getEnvOrDefault(key, defaultValue string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -235,9 +247,9 @@ func (h *Harness) RunWithoutAuth(args ...string) *Result {
 
 // buildArgs builds the full argument list with global options.
 func (h *Harness) buildArgs(args ...string) []string {
-	globalArgs := []string{
-		"--token", h.Token,
-		"--api-url", h.APIURL,
+	globalArgs := []string{"--api-url", h.APIURL}
+	if h.Token != "" {
+		globalArgs = append(globalArgs, "--token", h.Token)
 	}
 	// Append global args after the command args
 	return append(args, globalArgs...)
@@ -248,8 +260,13 @@ func (h *Harness) buildArgs(args ...string) []string {
 func (h *Harness) globalEnv() map[string]string {
 	return map[string]string{
 		"FIZZY_PROFILE":    h.Account,
+		"FIZZY_ACCOUNT":    "",
+		"FIZZY_TOKEN":      "",
 		"FIZZY_NO_KEYRING": "1",
 		"HOME":             h.configHome,
+		"XDG_CONFIG_HOME":  filepath.Join(h.configHome, "config"),
+		"XDG_DATA_HOME":    filepath.Join(h.configHome, "data"),
+		"XDG_STATE_HOME":   filepath.Join(h.configHome, "state"),
 	}
 }
 

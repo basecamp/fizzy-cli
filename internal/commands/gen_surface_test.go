@@ -18,6 +18,7 @@ func TestGenerateSurfaceSnapshot(t *testing.T) {
 		t.Skip("set GENERATE_SURFACE=1 to regenerate SURFACE.txt")
 	}
 
+	configureCLIUX()
 	initAllHelpFlags(rootCmd)
 	snapshot := surface.SnapshotString(rootCmd) + "\n"
 

@@ -57,12 +57,12 @@ func resetTest() {
 // mockHandler creates an http.Handler that delegates to a MockClient.
 func mockHandler(mock *MockClient) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Strip account prefix: /test-account/path -> /path
+		// Strip account prefix for account-scoped SDK paths: /<account>/path -> /path
 		path := r.URL.Path
-		if strings.HasPrefix(path, "/test-account") {
-			path = strings.TrimPrefix(path, "/test-account")
-			if path == "" {
-				path = "/"
+		if parts := strings.Split(strings.TrimPrefix(path, "/"), "/"); len(parts) > 1 {
+			first := parts[0]
+			if first != "my" && first != "signup" {
+				path = "/" + strings.Join(parts[1:], "/")
 			}
 		}
 

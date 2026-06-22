@@ -1,6 +1,7 @@
 # Build artifacts
 bin/
 /fizzy
+/fizzy-fork
 *.exe
 *.exe~
 *.dll
@@ -32,3 +33,6 @@ completions/
 # Profiling
 profiles/
 default.pgo
+
+# Local test credentials
+.env.test

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -17,7 +18,23 @@ func Execute(binaryPath string, args []string, env map[string]string) *Result {
 	cmd.Stderr = &stderr
 
 	// Set up environment
-	cmd.Env = os.Environ()
+	baseEnv := os.Environ()
+	if len(env) > 0 {
+		overrides := make(map[string]struct{}, len(env))
+		for k := range env {
+			overrides[k] = struct{}{}
+		}
+		filtered := baseEnv[:0]
+		for _, entry := range baseEnv {
+			key, _, _ := strings.Cut(entry, "=")
+			if _, ok := overrides[key]; ok {
+				continue
+			}
+			filtered = append(filtered, entry)
+		}
+		baseEnv = filtered
+	}
+	cmd.Env = append([]string(nil), baseEnv...)
 	for k, v := range env {
 		cmd.Env = append(cmd.Env, k+"="+v)
 	}

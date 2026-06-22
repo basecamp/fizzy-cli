@@ -1,6 +1,8 @@
 package errors
 
 import (
+	stderrors "errors"
+	"fmt"
 	"testing"
 
 	"github.com/basecamp/cli/output"
@@ -178,6 +180,99 @@ func TestNewInvalidArgsError(t *testing.T) {
 	}
 	if err.ExitCode() != ExitUsage {
 		t.Errorf("expected exit code %d, got %d", ExitUsage, err.ExitCode())
+	}
+}
+
+// =============================================================================
+// JQ Error Constructor Tests
+// =============================================================================
+
+func TestErrJQValidation(t *testing.T) {
+	cause := fmt.Errorf("unexpected token")
+	err := ErrJQValidation(cause)
+
+	if err.Code != output.CodeUsage {
+		t.Errorf("expected code %q, got %q", output.CodeUsage, err.Code)
+	}
+	if err.Message != "invalid --jq expression: unexpected token" {
+		t.Errorf("unexpected message: %q", err.Message)
+	}
+	if !IsJQError(err) {
+		t.Error("expected IsJQError to be true")
+	}
+}
+
+func TestErrJQNotSupported(t *testing.T) {
+	err := ErrJQNotSupported("the version command")
+
+	if err.Code != output.CodeUsage {
+		t.Errorf("expected code %q, got %q", output.CodeUsage, err.Code)
+	}
+	if err.Message != "--jq is not supported by the version command" {
+		t.Errorf("unexpected message: %q", err.Message)
+	}
+	if !IsJQError(err) {
+		t.Error("expected IsJQError to be true")
+	}
+}
+
+func TestErrJQConflict(t *testing.T) {
+	err := ErrJQConflict("--ids-only")
+
+	if err.Code != output.CodeUsage {
+		t.Errorf("expected code %q, got %q", output.CodeUsage, err.Code)
+	}
+	if err.Message != "cannot use --jq with --ids-only" {
+		t.Errorf("unexpected message: %q", err.Message)
+	}
+	if !IsJQError(err) {
+		t.Error("expected IsJQError to be true")
+	}
+}
+
+func TestErrJQRuntime(t *testing.T) {
+	cause := fmt.Errorf("division by zero")
+	err := ErrJQRuntime(cause)
+
+	if err.Code != output.CodeUsage {
+		t.Errorf("expected code %q, got %q", output.CodeUsage, err.Code)
+	}
+	if err.Message != "jq filter error: division by zero" {
+		t.Errorf("unexpected message: %q", err.Message)
+	}
+	if !IsJQError(err) {
+		t.Error("expected IsJQError to be true")
+	}
+}
+
+func TestIsJQErrorFalseForNonJQError(t *testing.T) {
+	if IsJQError(NewInvalidArgsError("plain error")) {
+		t.Error("expected false for non-jq usage error")
+	}
+	if IsJQError(stderrors.New("random error")) {
+		t.Error("expected false for random error")
+	}
+	if IsJQError(NewNotFoundError("project not found")) {
+		t.Error("expected false for not-found error")
+	}
+}
+
+func TestJQErrorExitCodes(t *testing.T) {
+	tests := []struct {
+		name string
+		err  *CLIError
+	}{
+		{"validation", ErrJQValidation(fmt.Errorf("test"))},
+		{"not_supported", ErrJQNotSupported("test")},
+		{"conflict", ErrJQConflict("--test")},
+		{"runtime", ErrJQRuntime(fmt.Errorf("test"))},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.err.ExitCode() != ExitUsage {
+				t.Errorf("expected exit code %d, got %d", ExitUsage, tt.err.ExitCode())
+			}
+		})
 	}
 }
 

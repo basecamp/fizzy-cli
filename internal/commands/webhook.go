@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/basecamp/fizzy-sdk/go/pkg/generated"
 	"github.com/spf13/cobra"
 )
 
@@ -49,21 +50,43 @@ var webhookListCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		path := fmt.Sprintf("/boards/%s/webhooks.json", boardID)
-		if webhookListPage > 0 {
-			path += fmt.Sprintf("?page=%d", webhookListPage)
+		ac := getSDK()
+		var items any
+		var linkNext string
+
+		switch {
+		case webhookListAll:
+			path := fmt.Sprintf("/boards/%s/webhooks.json", boardID)
+			if webhookListPage > 0 {
+				path += fmt.Sprintf("?page=%d", webhookListPage)
+			}
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		case webhookListPage > 0:
+			path := fmt.Sprintf("/boards/%s/webhooks.json?page=%d", boardID, webhookListPage)
+			resp, err := ac.Get(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			var list []map[string]any
+			if err := resp.UnmarshalData(&list); err != nil {
+				return convertSDKError(err)
+			}
+			items = toSliceAny(list)
+			linkNext = parseSDKLinkNext(resp)
+		default:
+			data, resp, err := ac.Webhooks().List(cmd.Context(), boardID)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
 		}
 
-		resp, err := client.GetWithPagination(path, webhookListAll)
-		if err != nil {
-			return err
-		}
-
-		count := 0
-		if arr, ok := resp.Data.([]any); ok {
-			count = len(arr)
-		}
+		count := dataCount(items)
 		summary := fmt.Sprintf("%d webhooks", count)
 		if webhookListAll {
 			summary += " (all)"
@@ -76,7 +99,7 @@ var webhookListCmd = &cobra.Command{
 			breadcrumb("create", fmt.Sprintf("fizzy webhook create --board %s --name \"name\" --url \"url\"", boardID), "Create webhook"),
 		}
 
-		hasNext := resp.LinkNext != ""
+		hasNext := linkNext != ""
 		if hasNext {
 			nextPage := webhookListPage + 1
 			if webhookListPage == 0 {
@@ -85,7 +108,82 @@ var webhookListCmd = &cobra.Command{
 			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy webhook list --board %s --page %d", boardID, nextPage), "Next page"))
 		}
 
-		printListPaginated(resp.Data, webhookColumns, hasNext, resp.LinkNext, webhookListAll, summary, breadcrumbs)
+		printListPaginated(items, webhookColumns, hasNext, linkNext, webhookListAll, summary, breadcrumbs)
+		return nil
+	},
+}
+
+// Webhook deliveries flags
+var webhookDeliveriesBoard string
+var webhookDeliveriesPage int
+var webhookDeliveriesAll bool
+
+var webhookDeliveriesCmd = &cobra.Command{
+	Use:   "deliveries WEBHOOK_ID",
+	Short: "List webhook deliveries",
+	Long:  "Lists deliveries for a webhook.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+		if err := checkLimitAll(webhookDeliveriesAll); err != nil {
+			return err
+		}
+
+		boardID, err := requireBoard(webhookDeliveriesBoard)
+		if err != nil {
+			return err
+		}
+
+		webhookID := args[0]
+		ac := getSDK()
+		path := fmt.Sprintf("/boards/%s/webhooks/%s/deliveries.json", boardID, webhookID)
+		if webhookDeliveriesPage > 0 {
+			path += fmt.Sprintf("?page=%d", webhookDeliveriesPage)
+		}
+
+		var items any
+		var linkNext string
+
+		if webhookDeliveriesAll {
+			pages, err := ac.GetAll(cmd.Context(), path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = jsonAnySlice(pages)
+		} else {
+			data, resp, err := ac.Webhooks().ListWebhookDeliveries(cmd.Context(), boardID, webhookID, path)
+			if err != nil {
+				return convertSDKError(err)
+			}
+			items = normalizeAny(data)
+			linkNext = parseSDKLinkNext(resp)
+		}
+
+		count := dataCount(items)
+		summary := fmt.Sprintf("%d webhook deliveries", count)
+		if webhookDeliveriesAll {
+			summary += " (all)"
+		} else if webhookDeliveriesPage > 0 {
+			summary += fmt.Sprintf(" (page %d)", webhookDeliveriesPage)
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("webhook", fmt.Sprintf("fizzy webhook show --board %s %s", boardID, webhookID), "View webhook"),
+			breadcrumb("webhooks", fmt.Sprintf("fizzy webhook list --board %s", boardID), "List webhooks"),
+		}
+
+		hasNext := linkNext != ""
+		if hasNext {
+			nextPage := webhookDeliveriesPage + 1
+			if webhookDeliveriesPage == 0 {
+				nextPage = 2
+			}
+			breadcrumbs = append(breadcrumbs, breadcrumb("next", fmt.Sprintf("fizzy webhook deliveries --board %s %s --page %d", boardID, webhookID, nextPage), "Next page"))
+		}
+
+		printListPaginated(items, webhookDeliveryColumns, hasNext, linkNext, webhookDeliveriesAll, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -110,15 +208,17 @@ var webhookShowCmd = &cobra.Command{
 
 		webhookID := args[0]
 
-		client := getClient()
-		resp, err := client.Get(fmt.Sprintf("/boards/%s/webhooks/%s.json", boardID, webhookID))
+		ac := getSDK()
+		raw, _, err := ac.Webhooks().Get(cmd.Context(), boardID, webhookID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
+		data := normalizeAny(raw)
+
 		summary := "Webhook"
-		if wh, ok := resp.Data.(map[string]any); ok {
-			if name, ok := wh["name"].(string); ok {
+		if wh, ok := data.(map[string]any); ok {
+			if name, ok := wh["name"].(string); ok && name != "" {
 				summary = fmt.Sprintf("Webhook: %s", name)
 			}
 		}
@@ -129,7 +229,7 @@ var webhookShowCmd = &cobra.Command{
 			breadcrumb("reactivate", fmt.Sprintf("fizzy webhook reactivate --board %s %s", boardID, webhookID), "Reactivate webhook"),
 		}
 
-		printDetail(resp.Data, summary, breadcrumbs)
+		printDetail(data, summary, breadcrumbs)
 		return nil
 	},
 }
@@ -161,51 +261,37 @@ var webhookCreateCmd = &cobra.Command{
 			return newRequiredFlagError("url")
 		}
 
-		webhookParams := map[string]any{
-			"name": webhookCreateName,
-			"url":  webhookCreateURL,
+		ac := getSDK()
+		req := &generated.CreateWebhookRequest{
+			Name:              webhookCreateName,
+			Url:               webhookCreateURL,
+			SubscribedActions: webhookCreateActions,
 		}
 
-		if len(webhookCreateActions) > 0 {
-			webhookParams["subscribed_actions"] = webhookCreateActions
-		}
-
-		body := map[string]any{
-			"webhook": webhookParams,
-		}
-
-		client := getClient()
-		resp, err := client.Post(fmt.Sprintf("/boards/%s/webhooks.json", boardID), body)
+		raw, resp, err := ac.Webhooks().Create(cmd.Context(), boardID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
-		if resp.Location != "" {
-			followResp, err := client.FollowLocation(resp.Location)
-			if err == nil && followResp != nil {
-				webhookID := ""
-				if wh, ok := followResp.Data.(map[string]any); ok {
-					if id, ok := wh["id"].(string); ok {
-						webhookID = id
-					}
-				}
+		data := normalizeAny(raw)
+		webhookID := ""
+		if wh, ok := data.(map[string]any); ok {
+			webhookID = getStringField(wh, "id")
+		}
 
-				var breadcrumbs []Breadcrumb
-				if webhookID != "" {
-					breadcrumbs = []Breadcrumb{
-						breadcrumb("show", fmt.Sprintf("fizzy webhook show --board %s %s", boardID, webhookID), "View webhook"),
-						breadcrumb("update", fmt.Sprintf("fizzy webhook update --board %s %s --name \"name\"", boardID, webhookID), "Update webhook"),
-					}
-				}
-
-				printMutationWithLocation(followResp.Data, resp.Location, breadcrumbs)
-				return nil
+		var breadcrumbs []Breadcrumb
+		if webhookID != "" {
+			breadcrumbs = []Breadcrumb{
+				breadcrumb("show", fmt.Sprintf("fizzy webhook show --board %s %s", boardID, webhookID), "View webhook"),
+				breadcrumb("update", fmt.Sprintf("fizzy webhook update --board %s %s --name \"name\"", boardID, webhookID), "Update webhook"),
 			}
-			printSuccessWithLocation(resp.Location)
-			return nil
 		}
 
-		printSuccess(resp.Data)
+		if location := resp.Headers.Get("Location"); location != "" {
+			printMutationWithLocation(data, location, breadcrumbs)
+		} else {
+			printMutation(data, "", breadcrumbs)
+		}
 		return nil
 	},
 }
@@ -232,23 +318,18 @@ var webhookUpdateCmd = &cobra.Command{
 
 		webhookID := args[0]
 
-		webhookParams := make(map[string]any)
-
+		req := &generated.UpdateWebhookRequest{}
 		if webhookUpdateName != "" {
-			webhookParams["name"] = webhookUpdateName
+			req.Name = webhookUpdateName
 		}
 		if len(webhookUpdateActions) > 0 {
-			webhookParams["subscribed_actions"] = webhookUpdateActions
+			req.SubscribedActions = webhookUpdateActions
 		}
 
-		body := map[string]any{
-			"webhook": webhookParams,
-		}
-
-		client := getClient()
-		resp, err := client.Patch(fmt.Sprintf("/boards/%s/webhooks/%s.json", boardID, webhookID), body)
+		ac := getSDK()
+		raw, _, err := ac.Webhooks().Update(cmd.Context(), boardID, webhookID, req)
 		if err != nil {
-			return err
+			return convertSDKError(err)
 		}
 
 		breadcrumbs := []Breadcrumb{
@@ -256,7 +337,7 @@ var webhookUpdateCmd = &cobra.Command{
 			breadcrumb("delete", fmt.Sprintf("fizzy webhook delete --board %s %s", boardID, webhookID), "Delete webhook"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		printMutation(normalizeAny(raw), "", breadcrumbs)
 		return nil
 	},
 }
@@ -279,10 +360,9 @@ var webhookDeleteCmd = &cobra.Command{
 			return err
 		}
 
-		client := getClient()
-		_, err = client.Delete(fmt.Sprintf("/boards/%s/webhooks/%s.json", boardID, args[0]))
-		if err != nil {
-			return err
+		ac := getSDK()
+		if _, err := ac.Webhooks().Delete(cmd.Context(), boardID, args[0]); err != nil {
+			return convertSDKError(err)
 		}
 
 		breadcrumbs := []Breadcrumb{
@@ -317,10 +397,15 @@ var webhookReactivateCmd = &cobra.Command{
 
 		webhookID := args[0]
 
-		client := getClient()
-		resp, err := client.Post(fmt.Sprintf("/boards/%s/webhooks/%s/activation.json", boardID, webhookID), nil)
+		ac := getSDK()
+		resp, err := ac.Webhooks().Activate(cmd.Context(), boardID, webhookID)
 		if err != nil {
-			return err
+			return convertSDKError(err)
+		}
+
+		data := normalizeAny(resp.Data)
+		if data == nil {
+			data = map[string]any{"id": webhookID, "active": true}
 		}
 
 		breadcrumbs := []Breadcrumb{
@@ -328,7 +413,7 @@ var webhookReactivateCmd = &cobra.Command{
 			breadcrumb("webhooks", fmt.Sprintf("fizzy webhook list --board %s", boardID), "List webhooks"),
 		}
 
-		printMutation(resp.Data, "", breadcrumbs)
+		printMutation(data, "", breadcrumbs)
 		return nil
 	},
 }
@@ -341,6 +426,12 @@ func init() {
 	webhookListCmd.Flags().IntVar(&webhookListPage, "page", 0, "Page number")
 	webhookListCmd.Flags().BoolVar(&webhookListAll, "all", false, "Fetch all pages")
 	webhookCmd.AddCommand(webhookListCmd)
+
+	// Deliveries
+	webhookDeliveriesCmd.Flags().StringVar(&webhookDeliveriesBoard, "board", "", "Board ID (required)")
+	webhookDeliveriesCmd.Flags().IntVar(&webhookDeliveriesPage, "page", 0, "Page number")
+	webhookDeliveriesCmd.Flags().BoolVar(&webhookDeliveriesAll, "all", false, "Fetch all pages")
+	webhookCmd.AddCommand(webhookDeliveriesCmd)
 
 	// Show
 	webhookShowCmd.Flags().StringVar(&webhookShowBoard, "board", "", "Board ID (required)")

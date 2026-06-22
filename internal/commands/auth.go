@@ -237,7 +237,7 @@ var authListCmd = &cobra.Command{
 				breadcrumb("login", "fizzy auth login <token>", "Log in"),
 				breadcrumb("signup", "fizzy signup", "Sign up"),
 			}
-			printSuccessWithBreadcrumbs([]any{}, "No profiles configured", breadcrumbs)
+			printList([]any{}, authProfileColumns, "No profiles configured", breadcrumbs)
 			return nil
 		}
 
@@ -247,7 +247,7 @@ var authListCmd = &cobra.Command{
 				breadcrumb("login", "fizzy auth login <token>", "Log in"),
 				breadcrumb("signup", "fizzy signup", "Sign up"),
 			}
-			printSuccessWithBreadcrumbs([]any{}, "No profiles configured", breadcrumbs)
+			printList([]any{}, authProfileColumns, "No profiles configured", breadcrumbs)
 			return nil
 		}
 
@@ -282,7 +282,7 @@ var authListCmd = &cobra.Command{
 			breadcrumb("switch", "fizzy auth switch <profile>", "Switch profile"),
 		}
 
-		printSuccessWithBreadcrumbs(entries, fmt.Sprintf("%d profile(s)", len(entries)), breadcrumbs)
+		printList(entries, authProfileColumns, fmt.Sprintf("%d profile(s)", len(entries)), breadcrumbs)
 		return nil
 	},
 }

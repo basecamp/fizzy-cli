@@ -13,8 +13,8 @@ func TestColumnList(t *testing.T) {
 		mock.OnGet("/boards/123/columns.json", &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
-				map[string]any{"id": "1", "name": "To Do"},
-				map[string]any{"id": "2", "name": "In Progress"},
+				map[string]any{"id": "1", "name": "To Do", "color": map[string]any{"name": "Blue", "value": "var(--color-card-1)"}},
+				map[string]any{"id": "2", "name": "In Progress", "color": map[string]any{"name": "Green", "value": "var(--color-card-2)"}},
 			},
 		})
 
@@ -99,8 +99,9 @@ func TestColumnShow(t *testing.T) {
 		mock.GetResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: map[string]any{
-				"id":   "col-1",
-				"name": "In Progress",
+				"id":    "col-1",
+				"name":  "In Progress",
+				"color": map[string]any{"name": "Blue", "value": "var(--color-card-1)"},
 			},
 		}
 
@@ -263,7 +264,7 @@ func TestColumnUpdate(t *testing.T) {
 			},
 		}
 
-		SetTestModeWithSDK(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
@@ -280,6 +281,13 @@ func TestColumnUpdate(t *testing.T) {
 		}
 		if mock.PatchCalls[0].Path != "/boards/123/columns/col-1" {
 			t.Errorf("expected path '/boards/123/columns/col-1', got '%s'", mock.PatchCalls[0].Path)
+		}
+		data := responseDataMap(t, result)
+		if got := data["name"]; got != "Updated Column" {
+			t.Errorf("expected update response body name, got %#v", got)
+		}
+		if got := data["id"]; got != "col-1" {
+			t.Errorf("expected update response body id, got %#v", got)
 		}
 	})
 

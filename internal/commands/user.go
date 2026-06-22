@@ -272,6 +272,141 @@ var userAvatarRemoveCmd = &cobra.Command{
 	},
 }
 
+var userExportCreateCmd = &cobra.Command{
+	Use:   "export-create USER_ID",
+	Short: "Create a user export",
+	Long:  "Creates a new user data export.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		userID := args[0]
+
+		data, _, err := getSDK().Users().CreateUserDataExport(cmd.Context(), userID)
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		items := normalizeAny(data)
+		exportID := ""
+		if export, ok := items.(map[string]any); ok {
+			if id, ok := export["id"]; ok {
+				exportID = fmt.Sprintf("%v", id)
+			}
+		}
+
+		var breadcrumbs []Breadcrumb
+		if exportID != "" {
+			breadcrumbs = []Breadcrumb{
+				breadcrumb("show", fmt.Sprintf("fizzy user export-show %s %s", userID, exportID), "View export status"),
+				breadcrumb("user", fmt.Sprintf("fizzy user show %s", userID), "View user"),
+			}
+		}
+
+		printMutation(items, "", breadcrumbs)
+		return nil
+	},
+}
+
+var userExportShowCmd = &cobra.Command{
+	Use:   "export-show USER_ID EXPORT_ID",
+	Short: "Show a user export",
+	Long:  "Shows the status of a user data export.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		userID := args[0]
+		exportID := args[1]
+
+		data, _, err := getSDK().Users().GetUserDataExport(cmd.Context(), userID, exportID)
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("user", fmt.Sprintf("fizzy user show %s", userID), "View user"),
+			breadcrumb("export-create", fmt.Sprintf("fizzy user export-create %s", userID), "Create another export"),
+		}
+
+		printDetail(normalizeAny(data), "", breadcrumbs)
+		return nil
+	},
+}
+
+var userEmailChangeRequestEmail string
+
+var userEmailChangeRequestCmd = &cobra.Command{
+	Use:   "email-change-request USER_ID",
+	Short: "Request a user email address change",
+	Long:  "Requests an email address change for a user.",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+		if userEmailChangeRequestEmail == "" {
+			return newRequiredFlagError("email")
+		}
+
+		userID := args[0]
+		resp, err := getSDK().Users().RequestEmailAddressChange(cmd.Context(), userID, &generated.RequestEmailAddressChangeRequest{
+			EmailAddress: userEmailChangeRequestEmail,
+		})
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		data := normalizeAny(resp.Data)
+		if data == nil {
+			data = map[string]any{"requested": true}
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("user", fmt.Sprintf("fizzy user show %s", userID), "View user"),
+		}
+
+		printMutation(data, "", breadcrumbs)
+		return nil
+	},
+}
+
+var userEmailChangeConfirmCmd = &cobra.Command{
+	Use:   "email-change-confirm USER_ID TOKEN",
+	Short: "Confirm a user email address change",
+	Long:  "Confirms an email address change for a user.",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := requireAuthAndAccount(); err != nil {
+			return err
+		}
+
+		userID := args[0]
+		token := args[1]
+
+		resp, err := getSDK().Users().ConfirmEmailAddressChange(cmd.Context(), userID, token)
+		if err != nil {
+			return convertSDKError(err)
+		}
+
+		data := normalizeAny(resp.Data)
+		if data == nil {
+			data = map[string]any{"confirmed": true}
+		}
+
+		breadcrumbs := []Breadcrumb{
+			breadcrumb("user", fmt.Sprintf("fizzy user show %s", userID), "View user"),
+		}
+
+		printMutation(data, "", breadcrumbs)
+		return nil
+	},
+}
+
 // Push subscription create flags
 var pushSubCreateUser string
 var pushSubCreateEndpoint string
@@ -376,6 +511,15 @@ func init() {
 
 	// Avatar remove
 	userCmd.AddCommand(userAvatarRemoveCmd)
+
+	// Exports
+	userCmd.AddCommand(userExportCreateCmd)
+	userCmd.AddCommand(userExportShowCmd)
+
+	// Email change
+	userEmailChangeRequestCmd.Flags().StringVar(&userEmailChangeRequestEmail, "email", "", "New email address (required)")
+	userCmd.AddCommand(userEmailChangeRequestCmd)
+	userCmd.AddCommand(userEmailChangeConfirmCmd)
 
 	// Push subscriptions
 	userPushSubscriptionCreateCmd.Flags().StringVar(&pushSubCreateUser, "user", "", "User ID (required)")

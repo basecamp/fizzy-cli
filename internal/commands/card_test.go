@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/basecamp/fizzy-cli/internal/client"
@@ -87,29 +88,83 @@ func TestCardList(t *testing.T) {
 		}
 	})
 
-	t.Run("requires --all for client-side triage filter", func(t *testing.T) {
+	t.Run("supports legacy pseudo column aliases for listing", func(t *testing.T) {
+		t.Run("not_now", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardListColumn = "not_now"
+			err := cardListCmd.RunE(cardListCmd, []string{})
+			cardListColumn = ""
+
+			assertExitCode(t, err, 0)
+			if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=not_now" {
+				t.Errorf("expected legacy alias to map to indexed_by=not_now, got '%s'", mock.GetWithPaginationCalls[0].Path)
+			}
+		})
+
+		t.Run("triage", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.GetWithPaginationResponse = &client.APIResponse{StatusCode: 200, Data: []any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardListColumn = "triage"
+			err := cardListCmd.RunE(cardListCmd, []string{})
+			cardListColumn = ""
+
+			assertExitCode(t, err, 0)
+			if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=maybe" {
+				t.Errorf("expected legacy alias to map to indexed_by=maybe, got '%s'", mock.GetWithPaginationCalls[0].Path)
+			}
+		})
+	})
+
+	t.Run("filters by real column server-side without client-side filtering", func(t *testing.T) {
 		mock := NewMockClient()
-		SetTestModeWithSDK(mock)
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: []any{
+				map[string]any{"id": "1", "title": "Column 1", "column_id": "col-1"},
+				map[string]any{"id": "2", "title": "Column 2", "column_id": "col-2"},
+			},
+		}
+
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
-		cardListColumn = "maybe"
-		cardListAll = false
-		cardListPage = 0
+		cardListColumn = "col-1"
 		err := cardListCmd.RunE(cardListCmd, []string{})
 		cardListColumn = ""
 
-		assertExitCode(t, err, errors.ExitInvalidArgs)
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?column_ids[]=col-1" {
+			t.Errorf("expected server-side column_ids filter, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+
+		arr, ok := result.Response.Data.([]any)
+		if !ok {
+			t.Fatalf("expected array response data, got %T", result.Response.Data)
+		}
+		if len(arr) != 2 {
+			t.Fatalf("expected server response to remain unfiltered client-side, got %d cards", len(arr))
+		}
 	})
 
-	t.Run("filters triage client-side with --all", func(t *testing.T) {
+	t.Run("filters by pseudo column maybe server-side without all", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
 			Data: []any{
 				map[string]any{"id": "1", "title": "Triage", "column": nil},
-				map[string]any{"id": "2", "title": "In Column", "column": map[string]any{"id": "col-1"}},
-				map[string]any{"id": "3", "title": "In Column 2", "column_id": "col-2"},
+				map[string]any{"id": "2", "title": "Unexpected extra", "column_id": "col-1"},
 			},
 		}
 
@@ -118,26 +173,20 @@ func TestCardList(t *testing.T) {
 		defer resetTest()
 
 		cardListColumn = "maybe"
-		cardListAll = true
 		err := cardListCmd.RunE(cardListCmd, []string{})
 		cardListColumn = ""
-		cardListAll = false
 
 		assertExitCode(t, err, 0)
-
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=maybe" {
+			t.Errorf("expected server-side maybe filter, got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
+
 		arr, ok := result.Response.Data.([]any)
 		if !ok {
 			t.Fatalf("expected array response data, got %T", result.Response.Data)
 		}
-		if len(arr) != 1 {
-			t.Fatalf("expected 1 triage card, got %d", len(arr))
-		}
-		card := arr[0].(map[string]any)
-		if card["id"] != "1" {
-			t.Errorf("expected triage card id '1', got '%v'", card["id"])
+		if len(arr) != 2 {
+			t.Fatalf("expected server response to remain unfiltered client-side, got %d cards", len(arr))
 		}
 	})
 
@@ -331,6 +380,35 @@ func TestCardList(t *testing.T) {
 			t.Errorf("expected path '%s', got '%s'", expected, path)
 		}
 	})
+
+	t.Run("combines column with other filters without changing command shape", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardListBoard = "123"
+		cardListColumn = "col-1"
+		cardListTag = "tag-1"
+		cardListAssignee = "user-1"
+		err := cardListCmd.RunE(cardListCmd, []string{})
+		cardListBoard = ""
+		cardListColumn = ""
+		cardListTag = ""
+		cardListAssignee = ""
+
+		assertExitCode(t, err, 0)
+		path := mock.GetWithPaginationCalls[0].Path
+		expected := "/cards.json?board_ids[]=123&column_ids[]=col-1&tag_ids[]=tag-1&assignee_ids[]=user-1"
+		if path != expected {
+			t.Errorf("expected path '%s', got '%s'", expected, path)
+		}
+	})
 }
 
 func TestCardShow(t *testing.T) {
@@ -491,6 +569,89 @@ func TestCardCreate(t *testing.T) {
 			t.Errorf("expected description '<p>Description</p>', got '%v'", body["description"])
 		}
 	})
+
+	t.Run("uploads and appends single inline attachment", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath := writeTestAttachmentFile(t, tempDir, "single.txt", "single")
+
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{
+			StatusCode: 201,
+			Data:       map[string]any{"id": "abc", "number": 42},
+		}
+		mock.UploadFileResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       map[string]any{"attachable_sgid": "sgid-single"},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardCreateBoard = "123"
+		cardCreateTitle = "Test"
+		cardCreateDescription = "See attached"
+		cardCreateAttach = []string{attachPath}
+		err := cardCreateCmd.RunE(cardCreateCmd, []string{})
+		cardCreateBoard = ""
+		cardCreateTitle = ""
+		cardCreateDescription = ""
+		cardCreateAttach = nil
+
+		assertExitCode(t, err, 0)
+
+		if len(mock.UploadFileCalls) != 1 || mock.UploadFileCalls[0] != attachPath {
+			t.Fatalf("unexpected upload calls: %#v", mock.UploadFileCalls)
+		}
+
+		body := mock.PostCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			"See attached",
+			`<action-text-attachment sgid="sgid-single"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
+		}
+	})
+
+	t.Run("uploads and appends multiple inline attachments in order", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath1 := writeTestAttachmentFile(t, tempDir, "first.txt", "first")
+		attachPath2 := writeTestAttachmentFile(t, tempDir, "second.txt", "second")
+
+		mock := NewMockClient()
+		mock.PostResponse = &client.APIResponse{
+			StatusCode: 201,
+			Data:       map[string]any{"id": "abc", "number": 42},
+		}
+		mock.UploadFileResponses = []*client.APIResponse{
+			{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-1"}},
+			{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-2"}},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardCreateBoard = "123"
+		cardCreateTitle = "Test"
+		cardCreateAttach = []string{attachPath1, attachPath2}
+		err := cardCreateCmd.RunE(cardCreateCmd, []string{})
+		cardCreateBoard = ""
+		cardCreateTitle = ""
+		cardCreateAttach = nil
+
+		assertExitCode(t, err, 0)
+
+		body := mock.PostCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			`<action-text-attachment sgid="sgid-1"></action-text-attachment>`,
+			`<action-text-attachment sgid="sgid-2"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
+		}
+	})
 }
 
 func TestCardUpdate(t *testing.T) {
@@ -515,6 +676,72 @@ func TestCardUpdate(t *testing.T) {
 		assertExitCode(t, err, 0)
 		if mock.PatchCalls[0].Path != "/cards/42" {
 			t.Errorf("expected path '/cards/42', got '%s'", mock.PatchCalls[0].Path)
+		}
+	})
+
+	t.Run("uploads and appends inline attachments", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath := writeTestAttachmentFile(t, tempDir, "update.txt", "update")
+
+		mock := NewMockClient()
+		mock.PatchResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{"id": "abc"}}
+		mock.UploadFileResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-update"}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardUpdateDescription = "Updated body"
+		cardUpdateAttach = []string{attachPath}
+		err := cardUpdateCmd.RunE(cardUpdateCmd, []string{"42"})
+		cardUpdateDescription = ""
+		cardUpdateAttach = nil
+
+		assertExitCode(t, err, 0)
+		body := mock.PatchCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			"Updated body",
+			`<action-text-attachment sgid="sgid-update"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
+		}
+	})
+
+	t.Run("preserves existing description when only attach is provided", func(t *testing.T) {
+		tempDir := t.TempDir()
+		attachPath := writeTestAttachmentFile(t, tempDir, "update.txt", "update")
+
+		mock := NewMockClient()
+		mock.GetResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data: map[string]any{
+				"id":               "abc",
+				"description_html": "<p>Existing description</p>",
+			},
+		}
+		mock.PatchResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{"id": "abc"}}
+		mock.UploadFileResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{"attachable_sgid": "sgid-update"}}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		defer resetTest()
+
+		cardUpdateAttach = []string{attachPath}
+		err := cardUpdateCmd.RunE(cardUpdateCmd, []string{"42"})
+		cardUpdateAttach = nil
+
+		assertExitCode(t, err, 0)
+		if len(mock.GetCalls) == 0 || mock.GetCalls[0].Path != "/cards/42" {
+			t.Fatalf("expected existing card fetch before update, got %#v", mock.GetCalls)
+		}
+		body := mock.PatchCalls[0].Body.(map[string]any)
+		expected := strings.Join([]string{
+			"<p>Existing description</p>",
+			`<action-text-attachment sgid="sgid-update"></action-text-attachment>`,
+		}, "\n")
+		if body["description"] != expected {
+			t.Errorf("expected description %q, got %v", expected, body["description"])
 		}
 	})
 }
@@ -649,6 +876,24 @@ func TestCardColumn(t *testing.T) {
 			}
 		})
 
+		t.Run("not_now alias", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.PostResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardColumnColumn = "not_now"
+			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
+			cardColumnColumn = ""
+
+			assertExitCode(t, err, 0)
+			if len(mock.PostCalls) != 1 || mock.PostCalls[0].Path != "/cards/42/not_now.json" {
+				t.Errorf("expected post '/cards/42/not_now.json', got %+v", mock.PostCalls)
+			}
+		})
+
 		t.Run("maybe", func(t *testing.T) {
 			mock := NewMockClient()
 			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
@@ -658,6 +903,24 @@ func TestCardColumn(t *testing.T) {
 			defer resetTest()
 
 			cardColumnColumn = "maybe"
+			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
+			cardColumnColumn = ""
+
+			assertExitCode(t, err, 0)
+			if len(mock.DeleteCalls) != 1 || mock.DeleteCalls[0].Path != "/cards/42/triage.json" {
+				t.Errorf("expected delete '/cards/42/triage.json', got %+v", mock.DeleteCalls)
+			}
+		})
+
+		t.Run("triage alias", func(t *testing.T) {
+			mock := NewMockClient()
+			mock.DeleteResponse = &client.APIResponse{StatusCode: 200, Data: map[string]any{}}
+
+			SetTestModeWithSDK(mock)
+			SetTestConfig("token", "account", "https://api.example.com")
+			defer resetTest()
+
+			cardColumnColumn = "triage"
 			err := cardColumnCmd.RunE(cardColumnCmd, []string{"42"})
 			cardColumnColumn = ""
 
@@ -1011,7 +1274,7 @@ func TestCardMove(t *testing.T) {
 			},
 		}
 
-		SetTestModeWithSDK(mock)
+		result := SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
 		defer resetTest()
 
@@ -1030,6 +1293,9 @@ func TestCardMove(t *testing.T) {
 		body := mock.PatchCalls[0].Body.(map[string]any)
 		if body["board_id"] != "board-456" {
 			t.Errorf("expected board_id 'board-456', got '%v'", body["board_id"])
+		}
+		if got := responseDataMap(t, result)["title"]; got != "Test Card" {
+			t.Errorf("expected move response body title, got %#v", got)
 		}
 	})
 

@@ -152,12 +152,17 @@ func formatValue(v any) string {
 	}
 }
 
-// StyledSummary renders a single-line summary message for mutations.
+// StyledSummary renders a summary message for mutations.
+// If structured data is present, include it below the summary for human readability.
 func StyledSummary(data map[string]any, summary string) string {
 	if summary != "" {
-		return lipgloss.NewStyle().Bold(true).Render("✓ "+summary) + "\n"
+		line := lipgloss.NewStyle().Bold(true).Render("✓ " + summary)
+		if len(data) == 0 {
+			return line + "\n"
+		}
+		return line + "\n\n" + StyledDetail(data, "")
 	}
-	if data == nil {
+	if len(data) == 0 {
 		return lipgloss.NewStyle().Bold(true).Render("✓ Done") + "\n"
 	}
 	return StyledDetail(data, "")

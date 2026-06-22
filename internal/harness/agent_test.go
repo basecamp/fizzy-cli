@@ -16,6 +16,7 @@ func TestRegisterAgent(t *testing.T) {
 		agent := FindAgent("test")
 		if agent == nil {
 			t.Fatal("expected to find registered agent")
+			return
 		}
 		if agent.Name != "Test Agent" {
 			t.Errorf("expected name 'Test Agent', got %q", agent.Name)

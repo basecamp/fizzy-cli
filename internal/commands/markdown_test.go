@@ -19,6 +19,16 @@ func TestMarkdownToHTML(t *testing.T) {
 			exactOutput: "Just a simple comment",
 		},
 		{
+			name:          "common markdown emphasis is converted",
+			input:         "This is **bold** and _italic_",
+			shouldContain: []string{"<strong>bold</strong>", "<em>italic</em>"},
+		},
+		{
+			name:          "markdown list is converted",
+			input:         "- first\n- second",
+			shouldContain: []string{"<ul>", "<li>first</li>", "<li>second</li>"},
+		},
+		{
 			name:             "backtick-wrapped attachment tag is escaped",
 			input:            "Manually construct the `<action-text-attachment sgid=\"...\" content-type=\"application/vnd.actiontext.mention\"></action-text-attachment>`",
 			shouldContain:    []string{"<code>", "&lt;action-text-attachment"},

@@ -13,6 +13,7 @@ type API interface {
 	FollowLocation(location string) (*APIResponse, error)
 	UploadFile(filePath string) (*APIResponse, error)
 	DownloadFile(urlPath string, destPath string) error
+	GetHTML(path string) (*APIResponse, error)
 }
 
 // Ensure Client implements API interface

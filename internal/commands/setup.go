@@ -40,6 +40,9 @@ func init() {
 }
 
 func runSetup(cmd *cobra.Command, args []string) error {
+	if cfgJQ != "" {
+		return errors.ErrJQNotSupported("the setup command")
+	}
 	if IsMachineOutput() {
 		return output.ErrUsageHint("setup requires an interactive terminal", "Run without --agent/--json/--quiet or in a TTY")
 	}

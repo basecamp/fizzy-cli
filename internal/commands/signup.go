@@ -400,7 +400,7 @@ func runSignupStart(cmd *cobra.Command, args []string) error {
 		data["code"] = code
 	}
 
-	printSuccessWithBreadcrumbs(data, "Magic link sent. Check your email for a 6-digit code.", breadcrumbs)
+	printMutation(signupHumanData(data, "code"), "Magic link sent. Check your email for a 6-digit code.", breadcrumbs)
 	return nil
 }
 
@@ -445,7 +445,7 @@ func runSignupVerify(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	printSuccess(result)
+	printDetail(signupHumanData(result, "requires_signup_completion", "accounts"), "", nil)
 	return nil
 }
 
@@ -551,8 +551,24 @@ func runSignupComplete(cmd *cobra.Command, args []string) error {
 		breadcrumb("setup", "fizzy setup", "Full interactive setup"),
 	}
 
-	printSuccessWithBreadcrumbs(result, summary, breadcrumbs)
+	printMutation(signupHumanData(result, "account", "is_new_user"), summary, breadcrumbs)
 	return nil
+}
+
+// signupHumanData removes machine-only secrets from human-facing output while
+// preserving the full payload for JSON/quiet/agent workflows.
+func signupHumanData(data map[string]any, fields ...string) map[string]any {
+	if !isHumanOutput() {
+		return data
+	}
+
+	result := make(map[string]any, len(fields))
+	for _, field := range fields {
+		if value, ok := data[field]; ok {
+			result[field] = value
+		}
+	}
+	return result
 }
 
 // signupAPIURL returns the effective API URL for signup commands, normalized without trailing slash.

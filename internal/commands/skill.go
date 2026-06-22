@@ -7,13 +7,16 @@ import (
 	"strings"
 
 	"github.com/basecamp/cli/output"
+	"github.com/basecamp/fizzy-cli/internal/config"
+	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/basecamp/fizzy-cli/internal/harness"
-	"github.com/basecamp/fizzy-cli/internal/skills"
+	"github.com/basecamp/fizzy-cli/skills"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
 
 const skillFilename = "SKILL.md"
+const installedVersionFile = ".installed-version"
 
 // SkillLocation represents a predefined skill installation target.
 type SkillLocation struct {
@@ -22,8 +25,7 @@ type SkillLocation struct {
 }
 
 var skillLocations = []SkillLocation{
-	{Name: "Agents (Global)", Path: "~/.agents/skills/fizzy/SKILL.md"},
-	{Name: "Agents (Project)", Path: ".agents/skills/fizzy/SKILL.md"},
+	{Name: "Agents (Shared)", Path: "~/.agents/skills/fizzy/SKILL.md"},
 	{Name: "Claude Code (Global)", Path: "~/.claude/skills/fizzy/SKILL.md"},
 	{Name: "Claude Code (Project)", Path: ".claude/skills/fizzy/SKILL.md"},
 	{Name: "OpenCode (Global)", Path: "~/.config/opencode/skill/fizzy/SKILL.md"},
@@ -46,7 +48,14 @@ func init() {
 func runSkill(cmd *cobra.Command, args []string) error {
 	// Non-interactive: print skill content
 	if IsMachineOutput() {
-		_, err := fmt.Fprint(cmd.OutOrStdout(), string(skills.Content))
+		if cfgJQ != "" {
+			return errors.ErrJQNotSupported("the skill command")
+		}
+		data, err := readEmbeddedSkill()
+		if err != nil {
+			return err
+		}
+		_, err = fmt.Fprint(cmd.OutOrStdout(), string(data))
 		return err
 	}
 
@@ -83,14 +92,21 @@ func newSkillInstallCmd() *cobra.Command {
 
 			summary := "Fizzy skill installed"
 			if out != nil {
-				_ = out.OK(result, output.WithSummary(summary))
-				captureResponse()
+				printMutation(result, summary, nil)
 				return nil
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Installed skill to %s\n", skillPath)
 			return nil
 		},
 	}
+}
+
+func readEmbeddedSkill() ([]byte, error) {
+	data, err := skills.FS.ReadFile("fizzy/SKILL.md")
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded skill: %w", err)
+	}
+	return data, nil
 }
 
 // installSkillFiles writes the embedded SKILL.md to ~/.agents/skills/fizzy/
@@ -104,12 +120,19 @@ func installSkillFiles() (string, error) {
 	skillDir := filepath.Join(home, ".agents", "skills", "fizzy")
 	skillFile := filepath.Join(skillDir, skillFilename)
 
+	data, err := readEmbeddedSkill()
+	if err != nil {
+		return "", err
+	}
+
 	if err := os.MkdirAll(skillDir, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return "", fmt.Errorf("creating skill directory: %w", err)
 	}
-	if err := os.WriteFile(skillFile, skills.Content, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
+	if err := os.WriteFile(skillFile, data, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
 		return "", fmt.Errorf("writing skill file: %w", err)
 	}
+
+	_ = os.WriteFile(filepath.Join(skillDir, installedVersionFile), []byte(currentVersion()), 0o644) // #nosec G306 -- not a secret //nolint:gosec
 
 	return skillFile, nil
 }
@@ -163,7 +186,7 @@ func runSkillWizard() error {
 		selectedPath = normalizeSkillPath(selectedPath)
 	}
 
-	expandedPath := expandPath(selectedPath)
+	expandedPath := expandSkillPath(selectedPath)
 
 	// Check for existing file
 	if fileExists(expandedPath) {
@@ -179,12 +202,17 @@ func runSkillWizard() error {
 		}
 	}
 
+	data, err := readEmbeddedSkill()
+	if err != nil {
+		return err
+	}
+
 	// Write to selected location
 	dir := filepath.Dir(expandedPath)
 	if err := os.MkdirAll(dir, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("creating directory: %v", err)}
 	}
-	if err := os.WriteFile(expandedPath, skills.Content, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
+	if err := os.WriteFile(expandedPath, data, 0o644); err != nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
 		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("writing skill file: %v", err)}
 	}
 
@@ -194,9 +222,10 @@ func runSkillWizard() error {
 		canonicalDir := filepath.Join(home, ".agents", "skills", "fizzy")
 		canonicalFile := filepath.Join(canonicalDir, skillFilename)
 		if canonicalFile != expandedPath {
-			_ = os.MkdirAll(canonicalDir, 0o755)                   // #nosec G301 -- skill files are not secrets //nolint:gosec
-			_ = os.WriteFile(canonicalFile, skills.Content, 0o644) // #nosec G306 -- skill files are not secrets //nolint:gosec
+			_ = os.MkdirAll(canonicalDir, 0o755)         // #nosec G301 -- skill files are not secrets //nolint:gosec
+			_ = os.WriteFile(canonicalFile, data, 0o644) // #nosec G306 -- skill files are not secrets //nolint:gosec
 		}
+		_ = os.WriteFile(filepath.Join(canonicalDir, installedVersionFile), []byte(currentVersion()), 0o644) // #nosec G306 -- not a secret //nolint:gosec
 	}
 
 	fmt.Println()
@@ -235,8 +264,8 @@ func codexGlobalSkillPath() string {
 	return filepath.Join(codexHome, "skills", "fizzy", skillFilename)
 }
 
-// expandPath expands ~ to home directory.
-func expandPath(path string) string {
+// expandSkillPath expands ~ to home directory.
+func expandSkillPath(path string) string {
 	if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~\\") {
 		home, err := os.UserHomeDir()
 		if err != nil {
@@ -252,6 +281,11 @@ func expandPath(path string) string {
 		return home
 	}
 	return path
+}
+
+// expandPath is kept as a compatibility wrapper for existing tests/fuzzers.
+func expandPath(path string) string {
+	return expandSkillPath(path)
 }
 
 // sanitizeLogValue strips control characters from a string before output.
@@ -302,6 +336,121 @@ func linkSkillToClaude() (string, string, error) {
 	return symlinkPath, notice, nil
 }
 
+// installedSkillVersion reads the .installed-version file from the baseline
+// skill directory. Returns "" if absent or unreadable.
+func installedSkillVersion() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(home, ".agents", "skills", "fizzy", installedVersionFile))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+// RefreshSkillsIfVersionChanged checks the CLI version sentinel and silently
+// refreshes installed skills when the version has changed. Returns true if
+// skills were refreshed.
+func RefreshSkillsIfVersionChanged() bool {
+	if currentVersion() == "dev" {
+		return false
+	}
+
+	cfgPath, err := config.ConfigPath()
+	if err != nil {
+		return false
+	}
+	sentinelPath := filepath.Join(filepath.Dir(cfgPath), ".last-run-version")
+
+	data, err := os.ReadFile(sentinelPath)
+	if err == nil && strings.TrimSpace(string(data)) == currentVersion() {
+		return false
+	}
+
+	refreshed := refreshAllInstalledSkills()
+
+	// Repair Claude symlink if broken (e.g. baseline dir was recreated)
+	if harness.DetectClaude() {
+		repairClaudeSkillLink()
+	}
+
+	// Update sentinel only when no refresh was needed or it succeeded.
+	// On transient failure, leave the sentinel stale so the next run retries.
+	needsRefresh := baselineSkillInstalled()
+	if !needsRefresh || refreshed {
+		_ = os.MkdirAll(filepath.Dir(sentinelPath), 0o755)              // #nosec G301 -- config dir //nolint:gosec
+		_ = os.WriteFile(sentinelPath, []byte(currentVersion()), 0o644) // #nosec G306 -- not a secret //nolint:gosec
+	}
+
+	return refreshed
+}
+
+func refreshAllInstalledSkills() bool {
+	embedded, err := readEmbeddedSkill()
+	if err != nil {
+		return false
+	}
+
+	updated := 0
+	failed := 0
+	for _, loc := range skillLocations {
+		// Skip project-relative paths — no reliable project root in post-run refresh.
+		if !strings.HasPrefix(loc.Path, "~") && !filepath.IsAbs(loc.Path) {
+			continue
+		}
+
+		expanded := expandSkillPath(loc.Path)
+		if _, statErr := os.Stat(expanded); statErr != nil {
+			if !os.IsNotExist(statErr) {
+				failed++
+			}
+			continue
+		}
+
+		if writeErr := os.WriteFile(expanded, embedded, 0o644); writeErr == nil { // #nosec G306 -- skill files are not secrets //nolint:gosec
+			updated++
+		} else {
+			failed++
+		}
+	}
+
+	if failed == 0 && updated > 0 {
+		if home, err := os.UserHomeDir(); err == nil {
+			baselineDir := filepath.Join(home, ".agents", "skills", "fizzy")
+			_ = os.WriteFile(filepath.Join(baselineDir, installedVersionFile), []byte(currentVersion()), 0o644) // #nosec G306 -- not a secret //nolint:gosec
+		}
+	}
+
+	return updated > 0 && failed == 0
+}
+
+// repairClaudeSkillLink repairs a broken symlink at ~/.claude/skills/fizzy.
+// If the path is a directory (copy fallback), the file refresh already handled it.
+func repairClaudeSkillLink() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+
+	symlinkPath := filepath.Join(home, ".claude", "skills", "fizzy")
+	info, err := os.Lstat(symlinkPath)
+	if err != nil {
+		return
+	}
+
+	if info.Mode()&os.ModeSymlink == 0 {
+		return
+	}
+
+	if _, statErr := os.Stat(symlinkPath); statErr == nil {
+		return
+	}
+
+	_, _, _ = linkSkillToClaude()
+}
+
 func copySkillFiles(src, dst string) error {
 	if err := os.MkdirAll(dst, 0o755); err != nil { // #nosec G301 -- skill files are not secrets //nolint:gosec
 		return err
@@ -331,6 +480,14 @@ func baselineSkillInstalled() bool {
 	if err != nil {
 		return false
 	}
-	_, err = os.Stat(filepath.Join(home, ".agents", "skills", "fizzy", "SKILL.md"))
+	_, err = os.Stat(filepath.Join(home, ".agents", "skills", "fizzy", skillFilename))
 	return err == nil
+}
+
+func currentVersion() string {
+	v := strings.TrimSpace(cliVersion)
+	if v == "" {
+		return "dev"
+	}
+	return v
 }
