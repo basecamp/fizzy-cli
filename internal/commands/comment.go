@@ -142,7 +142,7 @@ var commentCreateCmd = &cobra.Command{
 			return newRequiredFlagError("card")
 		}
 
-		body, err := resolveRichTextContent(commentCreateBody, commentCreateBodyFile, getClient())
+		body, err := resolveRichTextContent(commentCreateBody, commentCreateBodyFile)
 		if err != nil {
 			return err
 		}
@@ -206,7 +206,7 @@ var commentUpdateCmd = &cobra.Command{
 		cardNumber := commentUpdateCard
 
 		hasBodyInput := commentUpdateBody != "" || commentUpdateBodyFile != ""
-		body, err := resolveRichTextContent(commentUpdateBody, commentUpdateBodyFile, getClient())
+		body, err := resolveRichTextContent(commentUpdateBody, commentUpdateBodyFile)
 		if err != nil {
 			return err
 		}

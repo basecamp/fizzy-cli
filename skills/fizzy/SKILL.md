@@ -1181,7 +1181,6 @@ fizzy auth status                        # Shows configured profile and API URL
 
 - API documentation: https://github.com/basecamp/fizzy/blob/main/docs/API.md
 - CLI repository (this fork is the source of the `fizzy` command): https://github.com/Concurrent-Systems/fizzy-cli
-  - Local clone: `~/g/fizzy-cli-fork` (branch `master` = upstream + our patches)
+  - Local clone: `~/g/fizzy-cli-fork` (branch `master` = upstream + our docs only; no functional patches)
   - Build & install: `cd ~/g/fizzy-cli-fork && make build && cp bin/fizzy ~/.local/bin/fizzy`
   - Update: `git checkout master && git pull`, then rebuild/install. Upstream sync via the `upstream` remote (`basecamp/fizzy-cli`).
-  - `@mention` resolution is a fork-only patch (not upstreamed); runtime fetch fix tracked in issue #2.

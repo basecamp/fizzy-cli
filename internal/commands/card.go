@@ -240,7 +240,7 @@ var cardCreateCmd = &cobra.Command{
 			return newRequiredFlagError("title")
 		}
 
-		description, err := resolveRichTextContent(cardCreateDescription, cardCreateDescriptionFile, getClient())
+		description, err := resolveRichTextContent(cardCreateDescription, cardCreateDescriptionFile)
 		if err != nil {
 			return err
 		}
@@ -330,7 +330,7 @@ var cardUpdateCmd = &cobra.Command{
 		cardNumber := args[0]
 
 		hasDescriptionInput := cardUpdateDescription != "" || cardUpdateDescriptionFile != ""
-		description, err := resolveRichTextContent(cardUpdateDescription, cardUpdateDescriptionFile, getClient())
+		description, err := resolveRichTextContent(cardUpdateDescription, cardUpdateDescriptionFile)
 		if err != nil {
 			return err
 		}
