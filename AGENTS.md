@@ -16,6 +16,24 @@ fizzy-cli/
 └── .claude-plugin/      # Claude Code integration
 ```
 
+## Command Architecture
+
+Built on `cobra`. Each command lives in its own file under `internal/commands/`
+(e.g. `card.go`, `board.go`) with a colocated `_test.go`. A command registers
+itself via an `init()` that calls `rootCmd.AddCommand(...)` — there is no central
+registration list. `commands.go` defines `commandCatalogGroups` (core /
+collaboration / admin / utilities), which only controls how `fizzy commands` and
+help group output; adding a command there is cosmetic, not wiring.
+
+`root.go` owns global flags and the output layer. Commands write results through
+the shared `*output.Writer` (`out`) and the raw `outWriter`. Output mode is
+selected by global flags: `--json`, `--agent`, `--styled`, `--markdown`,
+`--quiet`, `--ids-only`, `--count`, `--jq`. Use `isHumanOutput()` to branch
+between styled rendering and structured output, and `printSuccess(data)` /
+breadcrumbs (`output.Breadcrumb`) for machine output. `internal/render/` does the
+styled/markdown/column rendering; `internal/harness/` runs the agent-integration
+health checks behind `fizzy doctor` and `fizzy setup`.
+
 ## SDK Architecture
 
 Commands use the fizzy-sdk (`github.com/basecamp/fizzy-sdk/go/pkg/fizzy`) for API access:
@@ -44,16 +62,41 @@ Key endpoints used by the CLI:
 
 **Important:** Cards use NUMBER for CLI commands, not internal ID. `fizzy card show 42` uses the card number.
 
-## Testing
+## Build & Quality Gates
 
 ```bash
 make build            # Build binary to ./bin/fizzy
-make test-unit        # Run Go unit tests (no API required)
-make test-e2e         # Run e2e tests (requires credentials)
-make test-run NAME=TestBoardCRUD  # Run a specific test
+make check            # DEFAULT gate: fmt-check + vet + lint + tidy-check + race-test
+make test-unit        # Go unit tests, no API required (./internal/...)
+make lint             # golangci-lint
 ```
 
-Requirements: Go 1.26+, API credentials for e2e tests.
+`make check` is the default target and the local CI gate — run it before
+considering work done. Toolchain: Go 1.26+ managed via `mise` (`.mise.toml`).
+Every build/test target runs `check-toolchain` first, which **fails fast if the
+`PATH` go and `GOROOT` go disagree** — if you hit that, run
+`eval "$(mise hook-env)"` and retry.
+
+### SURFACE.txt — regenerate when the CLI surface changes
+
+`SURFACE.txt` is a golden snapshot of the entire command/flag/arg tree, verified
+by `make surface-check` (a unit test) and in CI. **Any time you add, rename, or
+remove a command, flag, or argument you must regenerate it** or the build fails:
+
+```bash
+make surface-snapshot   # rewrites SURFACE.txt from the current command tree
+```
+
+## Testing
+
+```bash
+make test-unit                    # unit tests (no API)
+make test-e2e                     # e2e tests (requires credentials)
+make test-run NAME=TestBoardCRUD  # single e2e test by name
+make test-file FILE=crud_board    # single e2e test file
+```
+
+E2E tests hit a live API and require credentials (see below). Unit tests do not.
 
 ### Unit Test Patterns
 
