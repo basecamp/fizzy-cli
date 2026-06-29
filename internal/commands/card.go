@@ -44,7 +44,6 @@ var cardListCmd = &cobra.Command{
 			return err
 		}
 
-		boardID := defaultBoard(cardListBoard)
 		columnFilter := strings.TrimSpace(cardListColumn)
 		indexedByFilter := strings.TrimSpace(cardListIndexedBy)
 		effectiveIndexedBy := indexedByFilter
@@ -53,8 +52,12 @@ var cardListCmd = &cobra.Command{
 		path := "/cards.json"
 
 		var params []string
-		if boardID != "" {
-			params = append(params, "board_ids[]="+boardID)
+		// card list is cross-board by default; only scope to a board when
+		// explicitly requested via --board. Mirrors the search fix (#114) so
+		// --tag/--assignee/etc. span all boards instead of being silently
+		// restricted to the configured default board.
+		if cardListBoard != "" {
+			params = append(params, "board_ids[]="+cardListBoard)
 		}
 
 		if columnFilter != "" {

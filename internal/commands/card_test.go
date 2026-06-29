@@ -74,7 +74,6 @@ func TestCardList(t *testing.T) {
 
 		SetTestModeWithSDK(mock)
 		SetTestConfig("token", "account", "https://api.example.com")
-		cfg.Board = "123"
 		defer resetTest()
 
 		cardListColumn = "not-now"
@@ -83,7 +82,7 @@ func TestCardList(t *testing.T) {
 
 		assertExitCode(t, err, 0)
 
-		if mock.GetWithPaginationCalls[0].Path != "/cards.json?board_ids[]=123&indexed_by=not_now" {
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?indexed_by=not_now" {
 			t.Errorf("expected indexed_by filter, got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
 	})
@@ -190,7 +189,7 @@ func TestCardList(t *testing.T) {
 		}
 	})
 
-	t.Run("uses configured board as default filter", func(t *testing.T) {
+	t.Run("does not inject configured default board (cross-board by default)", func(t *testing.T) {
 		mock := NewMockClient()
 		mock.GetWithPaginationResponse = &client.APIResponse{
 			StatusCode: 200,
@@ -205,8 +204,74 @@ func TestCardList(t *testing.T) {
 		err := cardListCmd.RunE(cardListCmd, []string{})
 
 		assertExitCode(t, err, 0)
-		if mock.GetWithPaginationCalls[0].Path != "/cards.json?board_ids[]=999" {
-			t.Errorf("expected path '/cards.json?board_ids[]=999', got '%s'", mock.GetWithPaginationCalls[0].Path)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json" {
+			t.Errorf("expected no board_ids injection, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("scopes to board only when --board is explicit", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		cfg.Board = "999"
+		defer resetTest()
+
+		cardListBoard = "explicit-board"
+		err := cardListCmd.RunE(cardListCmd, []string{})
+		cardListBoard = ""
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?board_ids[]=explicit-board" {
+			t.Errorf("expected explicit board scope, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("tag filter works cross-board with default board set", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		cfg.Board = "999"
+		defer resetTest()
+
+		cardListTag = "tag-123"
+		err := cardListCmd.RunE(cardListCmd, []string{})
+		cardListTag = ""
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?tag_ids[]=tag-123" {
+			t.Errorf("expected tag filter without board_ids, got '%s'", mock.GetWithPaginationCalls[0].Path)
+		}
+	})
+
+	t.Run("assignee filter works cross-board with default board set", func(t *testing.T) {
+		mock := NewMockClient()
+		mock.GetWithPaginationResponse = &client.APIResponse{
+			StatusCode: 200,
+			Data:       []any{},
+		}
+
+		SetTestModeWithSDK(mock)
+		SetTestConfig("token", "account", "https://api.example.com")
+		cfg.Board = "999"
+		defer resetTest()
+
+		cardListAssignee = "user-456"
+		err := cardListCmd.RunE(cardListCmd, []string{})
+		cardListAssignee = ""
+
+		assertExitCode(t, err, 0)
+		if mock.GetWithPaginationCalls[0].Path != "/cards.json?assignee_ids[]=user-456" {
+			t.Errorf("expected assignee filter without board_ids, got '%s'", mock.GetWithPaginationCalls[0].Path)
 		}
 	})
 
