@@ -10,11 +10,11 @@ require (
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/hashicorp/go-version v1.9.0
 	github.com/itchyny/gojq v0.12.19
-	github.com/mattn/go-isatty v0.0.22
+	github.com/mattn/go-isatty v0.0.23
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/yuin/goldmark v1.8.2
+	github.com/yuin/goldmark v1.8.4
 	gopkg.in/yaml.v3 v3.0.1
 )
 
