@@ -51,23 +51,20 @@ Technical testers can install prereleases explicitly from the GitHub release ass
 
 ## CI Secrets
 
-### Repository level (`Settings > Secrets and variables > Actions`)
+All release credentials live in the `release` environment (`Settings > Environments > release`), so they are only exposed to jobs that pass the environment's required-reviewer gate. There are no repository-level release secrets. `HOMEBREW_TAP_TOKEN` does not exist as a stored secret — it is minted per-run from the `cli-release-bot` GitHub App credentials.
 
 | Name | Type | Purpose |
 |------|------|---------|
 | `RELEASE_CLIENT_ID` | variable | GitHub App client ID for `cli-release-bot` |
 | `RELEASE_APP_PRIVATE_KEY` | secret | GitHub App private key for tap push |
 | `AUR_KEY` | secret | ed25519 SSH private key for AUR (optional) |
+| `MACOS_SIGN_P12` | secret | Base64-encoded Developer ID Application .p12 |
+| `MACOS_SIGN_PASSWORD` | secret | Password for the .p12 certificate |
+| `MACOS_NOTARY_KEY` | secret | Base64-encoded App Store Connect API key (.p8) |
+| `MACOS_NOTARY_KEY_ID` | secret | App Store Connect API key ID (10 chars) |
+| `MACOS_NOTARY_ISSUER_ID` | secret | App Store Connect issuer UUID |
 
-### Environment level (`release` environment — `Settings > Environments`)
-
-| Secret | Purpose |
-|--------|---------|
-| `MACOS_SIGN_P12` | Base64-encoded Developer ID Application .p12 |
-| `MACOS_SIGN_PASSWORD` | Password for the .p12 certificate |
-| `MACOS_NOTARY_KEY` | Base64-encoded App Store Connect API key (.p8) |
-| `MACOS_NOTARY_KEY_ID` | App Store Connect API key ID (10 chars) |
-| `MACOS_NOTARY_ISSUER_ID` | App Store Connect issuer UUID |
+Set a secret with `gh secret set <NAME> --env release -R basecamp/fizzy-cli`. For multi-line secrets like SSH keys, pipe the file directly (`gh secret set AUR_KEY --env release < keyfile`) so newlines are preserved — pasting a flattened key produces an "invalid format" SSH failure at publish time.
 
 ## Distribution Channels
 
@@ -99,5 +96,18 @@ goreleaser release --snapshot --clean
 ## AUR Setup
 
 1. Generate ed25519 SSH keypair: `ssh-keygen -t ed25519 -f aur_key`
-2. Add public key to your AUR account profile
-3. Add private key as `AUR_KEY` secret on the fizzy-cli repo
+2. Add public key to the AUR account that maintains `fizzy-cli`
+3. Validate the private key parses and authenticates:
+   `ssh-keygen -y -f aur_key > /dev/null && ssh -T -i aur_key aur@aur.archlinux.org`
+   (expect "Interactive shell is disabled")
+4. Store it in the `release` environment, preserving newlines:
+   `gh secret set AUR_KEY --env release -R basecamp/fizzy-cli < aur_key`
+
+## Tap Migration Ordering
+
+When moving the Homebrew install path from another tap to `basecamp/tap` (learned during the v4.0.0 release, 2026-07-27):
+
+1. **First** ship a stable release so GoReleaser publishes `Casks/fizzy.rb` to `basecamp/homebrew-tap`. The cask must exist before anything points at it.
+2. **Then** land `tap_migrations.json` (mapping the old formula to `basecamp/tap/fizzy`) in the old tap and remove its formula. `brew update` surfaces the migration to existing users.
+3. Do **not** transfer the old tap repo into the basecamp org — a repo named `homebrew-*` or matching `basecamp/fizzy-cli` would become a stray implicit tap. Archive it once users have migrated.
+4. Update README install instructions last, once `brew install --cask basecamp/tap/fizzy` actually works.

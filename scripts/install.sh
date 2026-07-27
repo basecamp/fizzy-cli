@@ -34,31 +34,32 @@ if [ -z "$VERSION" ]; then
 fi
 echo "Latest version: $VERSION"
 
-# Download binary
-BINARY_NAME="fizzy-${OS}-${ARCH}"
+# Download release archive
+EXT="tar.gz"
 if [ "$OS" = "windows" ]; then
-  BINARY_NAME="fizzy-${OS}-${ARCH}.exe"
+  EXT="zip"
 fi
+ARCHIVE="fizzy_${VERSION#v}_${OS}_${ARCH}.${EXT}"
 
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/${VERSION}/${BINARY_NAME}"
-CHECKSUMS_URL="https://github.com/$REPO/releases/download/${VERSION}/SHA256SUMS-${OS}-${ARCH}.txt"
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/${VERSION}/${ARCHIVE}"
+CHECKSUMS_URL="https://github.com/$REPO/releases/download/${VERSION}/checksums.txt"
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-echo "Downloading $BINARY_NAME..."
-curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$BINARY_NAME"
+echo "Downloading $ARCHIVE..."
+curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$ARCHIVE"
 curl -fsSL "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt"
 
 # Verify SHA256
 echo "Verifying checksum..."
 cd "$TMPDIR"
-EXPECTED=$(awk '{print $1}' checksums.txt)
+EXPECTED=$(grep " ${ARCHIVE}\$" checksums.txt | awk '{print $1}')
 if [ -z "$EXPECTED" ]; then
-  echo "ERROR: Checksum not found"
+  echo "ERROR: Checksum for $ARCHIVE not found in checksums.txt"
   exit 1
 fi
-ACTUAL=$(sha256sum "$BINARY_NAME" 2>/dev/null || shasum -a 256 "$BINARY_NAME" | awk '{print $1}')
+ACTUAL=$(sha256sum "$ARCHIVE" 2>/dev/null || shasum -a 256 "$ARCHIVE" | awk '{print $1}')
 ACTUAL=$(echo "$ACTUAL" | awk '{print $1}')
 if [ "$EXPECTED" != "$ACTUAL" ]; then
   echo "ERROR: Checksum mismatch!"
@@ -68,13 +69,24 @@ if [ "$EXPECTED" != "$ACTUAL" ]; then
 fi
 echo "Checksum verified."
 
-# Install
-mkdir -p "$INSTALL_DIR"
+# Extract
 BINARY="fizzy"
 if [ "$OS" = "windows" ]; then
   BINARY="fizzy.exe"
 fi
-cp "$BINARY_NAME" "$INSTALL_DIR/${BINARY}"
+if [ "$EXT" = "zip" ]; then
+  if command -v unzip > /dev/null; then
+    unzip -q "$ARCHIVE" "$BINARY"
+  else
+    tar -xf "$ARCHIVE" "$BINARY"
+  fi
+else
+  tar -xzf "$ARCHIVE" "$BINARY"
+fi
+
+# Install
+mkdir -p "$INSTALL_DIR"
+cp "$BINARY" "$INSTALL_DIR/${BINARY}"
 chmod +x "$INSTALL_DIR/${BINARY}"
 
 echo ""
