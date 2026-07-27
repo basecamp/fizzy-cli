@@ -54,7 +54,7 @@ curl -fsSL "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt"
 # Verify SHA256
 echo "Verifying checksum..."
 cd "$TMPDIR"
-EXPECTED=$(grep " ${ARCHIVE}\$" checksums.txt | awk '{print $1}')
+EXPECTED=$(awk -v f="$ARCHIVE" '$2 == f || $2 == "*" f {print $1}' checksums.txt)
 if [ -z "$EXPECTED" ]; then
   echo "ERROR: Checksum for $ARCHIVE not found in checksums.txt"
   exit 1
@@ -77,8 +77,11 @@ fi
 if [ "$EXT" = "zip" ]; then
   if command -v unzip > /dev/null; then
     unzip -q "$ARCHIVE" "$BINARY"
+  elif tar -xf "$ARCHIVE" "$BINARY" 2>/dev/null && [ -f "$BINARY" ]; then
+    :  # bsdtar (Windows 10+ tar.exe) reads zip archives
   else
-    tar -xf "$ARCHIVE" "$BINARY"
+    echo "ERROR: Could not extract $ARCHIVE — install unzip and re-run"
+    exit 1
   fi
 else
   tar -xzf "$ARCHIVE" "$BINARY"
