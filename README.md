@@ -48,13 +48,25 @@ Use `fizzy doctor` any time you want a full health check of your install, config
 yay -S fizzy-cli
 ```
 
-**Homebrew (macOS):**
+**Homebrew (macOS and Linux):**
 
 ```bash
 brew install --cask basecamp/tap/fizzy
 ```
 
 Release candidates are not published to Homebrew; they are available from [Releases](https://github.com/basecamp/fizzy-cli/releases).
+
+*Upgrading from Fizzy 3.x:* 3.x was the `fizzy-cli` formula in the `robzolkos/fizzy-cli` tap. `brew update` points that tap at this cask, but Homebrew never taps a third-party tap for you — not during migration, and not from a fully-qualified `brew install` — so run `brew tap` yourself first:
+
+```bash
+brew tap basecamp/tap
+brew unlink fizzy-cli
+brew install --cask basecamp/tap/fizzy
+brew uninstall --formula --force fizzy-cli
+brew untap robzolkos/fizzy-cli
+```
+
+`brew unlink` first is required: a cask will not overwrite a `bin/fizzy` symlink owned by the formula, so installing the cask while the formula is still linked skips the binary and the later uninstall leaves no `fizzy` on your PATH. Recover with `brew reinstall --cask fizzy`. Note also that `brew migrate fizzy-cli`, which Homebrew suggests, is a no-op for a formula-to-cask move.
 
 **Scoop (Windows):**
 ```bash
