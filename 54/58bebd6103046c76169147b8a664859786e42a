@@ -1,0 +1,19 @@
+.github/workflows/dependabot-sync-actions-comments.yml
+  s_70ea5a80b3efd3::t_f670b7e2726200 24,28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "5458bebd6103046c76169147b8a664859786e42a",
+  "prompts": {},
+  "sessions": {
+    "s_70ea5a80b3efd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f8c1d-a0af-7e91-a3a4-2bd35bdff875",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Jeremy Daer <jeremydaer@gmail.com>"
+    }
+  }
+}
