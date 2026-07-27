@@ -88,8 +88,8 @@ EOF
 mkdir -p ~/.ssh
 printf '%s\n' "$AUR_KEY" | tr -d '\r' > ~/.ssh/aur
 chmod 600 ~/.ssh/aur
-if ! ssh-keygen -y -f ~/.ssh/aur > /dev/null; then
-  echo "ERROR: AUR_KEY is not a valid SSH private key." \
+if ! ssh-keygen -y -f ~/.ssh/aur < /dev/null > /dev/null; then
+  echo "ERROR: AUR_KEY is not a valid unencrypted SSH private key." \
        "Re-store it with newlines intact: gh secret set AUR_KEY --env release < keyfile"
   exit 1
 fi
