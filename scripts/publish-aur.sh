@@ -8,6 +8,11 @@ if [ -z "${GITHUB_REF_NAME:-}" ]; then
   echo "ERROR: GITHUB_REF_NAME is not set (must run from GitHub Actions release workflow)"
   exit 1
 fi
+if [ -z "${AUR_KEY:-}" ]; then
+  echo "ERROR: AUR_KEY is not set." \
+       "Store it with: gh secret set AUR_KEY --env release < keyfile"
+  exit 1
+fi
 VERSION="${GITHUB_REF_NAME#v}"
 REPO="basecamp/fizzy-cli"
 
