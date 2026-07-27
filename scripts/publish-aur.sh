@@ -8,6 +8,11 @@ if [ -z "${GITHUB_REF_NAME:-}" ]; then
   echo "ERROR: GITHUB_REF_NAME is not set (must run from GitHub Actions release workflow)"
   exit 1
 fi
+if [ -z "${AUR_KEY:-}" ]; then
+  echo "ERROR: AUR_KEY is not set." \
+       "Store it with: gh secret set AUR_KEY --env release -R basecamp/fizzy-cli < keyfile"
+  exit 1
+fi
 VERSION="${GITHUB_REF_NAME#v}"
 REPO="basecamp/fizzy-cli"
 
@@ -86,8 +91,13 @@ EOF
 
 # Clone AUR repo and push
 mkdir -p ~/.ssh
-echo "$AUR_KEY" > ~/.ssh/aur
+printf '%s\n' "$AUR_KEY" | tr -d '\r' > ~/.ssh/aur
 chmod 600 ~/.ssh/aur
+if ! ssh-keygen -y -f ~/.ssh/aur < /dev/null > /dev/null; then
+  echo "ERROR: AUR_KEY is not a valid unencrypted SSH private key." \
+       "Re-store it with newlines intact: gh secret set AUR_KEY --env release -R basecamp/fizzy-cli < keyfile"
+  exit 1
+fi
 cat >> ~/.ssh/config << SSHEOF
 Host aur.archlinux.org
     IdentityFile ~/.ssh/aur
