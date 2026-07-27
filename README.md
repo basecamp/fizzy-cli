@@ -60,13 +60,12 @@ Release candidates are not published to Homebrew. They are available from [Relea
 
 ```bash
 brew tap basecamp/tap
-brew trust basecamp/tap/fizzy
 brew install --cask basecamp/tap/fizzy
 brew uninstall --formula --force fizzy-cli
 brew untap robzolkos/fizzy-cli
 ```
 
-Homebrew will not tap a third-party tap on your behalf without explicit trust, which is why `brew trust` is needed.
+Installing by fully-qualified name trusts the cask automatically, so no separate `brew trust` step is needed.
 
 **Scoop (Windows):**
 ```bash
