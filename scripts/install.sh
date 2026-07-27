@@ -15,15 +15,10 @@ case "$ARCH" in
 esac
 
 case "$OS" in
-  linux|darwin) ;;
+  linux|darwin|freebsd|openbsd) ;;
   mingw*|msys*|cygwin*) OS="windows" ;;
   *) echo "Unsupported OS: $OS"; exit 1 ;;
 esac
-
-if [ "$OS" = "windows" ] && [ "$ARCH" = "arm64" ]; then
-  echo "Windows ARM64 is not currently supported. See https://github.com/basecamp/fizzy-cli/releases for available builds."
-  exit 1
-fi
 
 # Fetch latest version
 echo "Fetching latest version..."
@@ -34,32 +29,47 @@ if [ -z "$VERSION" ]; then
 fi
 echo "Latest version: $VERSION"
 
-# Download binary
-BINARY_NAME="fizzy-${OS}-${ARCH}"
+# Select the release archive for this platform
+VERSION_NUMBER="${VERSION#v}"
+ARCHIVE_FORMAT="tar.gz"
+BINARY="fizzy"
 if [ "$OS" = "windows" ]; then
-  BINARY_NAME="fizzy-${OS}-${ARCH}.exe"
+  ARCHIVE_FORMAT="zip"
+  BINARY="fizzy.exe"
 fi
+ARCHIVE_NAME="fizzy_${VERSION_NUMBER}_${OS}_${ARCH}.${ARCHIVE_FORMAT}"
 
-DOWNLOAD_URL="https://github.com/$REPO/releases/download/${VERSION}/${BINARY_NAME}"
-CHECKSUMS_URL="https://github.com/$REPO/releases/download/${VERSION}/SHA256SUMS-${OS}-${ARCH}.txt"
+DOWNLOAD_URL="https://github.com/$REPO/releases/download/${VERSION}/${ARCHIVE_NAME}"
+CHECKSUMS_URL="https://github.com/$REPO/releases/download/${VERSION}/checksums.txt"
 
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
-echo "Downloading $BINARY_NAME..."
-curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$BINARY_NAME"
+echo "Downloading $ARCHIVE_NAME..."
+curl -fsSL "$DOWNLOAD_URL" -o "$TMPDIR/$ARCHIVE_NAME"
 curl -fsSL "$CHECKSUMS_URL" -o "$TMPDIR/checksums.txt"
 
-# Verify SHA256
+# Verify the release archive before extracting it
 echo "Verifying checksum..."
-cd "$TMPDIR"
-EXPECTED=$(awk '{print $1}' checksums.txt)
+EXPECTED=$(awk -v name="$ARCHIVE_NAME" '$2 == name { print $1; exit }' "$TMPDIR/checksums.txt")
 if [ -z "$EXPECTED" ]; then
-  echo "ERROR: Checksum not found"
+  echo "ERROR: Checksum not found for $ARCHIVE_NAME"
   exit 1
 fi
-ACTUAL=$(sha256sum "$BINARY_NAME" 2>/dev/null || shasum -a 256 "$BINARY_NAME" | awk '{print $1}')
-ACTUAL=$(echo "$ACTUAL" | awk '{print $1}')
+
+if command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL=$(sha256sum "$TMPDIR/$ARCHIVE_NAME" | awk '{print $1}')
+elif command -v shasum >/dev/null 2>&1; then
+  ACTUAL=$(shasum -a 256 "$TMPDIR/$ARCHIVE_NAME" | awk '{print $1}')
+elif command -v sha256 >/dev/null 2>&1; then
+  ACTUAL=$(sha256 -q "$TMPDIR/$ARCHIVE_NAME")
+elif command -v openssl >/dev/null 2>&1; then
+  ACTUAL=$(openssl dgst -sha256 "$TMPDIR/$ARCHIVE_NAME" | awk '{print $NF}')
+else
+  echo "ERROR: A SHA-256 checksum tool is required (sha256sum, shasum, sha256, or openssl)"
+  exit 1
+fi
+
 if [ "$EXPECTED" != "$ACTUAL" ]; then
   echo "ERROR: Checksum mismatch!"
   echo "  Expected: $EXPECTED"
@@ -68,14 +78,27 @@ if [ "$EXPECTED" != "$ACTUAL" ]; then
 fi
 echo "Checksum verified."
 
-# Install
-mkdir -p "$INSTALL_DIR"
-BINARY="fizzy"
-if [ "$OS" = "windows" ]; then
-  BINARY="fizzy.exe"
+# Extract and install the binary
+EXTRACT_DIR="$TMPDIR/extracted"
+mkdir -p "$EXTRACT_DIR"
+if [ "$ARCHIVE_FORMAT" = "zip" ]; then
+  if ! command -v unzip >/dev/null 2>&1; then
+    echo "ERROR: unzip is required to install Fizzy on Windows"
+    exit 1
+  fi
+  unzip -q "$TMPDIR/$ARCHIVE_NAME" -d "$EXTRACT_DIR"
+else
+  tar -xzf "$TMPDIR/$ARCHIVE_NAME" -C "$EXTRACT_DIR"
 fi
-cp "$BINARY_NAME" "$INSTALL_DIR/${BINARY}"
-chmod +x "$INSTALL_DIR/${BINARY}"
+
+if [ ! -f "$EXTRACT_DIR/$BINARY" ]; then
+  echo "ERROR: $BINARY was not found in $ARCHIVE_NAME"
+  exit 1
+fi
+
+mkdir -p "$INSTALL_DIR"
+cp "$EXTRACT_DIR/$BINARY" "$INSTALL_DIR/$BINARY"
+chmod +x "$INSTALL_DIR/$BINARY"
 
 echo ""
 echo "fizzy ${VERSION} installed to $INSTALL_DIR/${BINARY}"
