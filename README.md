@@ -56,7 +56,7 @@ brew install --cask basecamp/tap/fizzy
 
 Release candidates are not published to Homebrew; they are available from [Releases](https://github.com/basecamp/fizzy-cli/releases).
 
-*Upgrading from Fizzy 3.x:* 3.x was the `fizzy-cli` formula in the `robzolkos/fizzy-cli` tap. `brew update` points that tap at this cask, but Homebrew will not tap a third-party tap on your behalf, so finish the move yourself:
+*Upgrading from Fizzy 3.x:* 3.x was the `fizzy-cli` formula in the `robzolkos/fizzy-cli` tap. `brew update` points that tap at this cask, but Homebrew never taps a third-party tap for you — not during migration, and not from a fully-qualified `brew install` — so run `brew tap` yourself first:
 
 ```bash
 brew tap basecamp/tap
