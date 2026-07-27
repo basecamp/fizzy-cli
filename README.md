@@ -48,22 +48,25 @@ Use `fizzy doctor` any time you want a full health check of your install, config
 yay -S fizzy-cli
 ```
 
-**Homebrew (macOS):**
-
-Latest stable Fizzy 3.x is available from the original tap:
+**Homebrew (macOS and Linux):**
 
 ```bash
-brew install robzolkos/fizzy-cli/fizzy-cli
+brew install --cask basecamp/tap/fizzy
 ```
 
-Fizzy 4 release candidates are available from [Releases](https://github.com/basecamp/fizzy-cli/releases).
+Release candidates are not published to Homebrew. They are available from [Releases](https://github.com/basecamp/fizzy-cli/releases).
 
-> [!WARNING]
-> The Basecamp Homebrew tap command is for Fizzy 4 stable once it is released. Release candidates are not published to Homebrew.
->
-> ```bash
-> brew install --cask basecamp/tap/fizzy
-> ```
+*Upgrading from Fizzy 3.x:* 3.x was distributed as the `fizzy-cli` formula from the `robzolkos/fizzy-cli` tap. That tap now points at this cask, so `brew update` will offer to move you across. If Homebrew reports that it cannot tap `basecamp/tap` automatically, finish the move yourself:
+
+```bash
+brew tap basecamp/tap
+brew trust basecamp/tap/fizzy
+brew install --cask basecamp/tap/fizzy
+brew uninstall --formula --force fizzy-cli
+brew untap robzolkos/fizzy-cli
+```
+
+Homebrew will not tap a third-party tap on your behalf without explicit trust, which is why `brew trust` is needed.
 
 **Scoop (Windows):**
 ```bash
