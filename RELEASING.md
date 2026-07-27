@@ -64,7 +64,7 @@ All release credentials live in the `release` environment (`Settings > Environme
 | `MACOS_NOTARY_KEY_ID` | secret | App Store Connect API key ID (10 chars) |
 | `MACOS_NOTARY_ISSUER_ID` | secret | App Store Connect issuer UUID |
 
-Set a secret with `gh secret set <NAME> --env release -R basecamp/fizzy-cli`; the `RELEASE_CLIENT_ID` variable uses `gh variable set` instead. For multi-line secrets like SSH keys, pipe the file directly (`gh secret set AUR_KEY --env release < keyfile`) so newlines are preserved — pasting a flattened key produces an "invalid format" SSH failure at publish time.
+Set a secret with `gh secret set <NAME> --env release -R basecamp/fizzy-cli`; the `RELEASE_CLIENT_ID` variable uses `gh variable set` instead. For multi-line secrets like SSH keys, pipe the file directly (`gh secret set AUR_KEY --env release -R basecamp/fizzy-cli < keyfile`) so newlines are preserved — pasting a flattened key produces an "invalid format" SSH failure at publish time.
 
 ## Distribution Channels
 
