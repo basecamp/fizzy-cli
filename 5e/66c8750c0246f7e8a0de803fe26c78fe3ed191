@@ -1,0 +1,19 @@
+scripts/publish-aur.sh
+  s_f61d66d3b8fe62::t_b9c4daaf967367 91-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.16",
+  "base_commit_sha": "5e66c8750c0246f7e8a0de803fe26c78fe3ed191",
+  "prompts": {},
+  "sessions": {
+    "s_f61d66d3b8fe62": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5fe872ad-c4ad-46f6-bc7d-6e3d01e26fb5",
+        "model": "claude-fable-5"
+      },
+      "human_author": "Jeremy Daer <jeremy@37signals.com>"
+    }
+  }
+}
