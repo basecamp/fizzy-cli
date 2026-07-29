@@ -80,7 +80,7 @@ E2E environment variables:
 ## Configuration
 
 The CLI reads config from multiple sources with this priority:
-1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
+1. CLI flags (`--token`, `--profile`, `--api-url`)
 2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
 3. Named profile settings (base URL, board from `~/.config/fizzy/config.json`)
 4. Local project config (`.fizzy.yaml`)
@@ -88,6 +88,21 @@ The CLI reads config from multiple sources with this priority:
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
+**`--board` is not a global flag.** `fizzy --board X ...` fails with `unknown flag`.
+The webhook subcommands declare their own `--board`; everywhere else the board comes
+from `FIZZY_BOARD` or the `board` key in config, resolved by `requireBoard`.
+
 ## Authentication
 
 Token-based via personal access tokens. Run `fizzy setup` for interactive configuration or `fizzy auth login` to save a token directly.
+
+## Checks
+
+`make check` runs `fmt-check vet lint tidy-check race-test`. It does **not** include the
+CLI surface gate.
+
+`SURFACE.txt` at the repository root is a golden snapshot of every command, flag and
+help string. `TestSurfaceSnapshot` compares against it, and CI's `go test ./...` runs
+that test, so any change to the CLI surface fails the build until the snapshot is
+refreshed. Regenerate with `make surface-snapshot` (or check it alone with
+`make surface-check`) and commit the result in the same PR as the surface change.
