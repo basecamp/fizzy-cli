@@ -91,8 +91,14 @@ The CLI reads config from multiple sources with this priority:
 **`--board` is not a global flag.** `fizzy --board X ...` fails with `unknown flag`.
 It is declared per-command, by around nineteen of them across the activity, board,
 card, column and webhook groups — so `fizzy card list --board X` works while
-`fizzy --board X card list` does not. Commands that take a board but were not given
-one fall back to `FIZZY_BOARD` or the `board` key in config, via `requireBoard`.
+`fizzy --board X card list` does not. What happens when you omit it varies by command:
+
+- **Required** (`card create`, `column create`, the webhook commands): `requireBoard`
+  falls back to `FIZZY_BOARD` or the `board` key in config, and errors if neither is set.
+- **Defaulted** (`card list`): `defaultBoard` applies the same fallback but does not
+  error — an empty board just goes unset.
+- **Optional filter** (`activity list`): no fallback at all. The board query parameter is
+  added only when the flag is given, so `FIZZY_BOARD` has no effect there.
 
 ## Authentication
 
@@ -105,8 +111,10 @@ in that list, but the surface gate still runs: `race-test` is
 `go test -race -count=1 ./internal/...`, which includes
 `internal/commands.TestSurfaceSnapshot`.
 
-`SURFACE.txt` at the repository root is a golden snapshot of every command, flag and
-help string, and that test compares against it. So a change to the CLI surface fails
+`SURFACE.txt` at the repository root is a golden snapshot of the CLI's *structure* --
+`CMD`, `SUB`, `FLAG` and `ARG` records -- and that test compares against it. It does not
+capture `Short`/`Long` help text or flag descriptions, so rewording help leaves the
+snapshot green. So a change to the CLI surface fails
 both `make check` and CI until the snapshot is refreshed. Regenerate with
 `make surface-snapshot` (or run the gate alone with `make surface-check`) and commit
 the result in the same PR as the surface change.
