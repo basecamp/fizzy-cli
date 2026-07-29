@@ -89,8 +89,10 @@ The CLI reads config from multiple sources with this priority:
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
 **`--board` is not a global flag.** `fizzy --board X ...` fails with `unknown flag`.
-The webhook subcommands declare their own `--board`; everywhere else the board comes
-from `FIZZY_BOARD` or the `board` key in config, resolved by `requireBoard`.
+It is declared per-command, by around nineteen of them across the activity, board,
+card, column and webhook groups — so `fizzy card list --board X` works while
+`fizzy --board X card list` does not. Commands that take a board but were not given
+one fall back to `FIZZY_BOARD` or the `board` key in config, via `requireBoard`.
 
 ## Authentication
 
@@ -98,11 +100,13 @@ Token-based via personal access tokens. Run `fizzy setup` for interactive config
 
 ## Checks
 
-`make check` runs `fmt-check vet lint tidy-check race-test`. It does **not** include the
-CLI surface gate.
+`make check` runs `fmt-check vet lint tidy-check race-test`. There is no `surface-check`
+in that list, but the surface gate still runs: `race-test` is
+`go test -race -count=1 ./internal/...`, which includes
+`internal/commands.TestSurfaceSnapshot`.
 
 `SURFACE.txt` at the repository root is a golden snapshot of every command, flag and
-help string. `TestSurfaceSnapshot` compares against it, and CI's `go test ./...` runs
-that test, so any change to the CLI surface fails the build until the snapshot is
-refreshed. Regenerate with `make surface-snapshot` (or check it alone with
-`make surface-check`) and commit the result in the same PR as the surface change.
+help string, and that test compares against it. So a change to the CLI surface fails
+both `make check` and CI until the snapshot is refreshed. Regenerate with
+`make surface-snapshot` (or run the gate alone with `make surface-check`) and commit
+the result in the same PR as the surface change.
