@@ -80,7 +80,8 @@ E2E environment variables:
 ## Configuration
 
 The CLI reads config from multiple sources with this priority:
-1. CLI flags (`--token`, `--profile`, `--api-url`)
+1. CLI flags (`--token`, `--profile`, `--api-url`, and `--board` on the commands that
+   accept it — see below; a given `--board` beats every configured default)
 2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
 3. Named profile settings (base URL, board from `~/.config/fizzy/config.json`)
 4. Local project config (`.fizzy.yaml`)
@@ -88,10 +89,12 @@ The CLI reads config from multiple sources with this priority:
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
-**`--board` is not a global flag.** `fizzy --board X ...` fails with `unknown flag`.
-It is declared per-command, by around nineteen of them across the activity, board,
-card, column and webhook groups — so `fizzy card list --board X` works while
-`fizzy --board X card list` does not. What happens when you omit it varies by command:
+**`--board` is command-scoped, not global.** `fizzy --board X ...` fails with
+`unknown flag`; it is declared per-command, by nineteen of them across the activity,
+board, card, column and webhook groups. So `fizzy card list --board X` works while
+`fizzy --board X card list` does not. Where it is accepted it sits at the top of the
+ladder above: `defaultBoard` returns the flag value before consulting `FIZZY_BOARD` or
+config. What happens when you omit it varies by command:
 
 - **Required** — `requireBoard` falls back to `FIZZY_BOARD` or the `board` key in
   config, and errors if neither is set. Seventeen commands: `board accesses`,
