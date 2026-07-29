@@ -93,12 +93,15 @@ It is declared per-command, by around nineteen of them across the activity, boar
 card, column and webhook groups — so `fizzy card list --board X` works while
 `fizzy --board X card list` does not. What happens when you omit it varies by command:
 
-- **Required** (`card create`, `column create`, the webhook commands): `requireBoard`
-  falls back to `FIZZY_BOARD` or the `board` key in config, and errors if neither is set.
-- **Defaulted** (`card list`): `defaultBoard` applies the same fallback but does not
-  error — an empty board just goes unset.
-- **Optional filter** (`activity list`): no fallback at all. The board query parameter is
-  added only when the flag is given, so `FIZZY_BOARD` has no effect there.
+- **Required** — `requireBoard` falls back to `FIZZY_BOARD` or the `board` key in
+  config, and errors if neither is set. Seventeen commands: `board accesses`,
+  `board closed`, `board postponed`, `board stream`, `card create`, `column list`,
+  `column show`, `column create`, `column update`, `column delete`, and all seven
+  `webhook` subcommands.
+- **Defaulted** — `card list` uses `defaultBoard`, the same fallback without the error;
+  an empty board just goes unset.
+- **Optional filter** — `activity list` has no fallback at all. The board query
+  parameter is added only when the flag is given, so `FIZZY_BOARD` has no effect there.
 
 ## Authentication
 
