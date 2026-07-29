@@ -80,7 +80,8 @@ E2E environment variables:
 ## Configuration
 
 The CLI reads config from multiple sources with this priority:
-1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
+1. CLI flags (`--token`, `--profile`, `--api-url`, and `--board` on the commands that
+   accept it — see below; a given `--board` beats every configured default)
 2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
 3. Named profile settings (base URL, board from `~/.config/fizzy/config.json`)
 4. Local project config (`.fizzy.yaml`)
@@ -88,6 +89,38 @@ The CLI reads config from multiple sources with this priority:
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
+**`--board` is command-scoped, not global.** `fizzy --board X ...` fails with
+`unknown flag`; it is declared per-command, by nineteen of them across the activity,
+board, card, column and webhook groups. So `fizzy card list --board X` works while
+`fizzy --board X card list` does not. Where it is accepted it sits at the top of the
+ladder above: `defaultBoard` returns the flag value before consulting `FIZZY_BOARD` or
+config. What happens when you omit it varies by command:
+
+- **Required** — `requireBoard` falls back to `FIZZY_BOARD` or the `board` key in
+  config, and errors if neither is set. Seventeen commands: `board accesses`,
+  `board closed`, `board postponed`, `board stream`, `card create`, `column list`,
+  `column show`, `column create`, `column update`, `column delete`, and all seven
+  `webhook` subcommands.
+- **Defaulted** — `card list` uses `defaultBoard`, the same fallback without the error;
+  an empty board just goes unset.
+- **Optional filter** — `activity list` has no fallback at all. The board query
+  parameter is added only when the flag is given, so `FIZZY_BOARD` has no effect there.
+
 ## Authentication
 
 Token-based via personal access tokens. Run `fizzy setup` for interactive configuration or `fizzy auth login` to save a token directly.
+
+## Checks
+
+`make check` runs `fmt-check vet lint tidy-check race-test`. There is no `surface-check`
+in that list, but the surface gate still runs: `race-test` is
+`go test -race -count=1 ./internal/...`, which includes
+`internal/commands.TestSurfaceSnapshot`.
+
+`SURFACE.txt` at the repository root is a golden snapshot of the CLI's *structure* --
+`CMD`, `SUB`, `FLAG` and `ARG` records -- and that test compares against it. It does not
+capture `Short`/`Long` help text or flag descriptions, so rewording help leaves the
+snapshot green. So a change to the CLI surface fails
+both `make check` and CI until the snapshot is refreshed. Regenerate with
+`make surface-snapshot` (or run the gate alone with `make surface-check`) and commit
+the result in the same PR as the surface change.
