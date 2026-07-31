@@ -627,6 +627,72 @@ func TestAuthSwitch(t *testing.T) {
 	})
 }
 
+func TestProfileAliasesUseSharedAccountWithDistinctTokens(t *testing.T) {
+	credDir := t.TempDir()
+	profileDir := t.TempDir()
+
+	os.Setenv("FIZZY_ALIAS_NO_KR", "1")
+	defer os.Unsetenv("FIZZY_ALIAS_NO_KR")
+	store := credstore.NewStore(credstore.StoreOptions{
+		ServiceName:   "fizzy-alias-test",
+		DisableEnvVar: "FIZZY_ALIAS_NO_KR",
+		FallbackDir:   credDir,
+	})
+	profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+	for _, name := range []string{"walter", "walter2"} {
+		if err := profileStore.Create(&profile.Profile{
+			Name:    name,
+			BaseURL: "https://app.fizzy.do",
+			Extra: map[string]json.RawMessage{
+				"account": json.RawMessage(`"1"`),
+			},
+		}); err != nil {
+			t.Fatalf("create profile %s: %v", name, err)
+		}
+	}
+
+	for profileName, token := range map[string]string{
+		"walter":  "walter-token",
+		"walter2": "agent-token",
+	} {
+		data, _ := json.Marshal(token)
+		if err := store.Save("profile:"+profileName, data); err != nil {
+			t.Fatalf("save token for %s: %v", profileName, err)
+		}
+	}
+
+	mock := NewMockClient()
+	SetTestModeWithSDK(mock)
+	SetTestCreds(store)
+	SetTestProfiles(profileStore)
+	SetTestConfig("", "legacy-account", "https://app.fizzy.do")
+	defer resetTest()
+
+	for _, tt := range []struct {
+		profile string
+		token   string
+	}{
+		{profile: "walter", token: "walter-token"},
+		{profile: "walter2", token: "agent-token"},
+	} {
+		t.Run(tt.profile, func(t *testing.T) {
+			cfgProfile = tt.profile
+			cfg.Token = ""
+			if err := resolveProfile(); err != nil {
+				t.Fatalf("resolve profile: %v", err)
+			}
+			resolveToken()
+
+			if cfg.Account != "1" {
+				t.Errorf("account: want shared account '1', got %q", cfg.Account)
+			}
+			if cfg.Token != tt.token {
+				t.Errorf("token: want %q, got %q", tt.token, cfg.Token)
+			}
+		})
+	}
+}
+
 func TestProfileFlagTokenSelection(t *testing.T) {
 	t.Run("resolveToken loads token for profile specified via flag", func(t *testing.T) {
 		credDir := t.TempDir()
