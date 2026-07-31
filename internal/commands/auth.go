@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/basecamp/cli/output"
 	"github.com/basecamp/cli/profile"
@@ -42,18 +43,41 @@ var authLoginCmd = &cobra.Command{
 		cfg.Account = account
 
 		if creds != nil {
+			var previousProfile *profile.Profile
+			var previousDefault string
+			if profiles != nil {
+				allProfiles, defaultName, err := profiles.List()
+				if err != nil {
+					return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+				}
+				previousProfile = allProfiles[profileName]
+				previousDefault = defaultName
+			}
+
 			// Persist the profile before its credential so a profile-store failure
 			// cannot leave an orphaned credential behind.
 			if err := ensureProfileForAccount(profileName, account, cfg.APIURL, ""); err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
+			restoreProfile := func(operationErr error) error {
+				if profiles == nil {
+					return &output.Error{Code: output.CodeAPI, Message: operationErr.Error()}
+				}
+				if restoreErr := restoreAuthLoginProfile(profileName, previousProfile, previousDefault); restoreErr != nil {
+					return &output.Error{
+						Code:    output.CodeAPI,
+						Message: fmt.Sprintf("%v (profile restore failed: %v)", operationErr, restoreErr),
+					}
+				}
+				return &output.Error{Code: output.CodeAPI, Message: operationErr.Error()}
+			}
 			if profiles != nil {
 				if err := profiles.SetDefault(profileName); err != nil {
-					return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+					return restoreProfile(err)
 				}
 			}
 			if err := credsSaveProfileToken(profileName, token); err != nil {
-				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+				return restoreProfile(err)
 			}
 			globalCfg := config.LoadGlobal()
 			globalCfg.Account = account
@@ -97,6 +121,47 @@ var authLoginCmd = &cobra.Command{
 		printMutation(result, "", breadcrumbs)
 		return nil
 	},
+}
+
+func restoreAuthLoginProfile(profileName string, previousProfile *profile.Profile, previousDefault string) error {
+	allProfiles, _, err := profiles.List()
+	if err != nil {
+		return err
+	}
+	if _, exists := allProfiles[profileName]; exists {
+		if err := profiles.Delete(profileName); err != nil {
+			return err
+		}
+	}
+	if previousProfile != nil {
+		if previousDefault == "" && len(allProfiles) == 1 {
+			// A temporary profile prevents Create from selecting the restored
+			// profile when the store previously had no default.
+			temporaryName := "fizzy-restore"
+			for suffix := 2; ; suffix++ {
+				if _, exists := allProfiles[temporaryName]; !exists {
+					break
+				}
+				temporaryName = fmt.Sprintf("fizzy-restore-%d", suffix)
+			}
+			if err := profiles.Create(&profile.Profile{Name: temporaryName, BaseURL: config.DefaultAPIURL}); err != nil {
+				return err
+			}
+			if err := profiles.Create(previousProfile); err != nil {
+				return err
+			}
+			return profiles.Delete(temporaryName)
+		}
+		if err := profiles.Create(previousProfile); err != nil {
+			return err
+		}
+	}
+	if previousDefault != "" {
+		if err := profiles.SetDefault(previousDefault); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 var authLogoutCmd = &cobra.Command{
@@ -395,7 +460,9 @@ var authSwitchCmd = &cobra.Command{
 				}
 			}
 
-			cfg.APIURL = profileAPIURL
+			if cfgAPIURL == "" && os.Getenv("FIZZY_API_URL") == "" {
+				cfg.APIURL = profileAPIURL
+			}
 		}
 
 		breadcrumbs := []Breadcrumb{

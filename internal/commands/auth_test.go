@@ -231,6 +231,154 @@ func TestAuthLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("restores a new profile when credential saving fails", func(t *testing.T) {
+		configDir := t.TempDir()
+		config.SetTestConfigDir(configDir)
+		defer config.ResetTestConfigDir()
+
+		blockedCredDir := filepath.Join(t.TempDir(), "blocked")
+		if err := os.WriteFile(blockedCredDir, []byte("not a directory"), 0600); err != nil {
+			t.Fatalf("create blocked credential path: %v", err)
+		}
+		t.Setenv("FIZZY_LOGIN_ROLLBACK_NEW_NO_KR", "1")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-login-rollback-new-test",
+			DisableEnvVar: "FIZZY_LOGIN_ROLLBACK_NEW_NO_KR",
+			FallbackDir:   blockedCredDir,
+		})
+		profileStore := profile.NewStore(filepath.Join(configDir, "config.json"))
+		if err := profileStore.Create(&profile.Profile{Name: "existing", BaseURL: config.DefaultAPIURL}); err != nil {
+			t.Fatalf("create existing profile: %v", err)
+		}
+
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestConfig("", "1", config.DefaultAPIURL)
+		activeProfile = "agent"
+		authLoginAccount = "1"
+		defer resetTest()
+
+		err := authLoginCmd.RunE(authLoginCmd, []string{"replacement-token"})
+		if err == nil {
+			t.Fatal("expected credential save error")
+		}
+		allProfiles, defaultName, listErr := profileStore.List()
+		if listErr != nil {
+			t.Fatalf("list profiles: %v", listErr)
+		}
+		if _, ok := allProfiles["agent"]; ok {
+			t.Fatal("failed login left the new profile behind")
+		}
+		if defaultName != "existing" {
+			t.Fatalf("default profile: want existing, got %q", defaultName)
+		}
+	})
+
+	for _, initialDefault := range []string{"other", "agent", ""} {
+		name := "restores existing profile when credential saving fails"
+		switch initialDefault {
+		case "agent":
+			name += " while already default"
+		case "":
+			name += " with no prior default"
+		}
+		t.Run(name, func(t *testing.T) {
+			configDir := t.TempDir()
+			config.SetTestConfigDir(configDir)
+			defer config.ResetTestConfigDir()
+
+			t.Setenv("FIZZY_LOGIN_ROLLBACK_EXISTING_NO_KR", "1")
+			credDir := filepath.Join(t.TempDir(), "credentials")
+			store := credstore.NewStore(credstore.StoreOptions{
+				ServiceName:   "fizzy-login-rollback-existing-test",
+				DisableEnvVar: "FIZZY_LOGIN_ROLLBACK_EXISTING_NO_KR",
+				FallbackDir:   credDir,
+			})
+			oldToken, _ := json.Marshal("old-token")
+			if err := store.Save("profile:agent", oldToken); err != nil {
+				t.Fatalf("save old credential: %v", err)
+			}
+			backupCredDir := credDir + "-backup"
+			if err := os.Rename(credDir, backupCredDir); err != nil {
+				t.Fatalf("move credential directory: %v", err)
+			}
+			if err := os.WriteFile(credDir, []byte("not a directory"), 0600); err != nil {
+				t.Fatalf("block credential directory: %v", err)
+			}
+
+			profileStore := profile.NewStore(filepath.Join(configDir, "config.json"))
+			if err := profileStore.Create(&profile.Profile{Name: "other", BaseURL: config.DefaultAPIURL}); err != nil {
+				t.Fatalf("create other profile: %v", err)
+			}
+			if err := profileStore.Create(&profile.Profile{
+				Name:    "agent",
+				BaseURL: "https://old.example.com",
+				Extra: map[string]json.RawMessage{
+					"account": json.RawMessage(`"old-account"`),
+					"board":   json.RawMessage(`"old-board"`),
+				},
+			}); err != nil {
+				t.Fatalf("create agent profile: %v", err)
+			}
+			switch initialDefault {
+			case "agent":
+				if err := profileStore.SetDefault("agent"); err != nil {
+					t.Fatalf("set initial default: %v", err)
+				}
+			case "":
+				if err := profileStore.Delete("other"); err != nil {
+					t.Fatalf("clear initial default: %v", err)
+				}
+			}
+
+			SetTestCreds(store)
+			SetTestProfiles(profileStore)
+			SetTestConfig("", "new-account", "https://new.example.com")
+			activeProfile = "agent"
+			authLoginAccount = "new-account"
+
+			err := authLoginCmd.RunE(authLoginCmd, []string{"replacement-token"})
+			if removeErr := os.Remove(credDir); removeErr != nil {
+				t.Fatalf("unblock credential directory: %v", removeErr)
+			}
+			if renameErr := os.Rename(backupCredDir, credDir); renameErr != nil {
+				t.Fatalf("restore credential directory: %v", renameErr)
+			}
+			defer resetTest()
+			if err == nil {
+				t.Fatal("expected credential save error")
+			}
+
+			restored, getErr := profileStore.Get("agent")
+			if getErr != nil {
+				t.Fatalf("get restored profile: %v", getErr)
+			}
+			if restored.BaseURL != "https://old.example.com" {
+				t.Errorf("BaseURL: want old value, got %q", restored.BaseURL)
+			}
+			if got := profileAccount("agent", restored); got != "old-account" {
+				t.Errorf("account: want old-account, got %q", got)
+			}
+			if got := string(restored.Extra["board"]); got != `"old-board"` {
+				t.Errorf("board metadata: want old value, got %s", got)
+			}
+			_, defaultName, listErr := profileStore.List()
+			if listErr != nil {
+				t.Fatalf("list profiles: %v", listErr)
+			}
+			if defaultName != initialDefault {
+				t.Errorf("default profile: want %q, got %q", initialDefault, defaultName)
+			}
+			data, loadErr := store.Load("profile:agent")
+			if loadErr != nil {
+				t.Fatalf("load restored credential: %v", loadErr)
+			}
+			if string(data) != string(oldToken) {
+				t.Errorf("credential changed: want %s, got %s", oldToken, data)
+			}
+		})
+	}
+
 	t.Run("does not save credentials when profile creation fails", func(t *testing.T) {
 		configDir := t.TempDir()
 		config.SetTestConfigDir(configDir)
@@ -908,6 +1056,67 @@ func TestAuthSwitch(t *testing.T) {
 			t.Errorf("expected default profile 'other', got '%s'", defaultName)
 		}
 	})
+
+	for _, tt := range []struct {
+		name      string
+		envURL    string
+		flagURL   string
+		effective string
+	}{
+		{name: "preserves environment API URL override", envURL: "https://env.example.com", effective: "https://env.example.com"},
+		{name: "preserves flag API URL override", envURL: "https://env.example.com", flagURL: "https://flag.example.com", effective: "https://flag.example.com"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			configDir := t.TempDir()
+			config.SetTestConfigDir(configDir)
+			defer config.ResetTestConfigDir()
+			t.Setenv("FIZZY_API_URL", tt.envURL)
+			t.Setenv("FIZZY_SWITCH_OVERRIDE_NO_KR", "1")
+
+			store := credstore.NewStore(credstore.StoreOptions{
+				ServiceName:   "fizzy-switch-override-test",
+				DisableEnvVar: "FIZZY_SWITCH_OVERRIDE_NO_KR",
+				FallbackDir:   t.TempDir(),
+			})
+			profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+			if err := profileStore.Create(&profile.Profile{Name: "acme", BaseURL: "https://app.fizzy.do"}); err != nil {
+				t.Fatalf("create acme profile: %v", err)
+			}
+			if err := profileStore.Create(&profile.Profile{Name: "other", BaseURL: "https://profile.example.com"}); err != nil {
+				t.Fatalf("create other profile: %v", err)
+			}
+			tokenData, _ := json.Marshal("other-token")
+			if err := store.Save("profile:other", tokenData); err != nil {
+				t.Fatalf("save other credential: %v", err)
+			}
+
+			SetTestModeWithSDK(NewMockClient())
+			SetTestCreds(store)
+			SetTestProfiles(profileStore)
+			SetTestConfig("acme-token", "acme", tt.effective)
+			cfgAPIURL = tt.flagURL
+			defer func() { cfgAPIURL = "" }()
+			defer resetTest()
+
+			if err := authSwitchCmd.RunE(authSwitchCmd, []string{"other"}); err != nil {
+				t.Fatalf("switch profile: %v", err)
+			}
+			if cfg.APIURL != tt.effective {
+				t.Errorf("effective API URL: want %q, got %q", tt.effective, cfg.APIURL)
+			}
+			data, err := os.ReadFile(filepath.Join(configDir, "config.yaml"))
+			if err != nil {
+				t.Fatalf("read global config: %v", err)
+			}
+			var savedConfig config.Config
+			if err := yaml.Unmarshal(data, &savedConfig); err != nil {
+				t.Fatalf("parse global config: %v", err)
+			}
+			if savedConfig.APIURL != "https://profile.example.com" {
+				t.Errorf("persisted API URL: want profile URL, got %q", savedConfig.APIURL)
+			}
+		})
+	}
 
 	t.Run("fails for unknown profile", func(t *testing.T) {
 		credDir := t.TempDir()
