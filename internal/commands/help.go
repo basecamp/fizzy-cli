@@ -386,7 +386,7 @@ var rootCommandGroups = map[string][]string{
 }
 
 var commandExamples = map[string]string{
-	"fizzy auth":              "$ fizzy auth status\n$ fizzy auth login TOKEN --profile acme",
+	"fizzy auth":              "$ fizzy auth status\n$ fizzy auth login TOKEN --profile acme\n$ fizzy auth login TOKEN --profile agent --account acme",
 	"fizzy auth status":       "$ fizzy auth status",
 	"fizzy auth list":         "$ fizzy auth list\n$ fizzy auth switch acme",
 	"fizzy activity":          "$ fizzy activity list\n$ fizzy activity list --board <id>",

@@ -1,10 +1,14 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/basecamp/cli/credstore"
@@ -335,16 +339,16 @@ func TestDoctorAllProfilesIncludesPerProfileResults(t *testing.T) {
 	mock.OnGet("/boards/board-1.json", &client.APIResponse{StatusCode: 200, Data: map[string]any{"id": "board-1", "name": "Roadmap"}})
 
 	result := SetTestModeWithSDK(mock)
-	if err := profileStore.Create(&profile.Profile{Name: "acme", BaseURL: testHTTPServer.URL, Extra: map[string]json.RawMessage{"board": json.RawMessage(`"board-1"`)}}); err != nil {
-		t.Fatalf("create acme profile: %v", err)
+	if err := profileStore.Create(&profile.Profile{Name: "walter", BaseURL: testHTTPServer.URL, Extra: map[string]json.RawMessage{"account": json.RawMessage(`"acme"`), "board": json.RawMessage(`"board-1"`)}}); err != nil {
+		t.Fatalf("create walter profile: %v", err)
 	}
 	if err := profileStore.Create(&profile.Profile{Name: "staging", BaseURL: testHTTPServer.URL}); err != nil {
 		t.Fatalf("create staging profile: %v", err)
 	}
-	if err := profileStore.SetDefault("acme"); err != nil {
+	if err := profileStore.SetDefault("walter"); err != nil {
 		t.Fatalf("set default profile: %v", err)
 	}
-	if err := credsSaveProfileTokenForTest(store, "acme", "test-token"); err != nil {
+	if err := credsSaveProfileTokenForTest(store, "walter", "test-token"); err != nil {
 		t.Fatalf("save profile token: %v", err)
 	}
 	SetTestCreds(store)
@@ -386,11 +390,147 @@ func TestDoctorAllProfilesIncludesPerProfileResults(t *testing.T) {
 		found[name] = statuses
 	}
 
-	if found["acme"]["Authentication"] != "pass" {
-		t.Fatalf("expected acme authentication to pass, got %#v", found["acme"])
+	if found["walter"]["Authentication"] != "pass" {
+		t.Fatalf("expected walter authentication to pass, got %#v", found["walter"])
 	}
 	if found["staging"]["Credentials"] != "fail" {
 		t.Fatalf("expected staging credentials to fail, got %#v", found["staging"])
+	}
+}
+
+func TestDoctorTokenlessAccountProfileStillChecksReachability(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	eff := doctorEffectiveConfig{
+		ProfileName:    "account",
+		Account:        "account",
+		APIURL:         server.URL,
+		APIURLSource:   "profile store",
+		TokenSource:    "not configured",
+		TokenSourceRaw: "none",
+	}
+	_ = runDoctorTargetChecks(context.Background(), eff, false)
+	if got := requests.Load(); got == 0 {
+		t.Fatal("doctor skipped reachability for account-named profile")
+	}
+}
+
+func TestDoctorTokenlessAliasDoesNotBorrowOrSendLegacyToken(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer server.Close()
+
+	t.Setenv("FIZZY_DOCTOR_ALIAS_LEGACY_NO_KR", "1")
+	store := credstore.NewStore(credstore.StoreOptions{
+		ServiceName:   "fizzy-doctor-alias-legacy-test",
+		DisableEnvVar: "FIZZY_DOCTOR_ALIAS_LEGACY_NO_KR",
+		FallbackDir:   t.TempDir(),
+	})
+	legacyToken, _ := json.Marshal("legacy-token")
+	if err := store.Save("token", legacyToken); err != nil {
+		t.Fatalf("save legacy credential: %v", err)
+	}
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := profileStore.Create(&profile.Profile{
+		Name:    "agent",
+		BaseURL: server.URL,
+		Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"1"`)},
+	}); err != nil {
+		t.Fatalf("create alias: %v", err)
+	}
+	SetTestCreds(store)
+	SetTestProfiles(profileStore)
+	defer resetTest()
+
+	targets := doctorTargetsFromProfileStore()
+	if len(targets) != 1 {
+		t.Fatalf("targets: want 1, got %d", len(targets))
+	}
+	if targets[0].Token != "" {
+		t.Fatalf("alias borrowed legacy credential %q", targets[0].Token)
+	}
+	_ = runDoctorTargetChecks(context.Background(), targets[0], false)
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("doctor sent %d request(s) for tokenless alias", got)
+	}
+}
+
+func TestDoctorInvalidAliasMetadataDoesNotSendRequests(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	t.Setenv("FIZZY_DOCTOR_INVALID_ALIAS_NO_KR", "1")
+	store := credstore.NewStore(credstore.StoreOptions{
+		ServiceName:   "fizzy-doctor-invalid-alias-test",
+		DisableEnvVar: "FIZZY_DOCTOR_INVALID_ALIAS_NO_KR",
+		FallbackDir:   t.TempDir(),
+	})
+	legacyToken, _ := json.Marshal("legacy-token")
+	if err := store.Save("token", legacyToken); err != nil {
+		t.Fatalf("save legacy credential: %v", err)
+	}
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := profileStore.Create(&profile.Profile{
+		Name:    "agent",
+		BaseURL: server.URL,
+		Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"../other"`)},
+	}); err != nil {
+		t.Fatalf("create invalid alias: %v", err)
+	}
+	SetTestCreds(store)
+	SetTestProfiles(profileStore)
+	defer resetTest()
+
+	targets := doctorTargetsFromProfileStore()
+	if len(targets) != 1 || targets[0].ConfigError == "" {
+		t.Fatalf("expected invalid target, got %#v", targets)
+	}
+	checks := runDoctorTargetChecks(context.Background(), targets[0], false)
+	if checks[0].Status != "fail" {
+		t.Fatalf("effective config check: want fail, got %#v", checks[0])
+	}
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("doctor sent %d request(s) for invalid alias", got)
+	}
+}
+
+func TestNewDoctorClientsRoutesAliasThroughAccount(t *testing.T) {
+	paths := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths <- r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	_, accountClient, err := newDoctorClients(doctorEffectiveConfig{
+		ProfileName: "walter",
+		Account:     "acme",
+		APIURL:      server.URL,
+		Token:       "test-token",
+	})
+	if err != nil {
+		t.Fatalf("create doctor clients: %v", err)
+	}
+	if _, _, err := accountClient.Boards().List(context.Background(), "/boards.json"); err != nil {
+		t.Fatalf("list boards: %v", err)
+	}
+	if path := <-paths; path != "/acme/boards.json" {
+		t.Fatalf("request path: want /acme/boards.json, got %q", path)
 	}
 }
 
@@ -509,7 +649,7 @@ func TestDoctorStoredTokenSourceIgnoresAccountMismatch(t *testing.T) {
 	creds = nil
 	defer func() { creds = savedCreds }()
 
-	raw, source, token := doctorStoredTokenSourceForProfile("acme", localCfg, globalCfg)
+	raw, source, token := doctorStoredTokenSourceForProfile("acme", false, localCfg, globalCfg)
 	if token != "yaml-token" {
 		t.Fatalf("expected yaml-token, got %q", token)
 	}
@@ -529,7 +669,7 @@ func TestDoctorStoredTokenSourceLocalBeforeGlobal(t *testing.T) {
 	creds = nil
 	defer func() { creds = savedCreds }()
 
-	raw, _, token := doctorStoredTokenSourceForProfile("acme", localCfg, globalCfg)
+	raw, _, token := doctorStoredTokenSourceForProfile("acme", false, localCfg, globalCfg)
 	if token != "local-token" {
 		t.Fatalf("expected local-token, got %q", token)
 	}

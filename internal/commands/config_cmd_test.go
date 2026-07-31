@@ -82,6 +82,33 @@ func TestConfigShow(t *testing.T) {
 	}
 }
 
+func TestConfigShowVerboseAttributesAliasAccountToProfile(t *testing.T) {
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := profileStore.Create(&profile.Profile{
+		Name:    "walter",
+		BaseURL: config.DefaultAPIURL,
+		Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"1"`)},
+	}); err != nil {
+		t.Fatalf("create alias: %v", err)
+	}
+	SetTestProfiles(profileStore)
+	SetTestConfig("token", "legacy", config.DefaultAPIURL)
+	cfgProfile = "walter"
+	defer resetTest()
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile: %v", err)
+	}
+
+	data := configShowData(true)
+	account, ok := data["account"].(map[string]any)
+	if !ok {
+		t.Fatalf("account: expected object, got %#v", data["account"])
+	}
+	if account["value"] != "1" || account["source"] != "profile walter" {
+		t.Fatalf("account: want value 1 from profile walter, got %#v", account)
+	}
+}
+
 func TestConfigExplainShowsPrecedence(t *testing.T) {
 	configDir := t.TempDir()
 	workDir := t.TempDir()
@@ -103,7 +130,8 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 		Name:    "acme",
 		BaseURL: "https://profile.example.com",
 		Extra: map[string]json.RawMessage{
-			"board": json.RawMessage(`"profile-board"`),
+			"account": json.RawMessage(`"1"`),
+			"board":   json.RawMessage(`"profile-board"`),
 		},
 	}); err != nil {
 		t.Fatalf("create profile: %v", err)
@@ -118,7 +146,7 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 	t.Setenv("FIZZY_PROFILE", "acme")
 	t.Setenv("FIZZY_API_URL", "https://env.example.com")
 	cfg = config.Load()
-	cfg.Account = "acme"
+	cfg.Account = "1"
 	cfg.APIURL = "https://env.example.com"
 	cfg.Board = "profile-board"
 	defer resetTest()
@@ -134,6 +162,10 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 	profileField := data["profile"].(map[string]any)
 	if profileField["source"] != "env FIZZY_PROFILE" {
 		t.Fatalf("expected env profile source, got %#v", profileField)
+	}
+	accountField := data["account"].(map[string]any)
+	if accountField["value"] != "1" || accountField["source"] != "profile acme" {
+		t.Fatalf("expected account 1 from profile acme, got %#v", accountField)
 	}
 	apiURLField := data["api_url"].(map[string]any)
 	if apiURLField["source"] != "env FIZZY_API_URL" {
@@ -154,6 +186,44 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 	}
 	if !sawEnvSelected {
 		t.Fatalf("expected env API URL candidate to be selected, got %#v", candidates)
+	}
+}
+
+func TestConfigExplainAccountCandidatesFollowProfileFallback(t *testing.T) {
+	configDir := t.TempDir()
+	workDir := t.TempDir()
+	config.SetTestConfigDir(configDir)
+	config.SetTestWorkingDir(workDir)
+	defer config.ResetTestConfigDir()
+	defer config.ResetTestWorkingDir()
+
+	if err := os.WriteFile(filepath.Join(workDir, config.LocalConfigFile), []byte("account: stale-local\n"), 0o600); err != nil {
+		t.Fatalf("write local config: %v", err)
+	}
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	mock := NewMockClient()
+	SetTestModeWithSDK(mock)
+	SetTestProfiles(profileStore)
+	t.Setenv("FIZZY_PROFILE", "new-account")
+	cfg = config.Load()
+	defer resetTest()
+
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile fallback: %v", err)
+	}
+	field := configExplainData()["account"].(configExplainField)
+	if field.Value != "new-account" || field.Source != "env FIZZY_PROFILE" {
+		t.Fatalf("effective account: want new-account from env, got %#v", field)
+	}
+
+	selected := ""
+	for _, candidate := range field.Candidates {
+		if candidate.Selected {
+			selected = candidate.Source
+		}
+	}
+	if selected != "env FIZZY_PROFILE" {
+		t.Fatalf("selected account candidate: want env FIZZY_PROFILE, got %q (%#v)", selected, field.Candidates)
 	}
 }
 

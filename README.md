@@ -192,11 +192,36 @@ Breadcrumbs suggest next commands, making it easy for humans and agents to navig
 Configuration priority (highest to lowest):
 1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
 2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
-3. Named profile settings (base URL, board from `config.json`)
+3. Named profile settings (account, base URL, board from `config.json`)
 4. Local project config (`.fizzy.yaml`)
 5. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
+
+Profiles created by `fizzy setup` use the account slug as their name and continue to work without changes. A profile can also use a distinct name by storing its account in the profile's `extra` settings. This supports separate credentials for multiple users of the same account:
+
+```bash
+fizzy auth login "$WALTER_TOKEN" --profile walter --account 1
+fizzy auth login "$AGENT_TOKEN" --profile walter-agent --account 1
+```
+
+The commands store credentials under each profile name while routing both profiles to account `1`:
+
+```json
+{
+  "profiles": {
+    "walter": {
+      "base_url": "https://app.fizzy.do",
+      "extra": { "account": "1" }
+    },
+    "walter-agent": {
+      "base_url": "https://app.fizzy.do",
+      "extra": { "account": "1" }
+    }
+  },
+  "default_profile": "walter"
+}
+```
 
 `FIZZY_NO_UPDATE_NOTIFIER=1` runs commands without update notifications.
 

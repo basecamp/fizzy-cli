@@ -513,6 +513,7 @@ FLAG fizzy auth list --quiet type=bool
 FLAG fizzy auth list --styled type=bool
 FLAG fizzy auth list --token type=string
 FLAG fizzy auth list --verbose type=bool
+FLAG fizzy auth login --account type=string
 FLAG fizzy auth login --agent type=bool
 FLAG fizzy auth login --api-url type=string
 FLAG fizzy auth login --count type=bool

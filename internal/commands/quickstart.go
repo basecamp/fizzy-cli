@@ -35,8 +35,8 @@ func runRootDefault(cmd *cobra.Command, args []string) error {
 	}
 
 	auth := quickStartAuthInfo{Status: "unauthenticated"}
-	if cfgProfile != "" {
-		auth.Profile = cfgProfile
+	if profileName := firstNonEmpty(activeProfile, cfgProfile); profileName != "" {
+		auth.Profile = profileName
 	}
 	if cfg != nil {
 		if cfg.Account != "" {

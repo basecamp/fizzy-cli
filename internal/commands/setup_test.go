@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/basecamp/cli/profile"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -37,6 +38,30 @@ func toJSONSlice(t *testing.T, items []any) []json.RawMessage {
 		result[i] = toJSON(t, item)
 	}
 	return result
+}
+
+func TestSetupAccountProfileClearsStaleAliasRouting(t *testing.T) {
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := profileStore.Create(&profile.Profile{
+		Name:    "acct",
+		BaseURL: config.DefaultAPIURL,
+		Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"old-account"`)},
+	}); err != nil {
+		t.Fatalf("create stale alias: %v", err)
+	}
+	SetTestProfiles(profileStore)
+	defer resetTest()
+
+	if err := ensureProfileForAccount("acct", "acct", config.DefaultAPIURL, ""); err != nil {
+		t.Fatalf("save setup profile: %v", err)
+	}
+	p, err := profileStore.Get("acct")
+	if err != nil {
+		t.Fatalf("get setup profile: %v", err)
+	}
+	if account := profileAccount("acct", p); account != "acct" {
+		t.Fatalf("setup account: want acct, got %q", account)
+	}
 }
 
 func TestParseAccounts(t *testing.T) {

@@ -113,7 +113,7 @@ func findLocalConfig() string {
 //
 //  1. CLI flags (--token, --profile, --api-url, --board)
 //  2. Environment variables (FIZZY_TOKEN, FIZZY_PROFILE, FIZZY_API_URL, FIZZY_BOARD)
-//  3. Named profile settings (BaseURL, board from config.json)
+//  3. Named profile settings (account, BaseURL, board from config.json)
 //  4. Local project config (.fizzy.yaml)
 //  5. Global config (~/.config/fizzy/config.yaml)
 //  6. Defaults
