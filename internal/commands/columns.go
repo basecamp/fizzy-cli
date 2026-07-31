@@ -41,6 +41,7 @@ var (
 
 	authProfileColumns = render.Columns{
 		{Header: "Profile", Field: "profile"},
+		{Header: "Account", Field: "account"},
 		{Header: "Active", Field: "active"},
 		{Header: "Board", Field: "board"},
 		{Header: "Base URL", Field: "base_url"},

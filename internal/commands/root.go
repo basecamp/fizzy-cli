@@ -59,8 +59,10 @@ var (
 	// Credential store
 	creds *credstore.Store
 
-	// Profile store
-	profiles *profile.Store
+	// Profile store and the selected profile name. The selected profile is
+	// kept separate from cfg.Account so aliases can target the same account.
+	profiles      *profile.Store
+	activeProfile string
 
 	// Output writer
 	out       *output.Writer
@@ -148,7 +150,14 @@ var rootCmd = &cobra.Command{
 		}
 
 		if err := resolveProfile(); err != nil {
-			return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+			// Login can create a new alias when its account is supplied explicitly.
+			newProfile := firstNonEmpty(cfgProfile, os.Getenv("FIZZY_PROFILE"), os.Getenv("FIZZY_ACCOUNT"))
+			if cmd == authLoginCmd && newProfile != "" && authLoginAccount != "" {
+				activeProfile = newProfile
+				cfg.Account = authLoginAccount
+			} else {
+				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+			}
 		}
 		resolveToken()
 
@@ -1160,9 +1169,12 @@ func credsLoadLegacyToken(account string) (string, error) {
 // or env var) that doesn't exist — that must be a hard failure, not a
 // silent fallback to whatever was in the YAML config.
 func resolveProfile() error {
+	activeProfile = ""
 	if profiles == nil {
-		// No profile store (test mode or init failure) — fall back to env var
-		if p := os.Getenv("FIZZY_PROFILE"); p != "" {
+		// No profile store (test mode or init failure) — use the selected name
+		// as both profile and account for legacy compatibility.
+		if p := firstNonEmpty(cfgProfile, profileEnvVar()); p != "" {
+			activeProfile = p
 			cfg.Account = p
 		}
 		return nil
@@ -1170,8 +1182,10 @@ func resolveProfile() error {
 
 	allProfiles, defaultName, err := profiles.List()
 	if err != nil || len(allProfiles) == 0 {
-		// No profiles configured — fall back to env var for account
-		if v := profileEnvVar(); v != "" {
+		// No profiles configured — use the selected name as both profile and
+		// account until a profile with explicit account metadata is created.
+		if v := firstNonEmpty(cfgProfile, profileEnvVar()); v != "" {
+			activeProfile = v
 			cfg.Account = v
 		}
 		return nil
@@ -1204,7 +1218,8 @@ func resolveProfile() error {
 
 	// Apply profile settings to cfg — but only for fields that haven't
 	// already been set by a higher-precedence source (env var).
-	cfg.Account = resolved
+	activeProfile = resolved
+	cfg.Account = profileAccount(resolved, p)
 	if p.BaseURL != "" && os.Getenv("FIZZY_API_URL") == "" {
 		cfg.APIURL = p.BaseURL
 	}
@@ -1230,12 +1245,38 @@ func profileEnvVar() string {
 	return ""
 }
 
+// profileAccount returns the account routed by a profile. Profiles created
+// before account aliases were supported use their name as the account.
+func profileAccount(name string, p *profile.Profile) string {
+	if p != nil {
+		if raw, ok := p.Extra["account"]; ok {
+			var account string
+			if json.Unmarshal(raw, &account) == nil && strings.TrimSpace(account) != "" {
+				return account
+			}
+		}
+	}
+	return name
+}
+
+// currentProfileName returns the selected credential profile. Legacy config
+// without a named profile uses the configured account as its credential key.
+func currentProfileName() string {
+	if activeProfile != "" {
+		return activeProfile
+	}
+	if cfg != nil {
+		return cfg.Account
+	}
+	return ""
+}
+
 // resolveToken applies token precedence: YAML → credstore (with migration) → env → flag.
 func resolveToken() {
 	// 1. YAML file (global + local, already in cfg.Token from config.Load())
 	// 2. credstore (overrides YAML — credstore is the "new" storage)
 	if creds != nil {
-		profileName := cfg.Account // profile name = account slug
+		profileName := currentProfileName()
 
 		if profileName != "" {
 			// Try profile-scoped token first
@@ -1283,9 +1324,9 @@ func migrateLegacyToken(profileName string) {
 		cfg.Token = globalCfg.Token
 		if err := credsSaveProfileToken(profileName, globalCfg.Token); err == nil {
 			globalCfg.Token = ""
-			globalCfg.Account = profileName
+			globalCfg.Account = cfg.Account
 			_ = globalCfg.Save()
-			ensureProfile(profileName, cfg.APIURL, "")
+			ensureProfileForAccount(profileName, cfg.Account, cfg.APIURL, "")
 		}
 	}
 }
@@ -1296,6 +1337,12 @@ func migrateLegacyToken(profileName string) {
 // "keep whatever is there"), and Extra entries are preserved unless
 // explicitly replaced.
 func ensureProfile(name, baseURL, board string) {
+	ensureProfileForAccount(name, "", baseURL, board)
+}
+
+// ensureProfileForAccount creates or updates a profile and associates it with
+// an account. An empty account preserves existing account metadata.
+func ensureProfileForAccount(name, account, baseURL, board string) {
 	if profiles == nil {
 		return
 	}
@@ -1319,6 +1366,13 @@ func ensureProfile(name, baseURL, board string) {
 	}
 	if board != "" {
 		extra["board"] = func() json.RawMessage { b, _ := json.Marshal(board); return b }()
+	}
+	if account != "" {
+		if account == name {
+			delete(extra, "account")
+		} else {
+			extra["account"] = func() json.RawMessage { b, _ := json.Marshal(account); return b }()
+		}
 	}
 
 	p := &profile.Profile{
@@ -1376,6 +1430,7 @@ func ResetTestMode() {
 	cfg = nil
 	creds = nil
 	profiles = nil
+	activeProfile = ""
 	cfgJSON = false
 	cfgQuiet = false
 	cfgIDsOnly = false
@@ -1386,6 +1441,7 @@ func ResetTestMode() {
 	cfgLimit = 0
 	cfgJQ = ""
 	cfgProfile = ""
+	authLoginAccount = ""
 	if updateCancel != nil {
 		updateCancel()
 	}

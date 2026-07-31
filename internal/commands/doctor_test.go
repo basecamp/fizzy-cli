@@ -335,16 +335,16 @@ func TestDoctorAllProfilesIncludesPerProfileResults(t *testing.T) {
 	mock.OnGet("/boards/board-1.json", &client.APIResponse{StatusCode: 200, Data: map[string]any{"id": "board-1", "name": "Roadmap"}})
 
 	result := SetTestModeWithSDK(mock)
-	if err := profileStore.Create(&profile.Profile{Name: "acme", BaseURL: testHTTPServer.URL, Extra: map[string]json.RawMessage{"board": json.RawMessage(`"board-1"`)}}); err != nil {
-		t.Fatalf("create acme profile: %v", err)
+	if err := profileStore.Create(&profile.Profile{Name: "walter", BaseURL: testHTTPServer.URL, Extra: map[string]json.RawMessage{"account": json.RawMessage(`"acme"`), "board": json.RawMessage(`"board-1"`)}}); err != nil {
+		t.Fatalf("create walter profile: %v", err)
 	}
 	if err := profileStore.Create(&profile.Profile{Name: "staging", BaseURL: testHTTPServer.URL}); err != nil {
 		t.Fatalf("create staging profile: %v", err)
 	}
-	if err := profileStore.SetDefault("acme"); err != nil {
+	if err := profileStore.SetDefault("walter"); err != nil {
 		t.Fatalf("set default profile: %v", err)
 	}
-	if err := credsSaveProfileTokenForTest(store, "acme", "test-token"); err != nil {
+	if err := credsSaveProfileTokenForTest(store, "walter", "test-token"); err != nil {
 		t.Fatalf("save profile token: %v", err)
 	}
 	SetTestCreds(store)
@@ -386,8 +386,8 @@ func TestDoctorAllProfilesIncludesPerProfileResults(t *testing.T) {
 		found[name] = statuses
 	}
 
-	if found["acme"]["Authentication"] != "pass" {
-		t.Fatalf("expected acme authentication to pass, got %#v", found["acme"])
+	if found["walter"]["Authentication"] != "pass" {
+		t.Fatalf("expected walter authentication to pass, got %#v", found["walter"])
 	}
 	if found["staging"]["Credentials"] != "fail" {
 		t.Fatalf("expected staging credentials to fail, got %#v", found["staging"])

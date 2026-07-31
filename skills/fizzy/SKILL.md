@@ -190,7 +190,7 @@ board: 03foq1hqmyy91tuyz3ghugg6c
 **Priority (highest to lowest):**
 1. CLI flags (`--token`, `--profile`, `--api-url`, `--board`)
 2. Environment variables (`FIZZY_TOKEN`, `FIZZY_PROFILE`, `FIZZY_API_URL`, `FIZZY_BOARD`)
-3. Named profile settings (base URL, board from `config.json`)
+3. Named profile settings (account, base URL, board from `config.json`)
 4. Local project config (`.fizzy.yaml`)
 5. Global config (`~/.config/fizzy/config.yaml` or `~/.fizzy/config.yaml`)
 
@@ -206,6 +206,7 @@ fizzy config explain
 fizzy setup                              # Interactive wizard
 fizzy doctor                             # Full install/config/auth/API/agent health check
 fizzy auth login TOKEN                   # Save token for current profile
+fizzy auth login TOKEN --profile agent --account 1  # Separate identity on account 1
 fizzy auth status                        # Check auth status
 fizzy auth list                          # List all authenticated profiles
 fizzy auth switch PROFILE                # Switch active profile
@@ -1137,6 +1138,7 @@ fizzy auth status                        # Check auth
 fizzy auth list                          # Check which profiles are configured
 fizzy auth switch PROFILE                # Switch to correct profile
 fizzy auth login TOKEN                   # Re-authenticate
+fizzy auth login TOKEN --profile agent --account 1  # Save an aliased profile
 fizzy setup                              # Full interactive setup
 ```
 

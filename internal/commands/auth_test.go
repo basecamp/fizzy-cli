@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -113,6 +116,51 @@ func TestAuthLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("saves an alias separately from its account", func(t *testing.T) {
+		credDir := t.TempDir()
+		configDir := t.TempDir()
+		profileDir := t.TempDir()
+
+		config.SetTestConfigDir(configDir)
+		defer config.ResetTestConfigDir()
+		os.Setenv("FIZZY_ALIAS_LOGIN_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_ALIAS_LOGIN_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-alias-login-test",
+			DisableEnvVar: "FIZZY_ALIAS_LOGIN_NO_KR",
+			FallbackDir:   credDir,
+		})
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestConfig("", "walter", "https://app.fizzy.do")
+		activeProfile = "walter"
+		authLoginAccount = "1"
+		defer resetTest()
+
+		if err := authLoginCmd.RunE(authLoginCmd, []string{"walter-token"}); err != nil {
+			t.Fatalf("login: %v", err)
+		}
+
+		p, err := profileStore.Get("walter")
+		if err != nil {
+			t.Fatalf("get walter profile: %v", err)
+		}
+		if account := profileAccount("walter", p); account != "1" {
+			t.Errorf("profile account: want 1, got %q", account)
+		}
+		if _, err := store.Load("profile:walter"); err != nil {
+			t.Fatalf("load aliased credential: %v", err)
+		}
+		globalCfg := config.LoadGlobal()
+		if globalCfg.Account != "1" {
+			t.Errorf("global account: want 1, got %q", globalCfg.Account)
+		}
+	})
+
 	t.Run("requires profile to be configured", func(t *testing.T) {
 		mock := NewMockClient()
 		SetTestModeWithSDK(mock)
@@ -158,6 +206,65 @@ func TestAuthLogin(t *testing.T) {
 			t.Errorf("expected account 'existing-account', got '%s'", savedConfig.Account)
 		}
 	})
+}
+
+func TestAuthLoginCreatesAliasFromExplicitSelectors(t *testing.T) {
+	for _, tt := range []struct {
+		name        string
+		profileArgs []string
+		envProfile  string
+	}{
+		{name: "flag", profileArgs: []string{"--profile", "agent"}},
+		{name: "environment", envProfile: "agent"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			configDir := t.TempDir()
+			config.SetTestConfigDir(configDir)
+			config.SetTestWorkingDir(t.TempDir())
+			defer config.ResetTestConfigDir()
+			defer config.ResetTestWorkingDir()
+
+			os.Setenv("FIZZY_ALIAS_SELECTOR_NO_KR", "1")
+			defer os.Unsetenv("FIZZY_ALIAS_SELECTOR_NO_KR")
+			if tt.envProfile != "" {
+				os.Setenv("FIZZY_PROFILE", tt.envProfile)
+				defer os.Unsetenv("FIZZY_PROFILE")
+			}
+			store := credstore.NewStore(credstore.StoreOptions{
+				ServiceName:   "fizzy-alias-selector-test-" + tt.name,
+				DisableEnvVar: "FIZZY_ALIAS_SELECTOR_NO_KR",
+				FallbackDir:   t.TempDir(),
+			})
+			profileStore := profile.NewStore(filepath.Join(configDir, "config.json"))
+			if err := profileStore.Create(&profile.Profile{Name: "existing", BaseURL: "https://app.fizzy.do"}); err != nil {
+				t.Fatalf("create existing profile: %v", err)
+			}
+
+			mock := NewMockClient()
+			SetTestModeWithSDK(mock)
+			SetTestCreds(store)
+			SetTestProfiles(profileStore)
+			SetTestConfig("", "existing", "https://app.fizzy.do")
+			defer resetTest()
+
+			args := []string{"auth", "login", "agent-token", "--account", "1"}
+			args = append(args, tt.profileArgs...)
+			if _, err := runCobraWithArgs(args...); err != nil {
+				t.Fatalf("login with %s selector: %v", tt.name, err)
+			}
+
+			p, err := profileStore.Get("agent")
+			if err != nil {
+				t.Fatalf("get agent profile: %v", err)
+			}
+			if account := profileAccount("agent", p); account != "1" {
+				t.Errorf("account: want 1, got %q", account)
+			}
+			if _, err := store.Load("profile:agent"); err != nil {
+				t.Fatalf("load agent credential: %v", err)
+			}
+		})
+	}
 }
 
 func TestAuthLogout(t *testing.T) {
@@ -324,6 +431,78 @@ func TestAuthLogout(t *testing.T) {
 		err := authLogoutCmd.RunE(authLogoutCmd, []string{})
 		assertExitCode(t, err, 0)
 	})
+}
+
+func TestAuthLogoutAliasClearsActiveLegacyAccount(t *testing.T) {
+	configDir := t.TempDir()
+	config.SetTestConfigDir(configDir)
+	config.SetTestWorkingDir(t.TempDir())
+	defer config.ResetTestConfigDir()
+	defer config.ResetTestWorkingDir()
+
+	globalCfg := &config.Config{Account: "1", APIURL: "https://app.fizzy.do"}
+	if err := globalCfg.Save(); err != nil {
+		t.Fatalf("save global config: %v", err)
+	}
+
+	os.Setenv("FIZZY_ALIAS_LOGOUT_NO_KR", "1")
+	defer os.Unsetenv("FIZZY_ALIAS_LOGOUT_NO_KR")
+	store := credstore.NewStore(credstore.StoreOptions{
+		ServiceName:   "fizzy-alias-logout-test",
+		DisableEnvVar: "FIZZY_ALIAS_LOGOUT_NO_KR",
+		FallbackDir:   t.TempDir(),
+	})
+	aliasToken, _ := json.Marshal("alias-token")
+	legacyToken, _ := json.Marshal("legacy-token")
+	if err := store.Save("profile:walter", aliasToken); err != nil {
+		t.Fatalf("save alias token: %v", err)
+	}
+	if err := store.Save("token:1", legacyToken); err != nil {
+		t.Fatalf("save legacy token: %v", err)
+	}
+
+	profileStore := profile.NewStore(filepath.Join(configDir, "config.json"))
+	if err := profileStore.Create(&profile.Profile{
+		Name:    "walter",
+		BaseURL: "https://app.fizzy.do",
+		Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"1"`)},
+	}); err != nil {
+		t.Fatalf("create alias profile: %v", err)
+	}
+
+	mock := NewMockClient()
+	SetTestModeWithSDK(mock)
+	SetTestCreds(store)
+	SetTestProfiles(profileStore)
+	SetTestConfig("", "1", "https://app.fizzy.do")
+	defer resetTest()
+
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve alias: %v", err)
+	}
+	resolveToken()
+	if cfg.Token != "alias-token" {
+		t.Fatalf("token before logout: want alias-token, got %q", cfg.Token)
+	}
+	if err := authLogoutCmd.RunE(authLogoutCmd, nil); err != nil {
+		t.Fatalf("logout alias: %v", err)
+	}
+
+	// Simulate the next process invocation. The preserved account-scoped legacy
+	// token must not become active after the selected alias is removed.
+	cfg = config.Load()
+	activeProfile = ""
+	cfgProfile = ""
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve after logout: %v", err)
+	}
+	resolveToken()
+	if cfg.Account != "" {
+		t.Errorf("account after logout: want empty, got %q", cfg.Account)
+	}
+	if cfg.Token != "" {
+		t.Errorf("token after logout: want empty, got %q", cfg.Token)
+	}
 }
 
 func TestAuthStatus(t *testing.T) {
@@ -570,8 +749,8 @@ func TestAuthSwitch(t *testing.T) {
 		tokenData, _ := json.Marshal("other-token")
 		store.Save("profile:other", tokenData)
 
-		cfg := &config.Config{Account: "acme"}
-		cfgData, _ := yaml.Marshal(cfg)
+		initialCfg := &config.Config{Account: "acme"}
+		cfgData, _ := yaml.Marshal(initialCfg)
 		os.WriteFile(filepath.Join(tempDir, "config.yaml"), cfgData, 0600)
 
 		mock := NewMockClient()
@@ -594,6 +773,16 @@ func TestAuthSwitch(t *testing.T) {
 		}
 		if savedConfig.Board != "" {
 			t.Errorf("expected board cleared on switch, got '%s'", savedConfig.Board)
+		}
+		if cfg.APIURL != "https://staging.fizzy.do" {
+			t.Errorf("expected target API URL to be applied, got %q", cfg.APIURL)
+		}
+		targetProfile, err := profileStore.Get("other")
+		if err != nil {
+			t.Fatalf("get target profile: %v", err)
+		}
+		if targetProfile.BaseURL != "https://staging.fizzy.do" {
+			t.Errorf("expected target API URL to remain unchanged, got %q", targetProfile.BaseURL)
 		}
 
 		// Verify profile store default was updated
@@ -628,6 +817,18 @@ func TestAuthSwitch(t *testing.T) {
 }
 
 func TestProfileAliasesUseSharedAccountWithDistinctTokens(t *testing.T) {
+	type observedRequest struct {
+		path          string
+		authorization string
+	}
+	requests := make(chan observedRequest, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests <- observedRequest{path: r.URL.Path, authorization: r.Header.Get("Authorization")}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
 	credDir := t.TempDir()
 	profileDir := t.TempDir()
 
@@ -642,7 +843,7 @@ func TestProfileAliasesUseSharedAccountWithDistinctTokens(t *testing.T) {
 	for _, name := range []string{"walter", "walter2"} {
 		if err := profileStore.Create(&profile.Profile{
 			Name:    name,
-			BaseURL: "https://app.fizzy.do",
+			BaseURL: server.URL,
 			Extra: map[string]json.RawMessage{
 				"account": json.RawMessage(`"1"`),
 			},
@@ -662,10 +863,10 @@ func TestProfileAliasesUseSharedAccountWithDistinctTokens(t *testing.T) {
 	}
 
 	mock := NewMockClient()
-	SetTestModeWithSDK(mock)
+	SetTestMode(mock)
 	SetTestCreds(store)
 	SetTestProfiles(profileStore)
-	SetTestConfig("", "legacy-account", "https://app.fizzy.do")
+	SetTestConfig("", "legacy-account", server.URL)
 	defer resetTest()
 
 	for _, tt := range []struct {
@@ -689,7 +890,28 @@ func TestProfileAliasesUseSharedAccountWithDistinctTokens(t *testing.T) {
 			if cfg.Token != tt.token {
 				t.Errorf("token: want %q, got %q", tt.token, cfg.Token)
 			}
+
+			if err := initSDK(boardListCmd, cfg.APIURL, cfg.Token, cfg.Account); err != nil {
+				t.Fatalf("initialize SDK: %v", err)
+			}
+			if _, _, err := getSDK().Boards().List(context.Background(), "/boards.json"); err != nil {
+				t.Fatalf("list boards: %v", err)
+			}
+			request := <-requests
+			if request.path != "/1/boards.json" {
+				t.Errorf("request path: want /1/boards.json, got %q", request.path)
+			}
+			if request.authorization != "Bearer "+tt.token {
+				t.Errorf("authorization: want bearer token for %s, got %q", tt.profile, request.authorization)
+			}
 		})
+	}
+}
+
+func TestProfileAccountDefaultsToProfileName(t *testing.T) {
+	p := &profile.Profile{Name: "6102600", BaseURL: "https://app.fizzy.do"}
+	if account := profileAccount(p.Name, p); account != "6102600" {
+		t.Errorf("account: want legacy profile name, got %q", account)
 	}
 }
 
@@ -1320,12 +1542,18 @@ func TestAuthLogoutAllCleansLegacyKeys(t *testing.T) {
 		})
 		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
 		profileStore.Create(&profile.Profile{Name: "acme", BaseURL: "https://app.fizzy.do"})
+		profileStore.Create(&profile.Profile{Name: "walter", BaseURL: "https://app.fizzy.do", Extra: map[string]json.RawMessage{"account": json.RawMessage(`"1"`)}})
+		profileStore.Create(&profile.Profile{Name: "jane", BaseURL: "https://app.fizzy.do", Extra: map[string]json.RawMessage{"account": json.RawMessage(`"2"`)}})
 
-		// Save tokens in ALL key formats
+		// Save tokens in every key format, including legacy keys for aliased accounts.
 		tokenData, _ := json.Marshal("my-token")
-		store.Save("token", tokenData)        // bare legacy
-		store.Save("token:acme", tokenData)   // account-scoped legacy
-		store.Save("profile:acme", tokenData) // profile-scoped
+		store.Save("token", tokenData)          // bare legacy
+		store.Save("token:acme", tokenData)     // account-scoped legacy
+		store.Save("token:1", tokenData)        // aliased account legacy
+		store.Save("token:2", tokenData)        // non-active aliased account legacy
+		store.Save("profile:acme", tokenData)   // profile-scoped
+		store.Save("profile:walter", tokenData) // aliased profile
+		store.Save("profile:jane", tokenData)   // non-active aliased profile
 
 		cfg := &config.Config{Account: "acme"}
 		cfgData, _ := yaml.Marshal(cfg)
@@ -1339,6 +1567,7 @@ func TestAuthLogoutAllCleansLegacyKeys(t *testing.T) {
 		defer resetTest()
 
 		authLogoutCmd.Flags().Set("all", "true")
+		defer authLogoutCmd.Flags().Set("all", "false")
 		err := authLogoutCmd.RunE(authLogoutCmd, []string{})
 		assertExitCode(t, err, 0)
 
@@ -1352,10 +1581,17 @@ func TestAuthLogoutAllCleansLegacyKeys(t *testing.T) {
 		if _, err := store.Load("profile:acme"); err == nil {
 			t.Error("expected 'profile:acme' key removed")
 		}
+		for _, key := range []string{"token:1", "token:2", "profile:walter", "profile:jane"} {
+			if _, err := store.Load(key); err == nil {
+				t.Errorf("expected %q key removed", key)
+			}
+		}
 
-		// Profile should be gone from store
-		if _, err := profileStore.Get("acme"); err == nil {
-			t.Error("expected profile removed from store")
+		// Every profile should be gone from the store.
+		for _, name := range []string{"acme", "walter", "jane"} {
+			if _, err := profileStore.Get(name); err == nil {
+				t.Errorf("expected profile %q removed", name)
+			}
 		}
 	})
 }

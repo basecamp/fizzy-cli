@@ -103,7 +103,8 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 		Name:    "acme",
 		BaseURL: "https://profile.example.com",
 		Extra: map[string]json.RawMessage{
-			"board": json.RawMessage(`"profile-board"`),
+			"account": json.RawMessage(`"1"`),
+			"board":   json.RawMessage(`"profile-board"`),
 		},
 	}); err != nil {
 		t.Fatalf("create profile: %v", err)
@@ -118,7 +119,7 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 	t.Setenv("FIZZY_PROFILE", "acme")
 	t.Setenv("FIZZY_API_URL", "https://env.example.com")
 	cfg = config.Load()
-	cfg.Account = "acme"
+	cfg.Account = "1"
 	cfg.APIURL = "https://env.example.com"
 	cfg.Board = "profile-board"
 	defer resetTest()
@@ -134,6 +135,10 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 	profileField := data["profile"].(map[string]any)
 	if profileField["source"] != "env FIZZY_PROFILE" {
 		t.Fatalf("expected env profile source, got %#v", profileField)
+	}
+	accountField := data["account"].(map[string]any)
+	if accountField["value"] != "1" || accountField["source"] != "profile acme" {
+		t.Fatalf("expected account 1 from profile acme, got %#v", accountField)
 	}
 	apiURLField := data["api_url"].(map[string]any)
 	if apiURLField["source"] != "env FIZZY_API_URL" {

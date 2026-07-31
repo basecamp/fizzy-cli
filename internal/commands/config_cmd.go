@@ -108,6 +108,9 @@ func configShowData(verbose bool) map[string]any {
 			"source":  displayProfileSource(eff, defaultProfile),
 			"default": eff.Default,
 		},
+		"account": map[string]any{
+			"value": emptyToNil(eff.Account),
+		},
 		"api_url": map[string]any{
 			"value":  emptyToNil(eff.APIURL),
 			"source": displayConfigSource(eff.APIURLSource),
@@ -125,6 +128,7 @@ func configShowData(verbose bool) map[string]any {
 	if !verbose {
 		data = map[string]any{
 			"profile":  emptyToNil(eff.ProfileName),
+			"account":  emptyToNil(eff.Account),
 			"api_url":  emptyToNil(eff.APIURL),
 			"board":    emptyToNil(eff.Board),
 			"token":    map[string]any{"configured": eff.Token != "", "source": eff.TokenSource},
@@ -155,6 +159,20 @@ func configExplainData() map[string]any {
 			{Source: "default profile", Value: unsetString(defaultProfile), Selected: eff.ProfileSource == "profile store"},
 			{Source: "local config", Value: unsetString(fieldValue(localCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: eff.ProfileSource == "local config"},
 			{Source: "global config", Value: unsetString(fieldValue(globalCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: eff.ProfileSource == "global config"},
+		},
+	}
+
+	accountSource := displayProfileSource(eff, defaultProfile)
+	if resolvedProfile != "" {
+		accountSource = profileSourceLabel(resolvedProfile, eff.ProfileName)
+	}
+	accountField := configExplainField{
+		Value:  emptyToNil(eff.Account),
+		Source: accountSource,
+		Candidates: []configExplainCandidate{
+			{Source: profileSourceLabel(resolvedProfile, eff.ProfileName), Value: unsetString(profileAccount(resolvedProfile, profileCfg)), Selected: resolvedProfile != ""},
+			{Source: "local config", Value: unsetString(fieldValue(localCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: resolvedProfile == "" && localCfg != nil && localCfg.Account != ""},
+			{Source: "global config", Value: unsetString(fieldValue(globalCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: resolvedProfile == "" && (localCfg == nil || localCfg.Account == "") && globalCfg != nil && globalCfg.Account != ""},
 		},
 	}
 
@@ -197,6 +215,7 @@ func configExplainData() map[string]any {
 
 	return map[string]any{
 		"profile":        profileField,
+		"account":        accountField,
 		"api_url":        apiURLField,
 		"board":          boardField,
 		"token":          tokenField,
@@ -213,6 +232,7 @@ func renderConfigShowHuman(data map[string]any, markdown bool) string {
 	}
 
 	profile := describeConfigShowValue(data["profile"])
+	account := describeConfigShowValue(data["account"])
 	apiURL := describeConfigShowValue(data["api_url"])
 	board := describeConfigShowValue(data["board"])
 	token := describeConfigShowToken(data["token"])
@@ -220,6 +240,7 @@ func renderConfigShowHuman(data map[string]any, markdown bool) string {
 
 	if markdown {
 		fmt.Fprintf(&sb, "- **Profile:** `%s`\n", profile)
+		fmt.Fprintf(&sb, "- **Account:** `%s`\n", account)
 		fmt.Fprintf(&sb, "- **API URL:** `%s`\n", apiURL)
 		fmt.Fprintf(&sb, "- **Board:** `%s`\n", board)
 		fmt.Fprintf(&sb, "- **Token:** %s\n", token)
@@ -232,6 +253,7 @@ func renderConfigShowHuman(data map[string]any, markdown bool) string {
 		sb.WriteString("- `fizzy auth list` — inspect saved profiles\n")
 	} else {
 		fmt.Fprintf(&sb, "Profile        %s\n", profile)
+		fmt.Fprintf(&sb, "Account        %s\n", account)
 		fmt.Fprintf(&sb, "API URL        %s\n", apiURL)
 		fmt.Fprintf(&sb, "Board          %s\n", board)
 		fmt.Fprintf(&sb, "Token          %s\n", token)
@@ -260,6 +282,7 @@ func renderConfigExplainHuman(data map[string]any, markdown bool) string {
 		label string
 	}{
 		{"profile", "Profile"},
+		{"account", "Account"},
 		{"api_url", "API URL"},
 		{"board", "Board"},
 		{"token", "Token"},

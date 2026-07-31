@@ -79,6 +79,7 @@ func (r *DoctorResult) Summary() string {
 
 type doctorEffectiveConfig struct {
 	ProfileName    string
+	Account        string
 	Default        bool
 	ProfileSource  string
 	APIURL         string
@@ -455,7 +456,8 @@ func checkDoctorProfileStore(verbose bool) DoctorCheck {
 
 func resolveDoctorEffectiveConfig() doctorEffectiveConfig {
 	eff := doctorEffectiveConfig{
-		ProfileName: cfg.Account,
+		ProfileName: activeProfile,
+		Account:     cfg.Account,
 		APIURL:      cfg.APIURL,
 		Board:       cfg.Board,
 		Token:       cfg.Token,
@@ -464,6 +466,9 @@ func resolveDoctorEffectiveConfig() doctorEffectiveConfig {
 	globalCfg, _ := loadDoctorConfigFile(globalConfigPathForDoctor())
 	localCfg, _ := loadDoctorConfigFile(config.LocalConfigPath())
 	resolvedProfile, profileCfg := resolveDoctorProfileContext()
+	if eff.ProfileName == "" {
+		eff.ProfileName = firstNonEmpty(resolvedProfile, cfg.Account)
+	}
 
 	switch {
 	case cfgProfile != "":
@@ -510,7 +515,7 @@ func resolveDoctorEffectiveConfig() doctorEffectiveConfig {
 		eff.BoardSource = "unset"
 	}
 
-	eff.TokenSourceRaw, eff.TokenSource, eff.Token = doctorTokenSourceWithValue(cfg.Account, localCfg, globalCfg)
+	eff.TokenSourceRaw, eff.TokenSource, eff.Token = doctorTokenSourceWithValue(eff.ProfileName, localCfg, globalCfg)
 	return eff
 }
 
@@ -524,6 +529,9 @@ func checkDoctorEffectiveConfig(eff doctorEffectiveConfig, verbose bool) DoctorC
 		}
 	} else if verbose {
 		parts = append(parts, "profile=<unset>")
+	}
+	if eff.Account != "" {
+		parts = append(parts, fmt.Sprintf("account=%s", eff.Account))
 	}
 	if eff.APIURL != "" {
 		if verbose {
@@ -715,7 +723,8 @@ func checkDoctorAuthentication(ctx context.Context, eff doctorEffectiveConfig, v
 }
 
 func checkDoctorAccountAccess(ctx context.Context, eff doctorEffectiveConfig, verbose bool) DoctorCheck {
-	if eff.ProfileName == "" {
+	account := firstNonEmpty(eff.Account, eff.ProfileName)
+	if account == "" {
 		return DoctorCheck{
 			Name:    "Account Access",
 			Status:  "warn",
@@ -733,14 +742,14 @@ func checkDoctorAccountAccess(ctx context.Context, eff doctorEffectiveConfig, ve
 		conv := convertSDKError(err)
 		var outErr *output.Error
 		if stderrors.As(conv, &outErr) {
-			return DoctorCheck{Name: "Account Access", Status: "fail", Message: fmt.Sprintf("Cannot access account %s", eff.ProfileName), Hint: outErr.Message}
+			return DoctorCheck{Name: "Account Access", Status: "fail", Message: fmt.Sprintf("Cannot access account %s", account), Hint: outErr.Message}
 		}
-		return DoctorCheck{Name: "Account Access", Status: "fail", Message: fmt.Sprintf("Cannot access account %s", eff.ProfileName), Hint: err.Error()}
+		return DoctorCheck{Name: "Account Access", Status: "fail", Message: fmt.Sprintf("Cannot access account %s", account), Hint: err.Error()}
 	}
 	count := dataCount(normalizeAny(items))
-	msg := fmt.Sprintf("Account %s accessible", eff.ProfileName)
+	msg := fmt.Sprintf("Account %s accessible", account)
 	if verbose {
-		msg = fmt.Sprintf("Account %s accessible (%d boards, %dms)", eff.ProfileName, count, time.Since(start).Milliseconds())
+		msg = fmt.Sprintf("Account %s accessible (%d boards, %dms)", account, count, time.Since(start).Milliseconds())
 	}
 	return DoctorCheck{Name: "Account Access", Status: "pass", Message: msg}
 }
@@ -1163,7 +1172,7 @@ func doctorProfileBoard(p *profile.Profile) string {
 	return board
 }
 
-func doctorTokenSourceWithValue(account string, localCfg, globalCfg *config.Config) (string, string, string) {
+func doctorTokenSourceWithValue(profileName string, localCfg, globalCfg *config.Config) (string, string, string) {
 	if cfgToken != "" {
 		return "flag", "CLI flag", cfgToken
 	}
@@ -1171,14 +1180,14 @@ func doctorTokenSourceWithValue(account string, localCfg, globalCfg *config.Conf
 		return "env", "environment variable", envToken
 	}
 	if creds != nil {
-		if account != "" {
-			if token, err := credsLoadProfileToken(account); err == nil && token != "" {
+		if profileName != "" {
+			if token, err := credsLoadProfileToken(profileName); err == nil && token != "" {
 				if creds.UsingKeyring() {
 					return "keyring", "system keyring", token
 				}
 				return "fallback-file", "fallback credential file", token
 			}
-			if token, err := credsLoadLegacyToken(account); err == nil && token != "" {
+			if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
 				if creds.UsingKeyring() {
 					return "legacy-keyring", "legacy system keyring entry", token
 				}
@@ -1277,6 +1286,7 @@ func doctorTargetsFromProfileStore() []doctorEffectiveConfig {
 		}
 		targets = append(targets, doctorEffectiveConfig{
 			ProfileName:    name,
+			Account:        profileAccount(name, p),
 			Default:        name == defaultName,
 			ProfileSource:  "profile store",
 			APIURL:         apiURL,
@@ -1291,15 +1301,15 @@ func doctorTargetsFromProfileStore() []doctorEffectiveConfig {
 	return targets
 }
 
-func doctorStoredTokenSourceForProfile(account string, localCfg, globalCfg *config.Config) (string, string, string) {
+func doctorStoredTokenSourceForProfile(profileName string, localCfg, globalCfg *config.Config) (string, string, string) {
 	if creds != nil {
-		if token, err := credsLoadProfileToken(account); err == nil && token != "" {
+		if token, err := credsLoadProfileToken(profileName); err == nil && token != "" {
 			if creds.UsingKeyring() {
 				return "keyring", "system keyring", token
 			}
 			return "fallback-file", "fallback credential file", token
 		}
-		if token, err := credsLoadLegacyToken(account); err == nil && token != "" {
+		if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
 			if creds.UsingKeyring() {
 				return "legacy-keyring", "legacy system keyring entry", token
 			}
@@ -1325,7 +1335,7 @@ func newDoctorClients(eff doctorEffectiveConfig) (client *fizzy.Client, accountC
 	}()
 	sdkCfg := &fizzy.Config{BaseURL: eff.APIURL}
 	client = fizzy.NewClient(sdkCfg, &fizzy.StaticTokenProvider{Token: eff.Token}, fizzy.WithUserAgent("fizzy-cli/"+currentVersion()))
-	accountClient = client.ForAccount(eff.ProfileName)
+	accountClient = client.ForAccount(firstNonEmpty(eff.Account, eff.ProfileName))
 	return client, accountClient, nil
 }
 
