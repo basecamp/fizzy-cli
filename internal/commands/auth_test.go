@@ -189,6 +189,48 @@ func TestAuthLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("invalid selector does not migrate a legacy token", func(t *testing.T) {
+		configDir := t.TempDir()
+		config.SetTestConfigDir(configDir)
+		config.SetTestWorkingDir(t.TempDir())
+		defer config.ResetTestConfigDir()
+		defer config.ResetTestWorkingDir()
+
+		os.Setenv("FIZZY_INVALID_MIGRATION_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_INVALID_MIGRATION_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-invalid-migration-test",
+			DisableEnvVar: "FIZZY_INVALID_MIGRATION_NO_KR",
+			FallbackDir:   t.TempDir(),
+		})
+		legacyToken, _ := json.Marshal("legacy-token")
+		if err := store.Save("token", legacyToken); err != nil {
+			t.Fatalf("save legacy token: %v", err)
+		}
+		profileStore := profile.NewStore(filepath.Join(configDir, "config.json"))
+		if err := profileStore.Create(&profile.Profile{Name: "existing", BaseURL: config.DefaultAPIURL}); err != nil {
+			t.Fatalf("create existing profile: %v", err)
+		}
+
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestConfig("", "existing", config.DefaultAPIURL)
+		defer resetTest()
+
+		_, err := runCobraWithArgs("auth", "login", "replacement-token", "--profile", "walter.agent", "--account", "1")
+		if err == nil {
+			t.Fatal("expected invalid profile error")
+		}
+		if _, err := store.Load("profile:walter.agent"); err == nil {
+			t.Fatal("legacy token was migrated to an invalid profile")
+		}
+		if _, err := store.Load("token"); err != nil {
+			t.Fatalf("legacy token was removed: %v", err)
+		}
+	})
+
 	t.Run("does not save credentials when profile creation fails", func(t *testing.T) {
 		configDir := t.TempDir()
 		config.SetTestConfigDir(configDir)
@@ -845,6 +887,9 @@ func TestAuthSwitch(t *testing.T) {
 		}
 		if savedConfig.Board != "" {
 			t.Errorf("expected board cleared on switch, got '%s'", savedConfig.Board)
+		}
+		if savedConfig.APIURL != "https://staging.fizzy.do" {
+			t.Errorf("expected persisted target API URL, got %q", savedConfig.APIURL)
 		}
 		if cfg.APIURL != "https://staging.fizzy.do" {
 			t.Errorf("expected target API URL to be applied, got %q", cfg.APIURL)

@@ -354,12 +354,19 @@ var authSwitchCmd = &cobra.Command{
 			}
 		}
 
-		// Read the target profile's account and board.
+		// Read the target profile's account, board, and deployment URL.
 		profileAccountID := profileName
+		profileAPIURL := config.DefaultAPIURL
+		if cfg != nil && cfg.APIURL != "" {
+			profileAPIURL = cfg.APIURL
+		}
 		var profileBoard string
 		if profiles != nil {
 			if p, err := profiles.Get(profileName); err == nil {
 				profileAccountID = profileAccount(profileName, p)
+				if p.BaseURL != "" {
+					profileAPIURL = p.BaseURL
+				}
 				if boardRaw, ok := p.Extra["board"]; ok {
 					_ = json.Unmarshal(boardRaw, &profileBoard)
 				}
@@ -369,6 +376,7 @@ var authSwitchCmd = &cobra.Command{
 		// Update YAML config for backward compatibility.
 		globalCfg := config.LoadGlobal()
 		globalCfg.Account = profileAccountID
+		globalCfg.APIURL = profileAPIURL
 		globalCfg.Board = profileBoard
 		if err := globalCfg.Save(); err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
@@ -387,12 +395,7 @@ var authSwitchCmd = &cobra.Command{
 				}
 			}
 
-			// Apply profile's BaseURL
-			if profiles != nil {
-				if p, err := profiles.Get(profileName); err == nil && p.BaseURL != "" {
-					cfg.APIURL = p.BaseURL
-				}
-			}
+			cfg.APIURL = profileAPIURL
 		}
 
 		breadcrumbs := []Breadcrumb{

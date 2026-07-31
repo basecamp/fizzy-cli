@@ -160,7 +160,11 @@ var rootCmd = &cobra.Command{
 				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
 			}
 		}
-		resolveToken()
+		// Login replaces the selected credential with its TOKEN argument, so it
+		// does not resolve or migrate an existing credential first.
+		if cmd != authLoginCmd {
+			resolveToken()
+		}
 
 		// --api-url flag overrides everything (including profile BaseURL)
 		if cfgAPIURL != "" {
