@@ -82,6 +82,33 @@ func TestConfigShow(t *testing.T) {
 	}
 }
 
+func TestConfigShowVerboseAttributesAliasAccountToProfile(t *testing.T) {
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	if err := profileStore.Create(&profile.Profile{
+		Name:    "walter",
+		BaseURL: config.DefaultAPIURL,
+		Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"1"`)},
+	}); err != nil {
+		t.Fatalf("create alias: %v", err)
+	}
+	SetTestProfiles(profileStore)
+	SetTestConfig("token", "legacy", config.DefaultAPIURL)
+	cfgProfile = "walter"
+	defer resetTest()
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile: %v", err)
+	}
+
+	data := configShowData(true)
+	account, ok := data["account"].(map[string]any)
+	if !ok {
+		t.Fatalf("account: expected object, got %#v", data["account"])
+	}
+	if account["value"] != "1" || account["source"] != "profile walter" {
+		t.Fatalf("account: want value 1 from profile walter, got %#v", account)
+	}
+}
+
 func TestConfigExplainShowsPrecedence(t *testing.T) {
 	configDir := t.TempDir()
 	workDir := t.TempDir()

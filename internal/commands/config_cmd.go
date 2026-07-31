@@ -102,6 +102,11 @@ func init() {
 func configShowData(verbose bool) map[string]any {
 	eff := resolveDoctorEffectiveConfig()
 	_, defaultProfile := profileStoreInfo()
+	resolvedProfile, _ := resolveDoctorProfileContext()
+	accountSource := displayProfileSource(eff, defaultProfile)
+	if resolvedProfile != "" {
+		accountSource = profileSourceLabel(resolvedProfile, eff.ProfileName)
+	}
 	data := map[string]any{
 		"profile": map[string]any{
 			"value":   emptyToNil(eff.ProfileName),
@@ -110,7 +115,7 @@ func configShowData(verbose bool) map[string]any {
 		},
 		"account": map[string]any{
 			"value":  emptyToNil(eff.Account),
-			"source": displayProfileSource(eff, defaultProfile),
+			"source": accountSource,
 		},
 		"api_url": map[string]any{
 			"value":  emptyToNil(eff.APIURL),
