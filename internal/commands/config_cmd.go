@@ -171,8 +171,11 @@ func configExplainData() map[string]any {
 		Source: accountSource,
 		Candidates: []configExplainCandidate{
 			{Source: profileSourceLabel(resolvedProfile, eff.ProfileName), Value: unsetString(profileAccount(resolvedProfile, profileCfg)), Selected: resolvedProfile != ""},
-			{Source: "local config", Value: unsetString(fieldValue(localCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: resolvedProfile == "" && localCfg != nil && localCfg.Account != ""},
-			{Source: "global config", Value: unsetString(fieldValue(globalCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: resolvedProfile == "" && (localCfg == nil || localCfg.Account == "") && globalCfg != nil && globalCfg.Account != ""},
+			{Source: "flag --profile", Value: unsetString(cfgProfile), Selected: resolvedProfile == "" && eff.ProfileSource == "flag --profile"},
+			{Source: "env FIZZY_PROFILE", Value: unsetString(strings.TrimSpace(getEnv("FIZZY_PROFILE"))), Selected: resolvedProfile == "" && eff.ProfileSource == "env FIZZY_PROFILE"},
+			{Source: "env FIZZY_ACCOUNT", Value: unsetString(strings.TrimSpace(getEnv("FIZZY_ACCOUNT"))), Selected: resolvedProfile == "" && eff.ProfileSource == "env FIZZY_ACCOUNT"},
+			{Source: "local config", Value: unsetString(fieldValue(localCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: resolvedProfile == "" && eff.ProfileSource == "local config"},
+			{Source: "global config", Value: unsetString(fieldValue(globalCfg, func(c *cfgpkg.Config) string { return c.Account })), Selected: resolvedProfile == "" && eff.ProfileSource == "global config"},
 		},
 	}
 

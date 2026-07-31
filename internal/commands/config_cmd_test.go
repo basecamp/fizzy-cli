@@ -162,6 +162,44 @@ func TestConfigExplainShowsPrecedence(t *testing.T) {
 	}
 }
 
+func TestConfigExplainAccountCandidatesFollowProfileFallback(t *testing.T) {
+	configDir := t.TempDir()
+	workDir := t.TempDir()
+	config.SetTestConfigDir(configDir)
+	config.SetTestWorkingDir(workDir)
+	defer config.ResetTestConfigDir()
+	defer config.ResetTestWorkingDir()
+
+	if err := os.WriteFile(filepath.Join(workDir, config.LocalConfigFile), []byte("account: stale-local\n"), 0o600); err != nil {
+		t.Fatalf("write local config: %v", err)
+	}
+	profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+	mock := NewMockClient()
+	SetTestModeWithSDK(mock)
+	SetTestProfiles(profileStore)
+	t.Setenv("FIZZY_PROFILE", "new-account")
+	cfg = config.Load()
+	defer resetTest()
+
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile fallback: %v", err)
+	}
+	field := configExplainData()["account"].(configExplainField)
+	if field.Value != "new-account" || field.Source != "env FIZZY_PROFILE" {
+		t.Fatalf("effective account: want new-account from env, got %#v", field)
+	}
+
+	selected := ""
+	for _, candidate := range field.Candidates {
+		if candidate.Selected {
+			selected = candidate.Source
+		}
+	}
+	if selected != "env FIZZY_PROFILE" {
+		t.Fatalf("selected account candidate: want env FIZZY_PROFILE, got %q (%#v)", selected, field.Candidates)
+	}
+}
+
 func TestConfigShowVerboseIncludesProfiles(t *testing.T) {
 	configDir := t.TempDir()
 	profileDir := t.TempDir()

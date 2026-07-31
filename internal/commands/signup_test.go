@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/basecamp/cli/output"
+	"github.com/basecamp/cli/profile"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"gopkg.in/yaml.v3"
 )
@@ -563,6 +564,33 @@ func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
 		}
 		if saved.Account != "new-account" {
 			t.Errorf("expected account 'new-account', got '%s'", saved.Account)
+		}
+	})
+
+	t.Run("signup clears stale alias routing for its account", func(t *testing.T) {
+		config.SetTestConfigDir(t.TempDir())
+		defer config.ResetTestConfigDir()
+
+		profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+		if err := profileStore.Create(&profile.Profile{
+			Name:    "acct",
+			BaseURL: config.DefaultAPIURL,
+			Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"old-account"`)},
+		}); err != nil {
+			t.Fatalf("create stale alias: %v", err)
+		}
+		SetTestProfiles(profileStore)
+		defer resetTest()
+
+		if err := saveSignupConfig("token", "acct", config.DefaultAPIURL); err != nil {
+			t.Fatalf("save signup config: %v", err)
+		}
+		p, err := profileStore.Get("acct")
+		if err != nil {
+			t.Fatalf("get signup profile: %v", err)
+		}
+		if account := profileAccount("acct", p); account != "acct" {
+			t.Fatalf("signup account: want acct, got %q", account)
 		}
 	})
 

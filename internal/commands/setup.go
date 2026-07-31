@@ -274,7 +274,7 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		}
 
 		// Create/update profile
-		if err := ensureProfile(selectedAccountSlug, apiURL, selectedBoardID); err != nil {
+		if err := ensureProfileForAccount(selectedAccountSlug, selectedAccountSlug, apiURL, selectedBoardID); err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 		}
 		// If user chose "None (skip)", clear any previously saved board

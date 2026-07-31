@@ -823,7 +823,7 @@ func saveSignupConfig(token, account, apiURL string) error {
 	}
 
 	// Create/update profile
-	if err := ensureProfile(account, apiURL, ""); err != nil {
+	if err := ensureProfileForAccount(account, account, apiURL, ""); err != nil {
 		return err
 	}
 	if profiles != nil {
