@@ -809,35 +809,28 @@ func readSessionToken() (string, error) {
 // saveSignupConfig saves the token (to credstore if available, else YAML) and
 // account/API URL to the global config file, matching the auth login behavior.
 func saveSignupConfig(token, account, apiURL string) error {
-	globalCfg := config.LoadGlobal()
-
-	if creds != nil {
-		if err := credsSaveProfileToken(account, token); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not save token to credential store: %v\n", err)
-			globalCfg.Token = token
-		} else {
-			globalCfg.Token = ""
-		}
-	} else {
-		globalCfg.Token = token
+	warning, err := saveProfileCredentialState(profileCredentialSaveOptions{
+		ProfileName:            account,
+		Account:                account,
+		BaseURL:                apiURL,
+		Token:                  token,
+		AllowYAMLTokenFallback: true,
+		UpdateGlobal: func(globalCfg *config.Config, credentialStored bool) {
+			if credentialStored {
+				globalCfg.Token = ""
+			} else {
+				globalCfg.Token = token
+			}
+			globalCfg.Account = account
+			if apiURL != config.DefaultAPIURL {
+				globalCfg.APIURL = apiURL
+			} else {
+				globalCfg.APIURL = ""
+			}
+		},
+	})
+	if warning != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not save token to credential store: %v\n", warning)
 	}
-
-	// Create/update profile
-	if err := ensureProfileForAccount(account, account, apiURL, ""); err != nil {
-		return err
-	}
-	if profiles != nil {
-		if err := profiles.SetDefault(account); err != nil {
-			return err
-		}
-	}
-
-	globalCfg.Account = account
-	if apiURL != config.DefaultAPIURL {
-		globalCfg.APIURL = apiURL
-	} else {
-		globalCfg.APIURL = ""
-	}
-
-	return globalCfg.Save()
+	return err
 }

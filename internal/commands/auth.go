@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 
@@ -39,52 +40,26 @@ var authLoginCmd = &cobra.Command{
 		if err := profile.ValidateName(profileName); err != nil {
 			return errors.NewInvalidArgsError(err.Error())
 		}
+		if err := validateAccountIdentifier(account); err != nil {
+			return errors.NewInvalidArgsError(err.Error())
+		}
 		activeProfile = profileName
 		cfg.Account = account
 
 		if creds != nil {
-			var previousProfile *profile.Profile
-			var previousDefault string
-			if profiles != nil {
-				allProfiles, defaultName, err := profiles.List()
-				if err != nil {
-					return &output.Error{Code: output.CodeAPI, Message: err.Error()}
-				}
-				previousProfile = allProfiles[profileName]
-				previousDefault = defaultName
-			}
-
-			// Persist the profile before its credential so a profile-store failure
-			// cannot leave an orphaned credential behind.
-			if err := ensureProfileForAccount(profileName, account, cfg.APIURL, ""); err != nil {
-				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
-			}
-			restoreProfile := func(operationErr error) error {
-				if profiles == nil {
-					return &output.Error{Code: output.CodeAPI, Message: operationErr.Error()}
-				}
-				if restoreErr := restoreAuthLoginProfile(profileName, previousProfile, previousDefault); restoreErr != nil {
-					return &output.Error{
-						Code:    output.CodeAPI,
-						Message: fmt.Sprintf("%v (profile restore failed: %v)", operationErr, restoreErr),
+			_, err := saveProfileCredentialState(profileCredentialSaveOptions{
+				ProfileName: profileName,
+				Account:     account,
+				BaseURL:     cfg.APIURL,
+				Token:       token,
+				UpdateGlobal: func(globalCfg *config.Config, credentialStored bool) {
+					globalCfg.Account = account
+					if credentialStored {
+						globalCfg.Token = ""
 					}
-				}
-				return &output.Error{Code: output.CodeAPI, Message: operationErr.Error()}
-			}
-			if profiles != nil {
-				if err := profiles.SetDefault(profileName); err != nil {
-					return restoreProfile(err)
-				}
-			}
-			if err := credsSaveProfileToken(profileName, token); err != nil {
-				return restoreProfile(err)
-			}
-			globalCfg := config.LoadGlobal()
-			globalCfg.Account = account
-			if globalCfg.Token != "" {
-				globalCfg.Token = ""
-			}
-			if err := globalCfg.Save(); err != nil {
+				},
+			})
+			if err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
 		} else {
@@ -123,47 +98,6 @@ var authLoginCmd = &cobra.Command{
 	},
 }
 
-func restoreAuthLoginProfile(profileName string, previousProfile *profile.Profile, previousDefault string) error {
-	allProfiles, _, err := profiles.List()
-	if err != nil {
-		return err
-	}
-	if _, exists := allProfiles[profileName]; exists {
-		if err := profiles.Delete(profileName); err != nil {
-			return err
-		}
-	}
-	if previousProfile != nil {
-		if previousDefault == "" && len(allProfiles) == 1 {
-			// A temporary profile prevents Create from selecting the restored
-			// profile when the store previously had no default.
-			temporaryName := "fizzy-restore"
-			for suffix := 2; ; suffix++ {
-				if _, exists := allProfiles[temporaryName]; !exists {
-					break
-				}
-				temporaryName = fmt.Sprintf("fizzy-restore-%d", suffix)
-			}
-			if err := profiles.Create(&profile.Profile{Name: temporaryName, BaseURL: config.DefaultAPIURL}); err != nil {
-				return err
-			}
-			if err := profiles.Create(previousProfile); err != nil {
-				return err
-			}
-			return profiles.Delete(temporaryName)
-		}
-		if err := profiles.Create(previousProfile); err != nil {
-			return err
-		}
-	}
-	if previousDefault != "" {
-		if err := profiles.SetDefault(previousDefault); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove saved credentials",
@@ -180,27 +114,44 @@ var authLogoutCmd = &cobra.Command{
 			return errors.NewInvalidArgsError("No profile configured. Use --profile to specify which profile to log out, or --all to log out of all profiles")
 		}
 
-		// Delete profile-scoped token from credstore.
-		// Preserve legacy keys for downgrade compatibility.
-		if creds != nil {
-			_ = credsDeleteProfileToken(profileName)
-		}
-
-		// Remove the profile and remember whether it selected the active account.
+		// Read profile state before cleanup so failures cannot silently change
+		// which identity remains active.
 		wasDefault := false
+		profileExists := false
 		if profiles != nil {
-			_, defaultName, _ := profiles.List()
+			allProfiles, defaultName, err := profiles.List()
+			if err != nil {
+				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+			}
+			_, profileExists = allProfiles[profileName]
 			wasDefault = defaultName == profileName
-			_ = profiles.Delete(profileName)
 		}
 
-		// Clear the legacy account selector when its active profile is removed.
+		var cleanupErrors []error
+		// Preserve legacy keys for downgrade compatibility. Explicit aliases do
+		// not consume those keys in the current CLI.
+		if creds != nil {
+			if err := credsDeleteProfileToken(profileName); err != nil && !isCredentialNotFound(err) {
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("delete credential: %w", err))
+			}
+		}
+		if profiles != nil && profileExists {
+			if err := profiles.Delete(profileName); err != nil {
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("delete profile: %w", err))
+			}
+		}
+
 		globalCfg := config.LoadGlobal()
 		if wasDefault || globalCfg.Account == profileName {
 			globalCfg.Account = ""
 			globalCfg.Token = ""
 		}
-		_ = globalCfg.Save()
+		if err := globalCfg.Save(); err != nil {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("save global config: %w", err))
+		}
+		if err := stderrors.Join(cleanupErrors...); err != nil {
+			return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("logout incomplete: %v", err)}
+		}
 
 		breadcrumbs := []Breadcrumb{
 			breadcrumb("login", "fizzy auth login <token>", "Log in again"),
@@ -216,40 +167,54 @@ var authLogoutCmd = &cobra.Command{
 }
 
 func authLogoutAll() error {
-	// Collect all known profile/account names to clean up every key format
-	names := map[string]bool{}
+	profileNames := map[string]bool{}
+	credentialNames := map[string]bool{}
+	var cleanupErrors []error
 
 	if profiles != nil {
-		allProfiles, _, _ := profiles.List()
+		allProfiles, _, err := profiles.List()
+		if err != nil {
+			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+		}
 		for name, p := range allProfiles {
-			names[name] = true
-			names[profileAccount(name, p)] = true
+			profileNames[name] = true
+			credentialNames[name] = true
+			binding, err := resolveProfileAccountBinding(name, p)
+			if err == nil {
+				credentialNames[binding.Account] = true
+			}
 		}
 	}
 
-	// Also include the YAML config's Account in case it's not in the profile store
 	globalCfg := config.LoadGlobal()
 	if globalCfg.Account != "" {
-		names[globalCfg.Account] = true
+		credentialNames[globalCfg.Account] = true
 	}
 
-	for name := range names {
-		if creds != nil {
-			_ = credsDeleteProfileToken(name) // "profile:<name>"
-			_ = creds.Delete("token:" + name) // legacy "token:<account>"
-		}
-		if profiles != nil {
-			_ = profiles.Delete(name)
-		}
-	}
 	if creds != nil {
-		// Legacy bare key
-		_ = creds.Delete("token")
+		for name := range credentialNames {
+			for _, key := range []string{profile.CredentialKey(name, ""), "token:" + name} {
+				if err := creds.Delete(key); err != nil && !isCredentialNotFound(err) {
+					cleanupErrors = append(cleanupErrors, fmt.Errorf("delete credential %q: %w", key, err))
+				}
+			}
+		}
+		if err := creds.Delete("token"); err != nil && !isCredentialNotFound(err) {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete legacy credential: %w", err))
+		}
 	}
-
-	// Clear config
+	if profiles != nil {
+		for name := range profileNames {
+			if err := profiles.Delete(name); err != nil {
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("delete profile %q: %w", name, err))
+			}
+		}
+	}
 	if err := config.Delete(); err != nil {
-		return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+		cleanupErrors = append(cleanupErrors, fmt.Errorf("delete global config: %w", err))
+	}
+	if err := stderrors.Join(cleanupErrors...); err != nil {
+		return &output.Error{Code: output.CodeAPI, Message: fmt.Sprintf("logout incomplete: %v", err)}
 	}
 
 	breadcrumbs := []Breadcrumb{
@@ -335,7 +300,10 @@ var authListCmd = &cobra.Command{
 		}
 
 		allProfiles, defaultName, err := profiles.List()
-		if err != nil || len(allProfiles) == 0 {
+		if err != nil {
+			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+		}
+		if len(allProfiles) == 0 {
 			breadcrumbs := []Breadcrumb{
 				breadcrumb("login", "fizzy auth login <token>", "Log in"),
 				breadcrumb("signup", "fizzy signup", "Sign up"),
@@ -346,9 +314,13 @@ var authListCmd = &cobra.Command{
 
 		entries := make([]any, 0, len(allProfiles))
 		for name, p := range allProfiles {
+			binding, err := resolveProfileAccountBinding(name, p)
+			if err != nil {
+				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+			}
 			entry := map[string]any{
 				"profile":  name,
-				"account":  profileAccount(name, p),
+				"account":  binding.Account,
 				"base_url": p.BaseURL,
 				"active":   name == defaultName,
 			}
@@ -388,18 +360,30 @@ var authSwitchCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		profileName := args[0]
+		if err := profile.ValidateName(profileName); err != nil {
+			return errors.NewInvalidArgsError(err.Error())
+		}
 
-		// Check if we have a token for this profile
+		profileSnapshot, err := snapshotProfileState(profileName)
+		if err != nil {
+			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+		}
+		targetExplicitAccount := false
+		if profileSnapshot.previous != nil {
+			binding, err := resolveProfileAccountBinding(profileName, profileSnapshot.previous)
+			if err != nil {
+				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+			}
+			targetExplicitAccount = binding.Explicit
+		}
+
 		hasToken := false
 		if creds != nil {
-			if _, err := credsLoadProfileToken(profileName); err == nil {
+			if token, err := credsLoadProfileToken(profileName); err == nil && token != "" {
 				hasToken = true
 			}
-		}
-		if !hasToken {
-			// Also check legacy keys
-			if creds != nil {
-				if _, err := credsLoadLegacyToken(profileName); err == nil {
+			if !hasToken && !targetExplicitAccount {
+				if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
 					hasToken = true
 				}
 			}
@@ -409,13 +393,15 @@ var authSwitchCmd = &cobra.Command{
 			return errors.NewError(fmt.Sprintf("No credentials found for profile %q. Run 'fizzy auth login <token> --profile %s' or 'fizzy signup'", profileName, profileName))
 		}
 
+		globalSnapshot := snapshotGlobalConfig()
 		// Ensure the profile exists without replacing its deployment URL.
 		if profiles != nil {
 			if err := ensureProfile(profileName, "", ""); err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
 			if err := profiles.SetDefault(profileName); err != nil {
-				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+				restoreErr := restoreProfileState(profileSnapshot)
+				return &output.Error{Code: output.CodeAPI, Message: stderrors.Join(err, restoreErr).Error()}
 			}
 		}
 
@@ -427,14 +413,23 @@ var authSwitchCmd = &cobra.Command{
 		}
 		var profileBoard string
 		if profiles != nil {
-			if p, err := profiles.Get(profileName); err == nil {
-				profileAccountID = profileAccount(profileName, p)
-				if p.BaseURL != "" {
-					profileAPIURL = p.BaseURL
-				}
-				if boardRaw, ok := p.Extra["board"]; ok {
-					_ = json.Unmarshal(boardRaw, &profileBoard)
-				}
+			p, err := profiles.Get(profileName)
+			if err != nil {
+				restoreErr := restoreProfileState(profileSnapshot)
+				return &output.Error{Code: output.CodeAPI, Message: stderrors.Join(err, restoreErr).Error()}
+			}
+			binding, bindingErr := resolveProfileAccountBinding(profileName, p)
+			if bindingErr != nil {
+				restoreErr := restoreProfileState(profileSnapshot)
+				return &output.Error{Code: output.CodeUsage, Message: stderrors.Join(bindingErr, restoreErr).Error()}
+			}
+			profileAccountID = binding.Account
+			targetExplicitAccount = binding.Explicit
+			if p.BaseURL != "" {
+				profileAPIURL = p.BaseURL
+			}
+			if boardRaw, ok := p.Extra["board"]; ok {
+				_ = json.Unmarshal(boardRaw, &profileBoard)
 			}
 		}
 
@@ -444,19 +439,24 @@ var authSwitchCmd = &cobra.Command{
 		globalCfg.APIURL = profileAPIURL
 		globalCfg.Board = profileBoard
 		if err := globalCfg.Save(); err != nil {
-			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+			restoreErr := restoreProfileState(profileSnapshot)
+			globalRestoreErr := restoreGlobalConfig(globalSnapshot)
+			return &output.Error{Code: output.CodeAPI, Message: stderrors.Join(err, restoreErr, globalRestoreErr).Error()}
 		}
 
 		// Update in-memory config
 		if cfg != nil {
 			activeProfile = profileName
+			activeProfileExplicitAccount = targetExplicitAccount
 			cfg.Account = profileAccountID
 			cfg.Board = profileBoard
 			if creds != nil {
 				if t, err := credsLoadProfileToken(profileName); err == nil {
 					cfg.Token = t
-				} else if t, err := credsLoadLegacyToken(profileName); err == nil {
-					cfg.Token = t
+				} else if !targetExplicitAccount {
+					if t, err := credsLoadLegacyToken(profileName); err == nil {
+						cfg.Token = t
+					}
 				}
 			}
 

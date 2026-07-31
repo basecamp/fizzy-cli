@@ -61,8 +61,9 @@ var (
 
 	// Profile store and the selected profile name. The selected profile is
 	// kept separate from cfg.Account so aliases can target the same account.
-	profiles      *profile.Store
-	activeProfile string
+	profiles                     *profile.Store
+	activeProfile                string
+	activeProfileExplicitAccount bool
 
 	// Output writer
 	out       *output.Writer
@@ -149,6 +150,10 @@ var rootCmd = &cobra.Command{
 			}
 		}
 
+		doctorAllProfiles := false
+		if cmd.Name() == "doctor" {
+			doctorAllProfiles, _ = cmd.Flags().GetBool("all-profiles")
+		}
 		if err := resolveProfile(); err != nil {
 			// Login can create a new profile. An explicit account creates an alias;
 			// otherwise the profile name remains the routed account.
@@ -156,13 +161,25 @@ var rootCmd = &cobra.Command{
 			if cmd == authLoginCmd && newProfile != "" {
 				activeProfile = newProfile
 				cfg.Account = firstNonEmpty(authLoginAccount, newProfile)
-			} else {
+			} else if cmd == authLogoutCmd {
+				requestedProfile := firstNonEmpty(cfgProfile, os.Getenv("FIZZY_PROFILE"), os.Getenv("FIZZY_ACCOUNT"))
+				if requestedProfile != "" {
+					activeProfile = requestedProfile
+				} else if activeProfile == "" {
+					return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+				}
+			} else if cmd != authSwitchCmd && !doctorAllProfiles {
 				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
 			}
 		}
-		// Login replaces the selected credential with its TOKEN argument, so it
-		// does not resolve or migrate an existing credential first.
-		if cmd != authLoginCmd {
+		if cfg.Account != "" && cmd != authLogoutCmd && cmd != authSwitchCmd && !doctorAllProfiles {
+			if err := validateAccountIdentifier(cfg.Account); err != nil {
+				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+			}
+		}
+		// Commands that replace or remove credentials do not resolve or migrate
+		// an existing token first. Profile sweeps resolve each target separately.
+		if cmd != authLoginCmd && cmd != authLogoutCmd && cmd != authSwitchCmd && !doctorAllProfiles {
 			resolveToken()
 		}
 
@@ -1175,6 +1192,7 @@ func credsLoadLegacyToken(account string) (string, error) {
 // silent fallback to whatever was in the YAML config.
 func resolveProfile() error {
 	activeProfile = ""
+	activeProfileExplicitAccount = false
 	if profiles == nil {
 		// No profile store (test mode or init failure) — use the selected name
 		// as both profile and account for legacy compatibility.
@@ -1186,7 +1204,10 @@ func resolveProfile() error {
 	}
 
 	allProfiles, defaultName, err := profiles.List()
-	if err != nil || len(allProfiles) == 0 {
+	if err != nil {
+		return err
+	}
+	if len(allProfiles) == 0 {
 		// No profiles configured — use the selected name as both profile and
 		// account until a profile with explicit account metadata is created.
 		if v := firstNonEmpty(cfgProfile, profileEnvVar()); v != "" {
@@ -1224,7 +1245,15 @@ func resolveProfile() error {
 	// Apply profile settings to cfg — but only for fields that haven't
 	// already been set by a higher-precedence source (env var).
 	activeProfile = resolved
-	cfg.Account = profileAccount(resolved, p)
+	if p.Extra != nil {
+		_, activeProfileExplicitAccount = p.Extra["account"]
+	}
+	binding, err := resolveProfileAccountBinding(resolved, p)
+	if err != nil {
+		return err
+	}
+	activeProfileExplicitAccount = binding.Explicit
+	cfg.Account = binding.Account
 	if p.BaseURL != "" && os.Getenv("FIZZY_API_URL") == "" {
 		cfg.APIURL = p.BaseURL
 	}
@@ -1250,18 +1279,13 @@ func profileEnvVar() string {
 	return ""
 }
 
-// profileAccount returns the account routed by a profile. Profiles created
-// before account aliases were supported use their name as the account.
+// profileAccount returns the validated account routed by a profile.
 func profileAccount(name string, p *profile.Profile) string {
-	if p != nil {
-		if raw, ok := p.Extra["account"]; ok {
-			var account string
-			if json.Unmarshal(raw, &account) == nil && strings.TrimSpace(account) != "" {
-				return account
-			}
-		}
+	binding, err := resolveProfileAccountBinding(name, p)
+	if err != nil {
+		return ""
 	}
-	return name
+	return binding.Account
 }
 
 // currentProfileName returns the selected credential profile. Legacy config
@@ -1284,11 +1308,17 @@ func resolveToken() {
 		profileName := currentProfileName()
 
 		if profileName != "" {
-			// Try profile-scoped token first
-			if t, err := credsLoadProfileToken(profileName); err == nil && t != "" {
+			// Explicit account bindings are aliases and require their own
+			// profile-scoped credential.
+			if activeProfileExplicitAccount {
+				cfg.Token = ""
+				if t, err := credsLoadProfileToken(profileName); err == nil && t != "" {
+					cfg.Token = t
+				}
+			} else if t, err := credsLoadProfileToken(profileName); err == nil && t != "" {
 				cfg.Token = t
 			} else {
-				// Legacy migration: old keys → profile-scoped key
+				// Legacy migration remains available for account-named profiles.
 				migrateLegacyToken(profileName)
 			}
 		} else {
@@ -1311,6 +1341,9 @@ func resolveToken() {
 // migrateLegacyToken moves a token from legacy storage to profile-scoped storage.
 // Handles the old single-key credstore entry, account-scoped keys, and YAML config tokens.
 func migrateLegacyToken(profileName string) {
+	if profileHasExplicitAccount(profileName) {
+		return
+	}
 	// Check legacy credstore keys — copy to profile-scoped key but keep the
 	// legacy keys so older CLI versions still work after a downgrade.
 	if t, err := credsLoadLegacyToken(profileName); err == nil && t != "" {
@@ -1348,6 +1381,14 @@ func ensureProfile(name, baseURL, board string) error {
 // ensureProfileForAccount creates or updates a profile and associates it with
 // an account. An empty account preserves existing account metadata.
 func ensureProfileForAccount(name, account, baseURL, board string) error {
+	var boardUpdate *string
+	if board != "" {
+		boardUpdate = &board
+	}
+	return ensureProfileForAccountWithBoard(name, account, baseURL, boardUpdate)
+}
+
+func ensureProfileForAccountWithBoard(name, account, baseURL string, board *string) error {
 	if profiles == nil {
 		if account != "" && account != name {
 			return fmt.Errorf("profile store is unavailable for alias %q", name)
@@ -1379,8 +1420,12 @@ func ensureProfileForAccount(name, account, baseURL, board string) error {
 			extra[k] = v
 		}
 	}
-	if board != "" {
-		extra["board"] = func() json.RawMessage { b, _ := json.Marshal(board); return b }()
+	if board != nil {
+		if *board == "" {
+			delete(extra, "board")
+		} else {
+			extra["board"] = func() json.RawMessage { b, _ := json.Marshal(*board); return b }()
+		}
 	}
 	if account != "" {
 		if account == name {
@@ -1417,7 +1462,22 @@ func ensureProfileForAccount(name, account, baseURL, board string) error {
 		return err
 	}
 	if defaultName == name {
-		return profiles.SetDefault(name)
+		if err := profiles.SetDefault(name); err != nil {
+			restoreErr := profiles.Delete(name)
+			if restoreErr == nil {
+				restoreErr = profiles.Create(existing)
+			}
+			if restoreErr == nil {
+				restoreErr = profiles.SetDefault(name)
+			}
+			if restoreErr != nil {
+				return stderrors.Join(
+					fmt.Errorf("update profile %q: %w", name, err),
+					fmt.Errorf("restore profile %q: %w", name, restoreErr),
+				)
+			}
+			return err
+		}
 	}
 	return nil
 }
@@ -1464,6 +1524,7 @@ func ResetTestMode() {
 	creds = nil
 	profiles = nil
 	activeProfile = ""
+	activeProfileExplicitAccount = false
 	cfgJSON = false
 	cfgQuiet = false
 	cfgIDsOnly = false

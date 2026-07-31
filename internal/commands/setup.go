@@ -263,48 +263,32 @@ func runSetup(cmd *cobra.Command, args []string) error {
 	}
 
 	if saveGlobal {
-		// Save token to credstore when available
-		credstoreSaved := false
-		if creds != nil {
-			if err := credsSaveProfileToken(selectedAccountSlug, token); err != nil {
-				fmt.Printf("Warning: could not save token to credential store: %v\n", err)
-			} else {
-				credstoreSaved = true
-			}
-		}
-
-		// Create/update profile
-		if err := ensureProfileForAccount(selectedAccountSlug, selectedAccountSlug, apiURL, selectedBoardID); err != nil {
+		board := selectedBoardID
+		warning, err := saveProfileCredentialState(profileCredentialSaveOptions{
+			ProfileName:            selectedAccountSlug,
+			Account:                selectedAccountSlug,
+			BaseURL:                apiURL,
+			Board:                  &board,
+			Token:                  token,
+			AllowYAMLTokenFallback: true,
+			UpdateGlobal: func(existingConfig *config.Config, credentialStored bool) {
+				if credentialStored {
+					existingConfig.Token = ""
+				} else {
+					existingConfig.Token = newConfig.Token
+				}
+				existingConfig.Account = newConfig.Account
+				existingConfig.Board = newConfig.Board
+				if newConfig.APIURL != "" {
+					existingConfig.APIURL = newConfig.APIURL
+				}
+			},
+		})
+		if err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 		}
-		// If user chose "None (skip)", clear any previously saved board
-		if selectedBoardID == "" && profiles != nil {
-			if p, err := profiles.Get(selectedAccountSlug); err == nil {
-				delete(p.Extra, "board")
-				_ = profiles.Delete(selectedAccountSlug)
-				_ = profiles.Create(p)
-			}
-		}
-		if profiles != nil {
-			_ = profiles.SetDefault(selectedAccountSlug)
-		}
-
-		// Load existing global config to preserve any other settings
-		existingConfig := config.LoadGlobal()
-		// Only clear YAML token when credstore save actually succeeded
-		if credstoreSaved {
-			existingConfig.Token = ""
-		} else {
-			existingConfig.Token = newConfig.Token
-		}
-		existingConfig.Account = newConfig.Account
-		existingConfig.Board = newConfig.Board
-		if newConfig.APIURL != "" {
-			existingConfig.APIURL = newConfig.APIURL
-		}
-
-		if err := existingConfig.Save(); err != nil {
-			return err
+		if warning != nil {
+			fmt.Printf("Warning: could not save token to credential store: %v\n", warning)
 		}
 		fmt.Println()
 		fmt.Println("✓ Configuration saved to ~/.config/fizzy/config.yaml")

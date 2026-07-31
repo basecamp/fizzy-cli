@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/basecamp/cli/credstore"
 	"github.com/basecamp/cli/output"
 	"github.com/basecamp/cli/profile"
 	"github.com/basecamp/fizzy-cli/internal/config"
@@ -591,6 +592,59 @@ func TestSaveSignupConfigClearsStaleAPIURL(t *testing.T) {
 		}
 		if account := profileAccount("acct", p); account != "acct" {
 			t.Fatalf("signup account: want acct, got %q", account)
+		}
+	})
+
+	t.Run("profile failure preserves the previous credential", func(t *testing.T) {
+		config.SetTestConfigDir(t.TempDir())
+		defer config.ResetTestConfigDir()
+		t.Setenv("FIZZY_SIGNUP_TRANSACTION_NO_KR", "1")
+
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-signup-transaction-test",
+			DisableEnvVar: "FIZZY_SIGNUP_TRANSACTION_NO_KR",
+			FallbackDir:   t.TempDir(),
+		})
+		oldToken, _ := json.Marshal("old-token")
+		if err := store.Save("profile:acct", oldToken); err != nil {
+			t.Fatalf("save old credential: %v", err)
+		}
+		profileDir := filepath.Join(t.TempDir(), "profiles")
+		profileStore := profile.NewStore(filepath.Join(profileDir, "config.json"))
+		if err := profileStore.Create(&profile.Profile{
+			Name:    "acct",
+			BaseURL: config.DefaultAPIURL,
+			Extra:   map[string]json.RawMessage{"account": json.RawMessage(`"stale-account"`)},
+		}); err != nil {
+			t.Fatalf("create stale profile: %v", err)
+		}
+		backupDir := profileDir + "-backup"
+		if err := os.Rename(profileDir, backupDir); err != nil {
+			t.Fatalf("move profile directory: %v", err)
+		}
+		if err := os.WriteFile(profileDir, []byte("not a directory"), 0600); err != nil {
+			t.Fatalf("block profile directory: %v", err)
+		}
+
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		err := saveSignupConfig("new-token", "acct", config.DefaultAPIURL)
+		if removeErr := os.Remove(profileDir); removeErr != nil {
+			t.Fatalf("unblock profile directory: %v", removeErr)
+		}
+		if renameErr := os.Rename(backupDir, profileDir); renameErr != nil {
+			t.Fatalf("restore profile directory: %v", renameErr)
+		}
+		defer resetTest()
+		if err == nil {
+			t.Fatal("expected profile persistence error")
+		}
+		data, loadErr := store.Load("profile:acct")
+		if loadErr != nil {
+			t.Fatalf("load old credential: %v", loadErr)
+		}
+		if string(data) != string(oldToken) {
+			t.Fatalf("credential changed after failed signup: want %s, got %s", oldToken, data)
 		}
 	})
 

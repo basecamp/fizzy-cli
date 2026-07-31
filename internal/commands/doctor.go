@@ -78,17 +78,19 @@ func (r *DoctorResult) Summary() string {
 }
 
 type doctorEffectiveConfig struct {
-	ProfileName    string
-	Account        string
-	Default        bool
-	ProfileSource  string
-	APIURL         string
-	APIURLSource   string
-	Board          string
-	BoardSource    string
-	Token          string
-	TokenSource    string
-	TokenSourceRaw string
+	ProfileName              string
+	Account                  string
+	Default                  bool
+	ProfileSource            string
+	APIURL                   string
+	APIURLSource             string
+	Board                    string
+	BoardSource              string
+	Token                    string
+	TokenSource              string
+	TokenSourceRaw           string
+	ConfigError              string
+	RequireProfileCredential bool
 }
 
 var doctorVersionChecker = fetchLatestDoctorVersion
@@ -216,6 +218,16 @@ func runDoctorGlobalChecks(verbose bool) []DoctorCheck {
 }
 
 func runDoctorTargetChecks(ctx context.Context, eff doctorEffectiveConfig, verbose bool) []DoctorCheck {
+	if eff.ConfigError != "" {
+		return []DoctorCheck{
+			{Name: "Effective Config", Status: "fail", Message: eff.ConfigError},
+			{Name: "Credentials", Status: "skip", Message: "Skipped (invalid profile configuration)"},
+			{Name: "API Reachability", Status: "skip", Message: "Skipped (invalid profile configuration)"},
+			{Name: "Authentication", Status: "skip", Message: "Skipped (invalid profile configuration)"},
+			{Name: "Account Access", Status: "skip", Message: "Skipped (invalid profile configuration)"},
+			{Name: "Default Board", Status: "skip", Message: "Skipped (invalid profile configuration)"},
+		}
+	}
 	checks := []DoctorCheck{checkDoctorEffectiveConfig(eff, verbose)}
 	credCheck := checkDoctorCredentials(eff, verbose)
 	checks = append(checks,
@@ -225,10 +237,20 @@ func runDoctorTargetChecks(ctx context.Context, eff doctorEffectiveConfig, verbo
 		checkDoctorAPIURL(eff, verbose),
 	)
 
+	if credCheck.Status == "fail" && eff.RequireProfileCredential {
+		authMsg := "Skipped (missing credentials)"
+		return append(checks,
+			DoctorCheck{Name: "API Reachability", Status: "skip", Message: authMsg},
+			DoctorCheck{Name: "Authentication", Status: "skip", Message: authMsg},
+			DoctorCheck{Name: "Account Access", Status: "skip", Message: authMsg},
+			DoctorCheck{Name: "Default Board", Status: "skip", Message: authMsg},
+		)
+	}
+
 	reachabilityCheck := checkDoctorAPIReachability(ctx, eff, verbose)
 	checks = append(checks, reachabilityCheck)
 
-	canAuth := credCheck.Status != "fail" && reachabilityCheck.Status == "pass"
+	canAuth := reachabilityCheck.Status == "pass"
 	if canAuth {
 		authCheck := checkDoctorAuthentication(ctx, eff, verbose)
 		checks = append(checks, authCheck)
@@ -515,7 +537,8 @@ func resolveDoctorEffectiveConfig() doctorEffectiveConfig {
 		eff.BoardSource = "unset"
 	}
 
-	eff.TokenSourceRaw, eff.TokenSource, eff.Token = doctorTokenSourceWithValue(eff.ProfileName, localCfg, globalCfg)
+	eff.RequireProfileCredential = activeProfileExplicitAccount
+	eff.TokenSourceRaw, eff.TokenSource, eff.Token = doctorTokenSourceWithValue(eff.ProfileName, activeProfileExplicitAccount, localCfg, globalCfg)
 	return eff
 }
 
@@ -1172,7 +1195,7 @@ func doctorProfileBoard(p *profile.Profile) string {
 	return board
 }
 
-func doctorTokenSourceWithValue(profileName string, localCfg, globalCfg *config.Config) (string, string, string) {
+func doctorTokenSourceWithValue(profileName string, explicitAccount bool, localCfg, globalCfg *config.Config) (string, string, string) {
 	if cfgToken != "" {
 		return "flag", "CLI flag", cfgToken
 	}
@@ -1187,11 +1210,13 @@ func doctorTokenSourceWithValue(profileName string, localCfg, globalCfg *config.
 				}
 				return "fallback-file", "fallback credential file", token
 			}
-			if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
-				if creds.UsingKeyring() {
-					return "legacy-keyring", "legacy system keyring entry", token
+			if !explicitAccount {
+				if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
+					if creds.UsingKeyring() {
+						return "legacy-keyring", "legacy system keyring entry", token
+					}
+					return "legacy-fallback", "legacy fallback credential file", token
 				}
-				return "legacy-fallback", "legacy fallback credential file", token
 			}
 		} else if token, err := credsLoadLegacyToken(""); err == nil && token != "" {
 			if creds.UsingKeyring() {
@@ -1199,6 +1224,9 @@ func doctorTokenSourceWithValue(profileName string, localCfg, globalCfg *config.
 			}
 			return "legacy-fallback", "legacy fallback credential file", token
 		}
+	}
+	if explicitAccount {
+		return "none", "not configured", ""
 	}
 	if localCfg != nil && localCfg.Token != "" {
 		return "local-config", "local config file", localCfg.Token
@@ -1258,8 +1286,10 @@ func doctorTargetsFromProfileStore() []doctorEffectiveConfig {
 	targets := make([]doctorEffectiveConfig, 0, len(names))
 	for _, name := range names {
 		p := allProfiles[name]
+		binding, bindingErr := resolveProfileAccountBinding(name, p)
 		board := doctorProfileBoard(p)
-		tokenRaw, tokenSource, token := doctorStoredTokenSourceForProfile(name, localCfg, globalCfg)
+		requireProfileCredential := binding.Explicit || bindingErr != nil
+		tokenRaw, tokenSource, token := doctorStoredTokenSourceForProfile(name, requireProfileCredential, localCfg, globalCfg)
 		apiURL := config.DefaultAPIURL
 		apiURLSource := "default"
 		switch {
@@ -1285,23 +1315,25 @@ func doctorTargetsFromProfileStore() []doctorEffectiveConfig {
 			boardSource = "global config"
 		}
 		targets = append(targets, doctorEffectiveConfig{
-			ProfileName:    name,
-			Account:        profileAccount(name, p),
-			Default:        name == defaultName,
-			ProfileSource:  "profile store",
-			APIURL:         apiURL,
-			APIURLSource:   apiURLSource,
-			Board:          board,
-			BoardSource:    boardSource,
-			Token:          token,
-			TokenSourceRaw: tokenRaw,
-			TokenSource:    tokenSource,
+			ProfileName:              name,
+			Account:                  binding.Account,
+			Default:                  name == defaultName,
+			ProfileSource:            "profile store",
+			APIURL:                   apiURL,
+			APIURLSource:             apiURLSource,
+			Board:                    board,
+			BoardSource:              boardSource,
+			Token:                    token,
+			TokenSourceRaw:           tokenRaw,
+			TokenSource:              tokenSource,
+			ConfigError:              errorString(bindingErr),
+			RequireProfileCredential: requireProfileCredential,
 		})
 	}
 	return targets
 }
 
-func doctorStoredTokenSourceForProfile(profileName string, localCfg, globalCfg *config.Config) (string, string, string) {
+func doctorStoredTokenSourceForProfile(profileName string, explicitAccount bool, localCfg, globalCfg *config.Config) (string, string, string) {
 	if creds != nil {
 		if token, err := credsLoadProfileToken(profileName); err == nil && token != "" {
 			if creds.UsingKeyring() {
@@ -1309,12 +1341,17 @@ func doctorStoredTokenSourceForProfile(profileName string, localCfg, globalCfg *
 			}
 			return "fallback-file", "fallback credential file", token
 		}
-		if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
-			if creds.UsingKeyring() {
-				return "legacy-keyring", "legacy system keyring entry", token
+		if !explicitAccount {
+			if token, err := credsLoadLegacyToken(profileName); err == nil && token != "" {
+				if creds.UsingKeyring() {
+					return "legacy-keyring", "legacy system keyring entry", token
+				}
+				return "legacy-fallback", "legacy fallback credential file", token
 			}
-			return "legacy-fallback", "legacy fallback credential file", token
 		}
+	}
+	if explicitAccount {
+		return "none", "not configured", ""
 	}
 	if localCfg != nil && localCfg.Token != "" {
 		return "local-config", "local config file", localCfg.Token

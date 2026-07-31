@@ -147,7 +147,8 @@ func configExplainData() map[string]any {
 	localCfg, _ := loadDoctorConfigFile(cfgpkg.LocalConfigPath())
 	resolvedProfile, profileCfg := resolveDoctorProfileContext()
 	_, defaultProfile := profileStoreInfo()
-	_, _, profileToken := doctorStoredTokenSourceForProfile(resolvedProfileOrEffective(resolvedProfile, eff.ProfileName), localCfg, globalCfg)
+	binding, _ := resolveProfileAccountBinding(resolvedProfile, profileCfg)
+	_, _, profileToken := doctorStoredTokenSourceForProfile(resolvedProfileOrEffective(resolvedProfile, eff.ProfileName), binding.Explicit, localCfg, globalCfg)
 
 	profileField := configExplainField{
 		Value:  emptyToNil(eff.ProfileName),
