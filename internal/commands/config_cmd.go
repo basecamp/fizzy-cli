@@ -109,7 +109,8 @@ func configShowData(verbose bool) map[string]any {
 			"default": eff.Default,
 		},
 		"account": map[string]any{
-			"value": emptyToNil(eff.Account),
+			"value":  emptyToNil(eff.Account),
+			"source": displayProfileSource(eff, defaultProfile),
 		},
 		"api_url": map[string]any{
 			"value":  emptyToNil(eff.APIURL),

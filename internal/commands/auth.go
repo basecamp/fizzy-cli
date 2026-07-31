@@ -394,9 +394,14 @@ var authSwitchCmd = &cobra.Command{
 		}
 
 		globalSnapshot := snapshotGlobalConfig()
-		// Ensure the profile exists without replacing its deployment URL.
+		// Preserve a saved deployment URL and seed reconstructed profiles from
+		// the current effective URL.
+		profileBaseURL := ""
+		if profileSnapshot.previous == nil && cfg != nil {
+			profileBaseURL = cfg.APIURL
+		}
 		if profiles != nil {
-			if err := ensureProfile(profileName, "", ""); err != nil {
+			if err := ensureProfile(profileName, profileBaseURL, ""); err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
 			if err := profiles.SetDefault(profileName); err != nil {

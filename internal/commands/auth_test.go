@@ -1512,6 +1512,42 @@ func TestAuthSwitch(t *testing.T) {
 		}
 	})
 
+	t.Run("reconstructed profile inherits the effective API URL", func(t *testing.T) {
+		configDir := t.TempDir()
+		config.SetTestConfigDir(configDir)
+		defer config.ResetTestConfigDir()
+		t.Setenv("FIZZY_SWITCH_RECONSTRUCT_NO_KR", "1")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-switch-reconstruct-test",
+			DisableEnvVar: "FIZZY_SWITCH_RECONSTRUCT_NO_KR",
+			FallbackDir:   t.TempDir(),
+		})
+		tokenData, _ := json.Marshal("other-token")
+		if err := store.Save("profile:other", tokenData); err != nil {
+			t.Fatalf("save target credential: %v", err)
+		}
+		profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+		if err := profileStore.Create(&profile.Profile{Name: "current", BaseURL: "https://self-hosted.example.com"}); err != nil {
+			t.Fatalf("create current profile: %v", err)
+		}
+		SetTestModeWithSDK(NewMockClient())
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestConfig("current-token", "current", "https://self-hosted.example.com")
+		defer resetTest()
+
+		if err := authSwitchCmd.RunE(authSwitchCmd, []string{"other"}); err != nil {
+			t.Fatalf("switch reconstructed profile: %v", err)
+		}
+		reconstructed, err := profileStore.Get("other")
+		if err != nil {
+			t.Fatalf("get reconstructed profile: %v", err)
+		}
+		if reconstructed.BaseURL != "https://self-hosted.example.com" {
+			t.Fatalf("BaseURL: want self-hosted URL, got %q", reconstructed.BaseURL)
+		}
+	})
+
 	t.Run("fails for unknown profile", func(t *testing.T) {
 		credDir := t.TempDir()
 
