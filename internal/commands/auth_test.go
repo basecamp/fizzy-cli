@@ -208,14 +208,17 @@ func TestAuthLogin(t *testing.T) {
 	})
 }
 
-func TestAuthLoginCreatesAliasFromExplicitSelectors(t *testing.T) {
+func TestAuthLoginCreatesProfilesFromExplicitSelectors(t *testing.T) {
 	for _, tt := range []struct {
 		name        string
+		profileName string
 		profileArgs []string
 		envProfile  string
+		account     string
 	}{
-		{name: "flag", profileArgs: []string{"--profile", "agent"}},
-		{name: "environment", envProfile: "agent"},
+		{name: "flag alias", profileName: "agent", profileArgs: []string{"--profile", "agent"}, account: "1"},
+		{name: "environment alias", profileName: "agent", envProfile: "agent", account: "1"},
+		{name: "profile name defaults to account", profileName: "new-account", profileArgs: []string{"--profile", "new-account"}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			configDir := t.TempDir()
@@ -247,21 +250,26 @@ func TestAuthLoginCreatesAliasFromExplicitSelectors(t *testing.T) {
 			SetTestConfig("", "existing", "https://app.fizzy.do")
 			defer resetTest()
 
-			args := []string{"auth", "login", "agent-token", "--account", "1"}
+			args := make([]string, 0, 5+len(tt.profileArgs))
+			args = append(args, "auth", "login", "agent-token")
+			if tt.account != "" {
+				args = append(args, "--account", tt.account)
+			}
 			args = append(args, tt.profileArgs...)
 			if _, err := runCobraWithArgs(args...); err != nil {
 				t.Fatalf("login with %s selector: %v", tt.name, err)
 			}
 
-			p, err := profileStore.Get("agent")
+			p, err := profileStore.Get(tt.profileName)
 			if err != nil {
-				t.Fatalf("get agent profile: %v", err)
+				t.Fatalf("get %s profile: %v", tt.profileName, err)
 			}
-			if account := profileAccount("agent", p); account != "1" {
-				t.Errorf("account: want 1, got %q", account)
+			expectedAccount := firstNonEmpty(tt.account, tt.profileName)
+			if account := profileAccount(tt.profileName, p); account != expectedAccount {
+				t.Errorf("account: want %q, got %q", expectedAccount, account)
 			}
-			if _, err := store.Load("profile:agent"); err != nil {
-				t.Fatalf("load agent credential: %v", err)
+			if _, err := store.Load("profile:" + tt.profileName); err != nil {
+				t.Fatalf("load %s credential: %v", tt.profileName, err)
 			}
 		})
 	}

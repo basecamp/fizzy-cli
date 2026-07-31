@@ -1,7 +1,10 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -391,6 +394,32 @@ func TestDoctorAllProfilesIncludesPerProfileResults(t *testing.T) {
 	}
 	if found["staging"]["Credentials"] != "fail" {
 		t.Fatalf("expected staging credentials to fail, got %#v", found["staging"])
+	}
+}
+
+func TestNewDoctorClientsRoutesAliasThroughAccount(t *testing.T) {
+	paths := make(chan string, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths <- r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	_, accountClient, err := newDoctorClients(doctorEffectiveConfig{
+		ProfileName: "walter",
+		Account:     "acme",
+		APIURL:      server.URL,
+		Token:       "test-token",
+	})
+	if err != nil {
+		t.Fatalf("create doctor clients: %v", err)
+	}
+	if _, _, err := accountClient.Boards().List(context.Background(), "/boards.json"); err != nil {
+		t.Fatalf("list boards: %v", err)
+	}
+	if path := <-paths; path != "/acme/boards.json" {
+		t.Fatalf("request path: want /acme/boards.json, got %q", path)
 	}
 }
 

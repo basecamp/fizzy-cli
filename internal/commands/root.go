@@ -150,11 +150,12 @@ var rootCmd = &cobra.Command{
 		}
 
 		if err := resolveProfile(); err != nil {
-			// Login can create a new alias when its account is supplied explicitly.
+			// Login can create a new profile. An explicit account creates an alias;
+			// otherwise the profile name remains the routed account.
 			newProfile := firstNonEmpty(cfgProfile, os.Getenv("FIZZY_PROFILE"), os.Getenv("FIZZY_ACCOUNT"))
-			if cmd == authLoginCmd && newProfile != "" && authLoginAccount != "" {
+			if cmd == authLoginCmd && newProfile != "" {
 				activeProfile = newProfile
-				cfg.Account = authLoginAccount
+				cfg.Account = firstNonEmpty(authLoginAccount, newProfile)
 			} else {
 				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
 			}
