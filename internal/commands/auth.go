@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/basecamp/cli/output"
+	"github.com/basecamp/cli/profile"
 	"github.com/basecamp/fizzy-cli/internal/config"
 	"github.com/basecamp/fizzy-cli/internal/errors"
 	"github.com/spf13/cobra"
@@ -34,18 +35,25 @@ var authLoginCmd = &cobra.Command{
 		if account == "" {
 			return errors.NewInvalidArgsError("No account configured. Set --account to the Fizzy account slug or ID")
 		}
+		if err := profile.ValidateName(profileName); err != nil {
+			return errors.NewInvalidArgsError(err.Error())
+		}
 		activeProfile = profileName
 		cfg.Account = account
 
 		if creds != nil {
-			if err := credsSaveProfileToken(profileName, token); err != nil {
+			// Persist the profile before its credential so a profile-store failure
+			// cannot leave an orphaned credential behind.
+			if err := ensureProfileForAccount(profileName, account, cfg.APIURL, ""); err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
-
-			// Ensure profile exists, set as default, clear YAML token.
-			ensureProfileForAccount(profileName, account, cfg.APIURL, "")
 			if profiles != nil {
-				_ = profiles.SetDefault(profileName)
+				if err := profiles.SetDefault(profileName); err != nil {
+					return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+				}
+			}
+			if err := credsSaveProfileToken(profileName, token); err != nil {
+				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
 			globalCfg := config.LoadGlobal()
 			globalCfg.Account = account
@@ -338,7 +346,9 @@ var authSwitchCmd = &cobra.Command{
 
 		// Ensure the profile exists without replacing its deployment URL.
 		if profiles != nil {
-			ensureProfile(profileName, "", "")
+			if err := ensureProfile(profileName, "", ""); err != nil {
+				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+			}
 			if err := profiles.SetDefault(profileName); err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}

@@ -823,9 +823,13 @@ func saveSignupConfig(token, account, apiURL string) error {
 	}
 
 	// Create/update profile
-	ensureProfile(account, apiURL, "")
+	if err := ensureProfile(account, apiURL, ""); err != nil {
+		return err
+	}
 	if profiles != nil {
-		_ = profiles.SetDefault(account)
+		if err := profiles.SetDefault(account); err != nil {
+			return err
+		}
 	}
 
 	globalCfg.Account = account

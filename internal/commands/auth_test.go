@@ -161,6 +161,70 @@ func TestAuthLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects invalid aliases before saving credentials", func(t *testing.T) {
+		os.Setenv("FIZZY_INVALID_ALIAS_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_INVALID_ALIAS_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-invalid-alias-test",
+			DisableEnvVar: "FIZZY_INVALID_ALIAS_NO_KR",
+			FallbackDir:   t.TempDir(),
+		})
+		profileStore := profile.NewStore(filepath.Join(t.TempDir(), "config.json"))
+
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestConfig("", "walter.agent", "https://app.fizzy.do")
+		activeProfile = "walter.agent"
+		authLoginAccount = "1"
+		defer resetTest()
+
+		err := authLoginCmd.RunE(authLoginCmd, []string{"agent-token"})
+		if err == nil {
+			t.Fatal("expected invalid profile error")
+		}
+		if _, err := store.Load("profile:walter.agent"); err == nil {
+			t.Fatal("credential was saved for an invalid profile")
+		}
+	})
+
+	t.Run("does not save credentials when profile creation fails", func(t *testing.T) {
+		configDir := t.TempDir()
+		config.SetTestConfigDir(configDir)
+		defer config.ResetTestConfigDir()
+
+		os.Setenv("FIZZY_PROFILE_FAILURE_NO_KR", "1")
+		defer os.Unsetenv("FIZZY_PROFILE_FAILURE_NO_KR")
+		store := credstore.NewStore(credstore.StoreOptions{
+			ServiceName:   "fizzy-profile-failure-test",
+			DisableEnvVar: "FIZZY_PROFILE_FAILURE_NO_KR",
+			FallbackDir:   t.TempDir(),
+		})
+		blockedParent := filepath.Join(t.TempDir(), "not-a-directory")
+		if err := os.WriteFile(blockedParent, []byte("blocked"), 0o600); err != nil {
+			t.Fatalf("create blocking file: %v", err)
+		}
+		profileStore := profile.NewStore(filepath.Join(blockedParent, "config.json"))
+
+		mock := NewMockClient()
+		SetTestModeWithSDK(mock)
+		SetTestCreds(store)
+		SetTestProfiles(profileStore)
+		SetTestConfig("", "agent", "https://app.fizzy.do")
+		activeProfile = "agent"
+		authLoginAccount = "1"
+		defer resetTest()
+
+		err := authLoginCmd.RunE(authLoginCmd, []string{"agent-token"})
+		if err == nil {
+			t.Fatal("expected profile creation error")
+		}
+		if _, err := store.Load("profile:agent"); err == nil {
+			t.Fatal("credential was saved without a profile")
+		}
+	})
+
 	t.Run("requires profile to be configured", func(t *testing.T) {
 		mock := NewMockClient()
 		SetTestModeWithSDK(mock)
@@ -1452,7 +1516,9 @@ func TestEnsureProfileUpdatesExisting(t *testing.T) {
 		defer resetTest()
 
 		// Call ensureProfile with new settings
-		ensureProfile("acme", "https://new.example.com", "new-board")
+		if err := ensureProfile("acme", "https://new.example.com", "new-board"); err != nil {
+			t.Fatalf("ensure profile: %v", err)
+		}
 
 		p, err := profileStore.Get("acme")
 		if err != nil {
@@ -1487,7 +1553,9 @@ func TestEnsureProfileUpdatesExisting(t *testing.T) {
 		defer resetTest()
 
 		// Re-signup with default URL should overwrite the self-hosted URL
-		ensureProfile("acme", config.DefaultAPIURL, "")
+		if err := ensureProfile("acme", config.DefaultAPIURL, ""); err != nil {
+			t.Fatalf("ensure profile: %v", err)
+		}
 
 		p, err := profileStore.Get("acme")
 		if err != nil {
@@ -1520,7 +1588,9 @@ func TestEnsureProfileUpdatesExisting(t *testing.T) {
 		defer resetTest()
 
 		// Empty baseURL should preserve the existing one
-		ensureProfile("acme", "", "")
+		if err := ensureProfile("acme", "", ""); err != nil {
+			t.Fatalf("ensure profile: %v", err)
+		}
 
 		p, err := profileStore.Get("acme")
 		if err != nil {

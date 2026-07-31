@@ -1313,7 +1313,7 @@ func migrateLegacyToken(profileName string) {
 		// Always use the token, even if migration to profile-scoped key fails
 		cfg.Token = t
 		if err := credsSaveProfileToken(profileName, t); err == nil {
-			ensureProfile(profileName, cfg.APIURL, "")
+			_ = ensureProfile(profileName, cfg.APIURL, "")
 		}
 		return
 	}
@@ -1327,7 +1327,7 @@ func migrateLegacyToken(profileName string) {
 			globalCfg.Token = ""
 			globalCfg.Account = cfg.Account
 			_ = globalCfg.Save()
-			ensureProfileForAccount(profileName, cfg.Account, cfg.APIURL, "")
+			_ = ensureProfileForAccount(profileName, cfg.Account, cfg.APIURL, "")
 		}
 	}
 }
@@ -1337,18 +1337,28 @@ func migrateLegacyToken(profileName string) {
 // preserved only when the caller passes an empty string (meaning
 // "keep whatever is there"), and Extra entries are preserved unless
 // explicitly replaced.
-func ensureProfile(name, baseURL, board string) {
-	ensureProfileForAccount(name, "", baseURL, board)
+func ensureProfile(name, baseURL, board string) error {
+	return ensureProfileForAccount(name, "", baseURL, board)
 }
 
 // ensureProfileForAccount creates or updates a profile and associates it with
 // an account. An empty account preserves existing account metadata.
-func ensureProfileForAccount(name, account, baseURL, board string) {
+func ensureProfileForAccount(name, account, baseURL, board string) error {
 	if profiles == nil {
-		return
+		if account != "" && account != name {
+			return fmt.Errorf("profile store is unavailable for alias %q", name)
+		}
+		return nil
+	}
+	if err := profile.ValidateName(name); err != nil {
+		return err
 	}
 
-	existing, _ := profiles.Get(name)
+	allProfiles, defaultName, err := profiles.List()
+	if err != nil {
+		return err
+	}
+	existing := allProfiles[name]
 
 	newBaseURL := baseURL
 	if newBaseURL == "" {
@@ -1384,10 +1394,28 @@ func ensureProfileForAccount(name, account, baseURL, board string) {
 		p.Extra = extra
 	}
 
-	if err := profiles.Create(p); err != nil {
-		_ = profiles.Delete(name)
-		_ = profiles.Create(p)
+	if existing == nil {
+		return profiles.Create(p)
 	}
+
+	if err := profiles.Delete(name); err != nil {
+		return err
+	}
+	if err := profiles.Create(p); err != nil {
+		// Restore the previous profile when replacing it fails.
+		restoreErr := profiles.Create(existing)
+		if restoreErr == nil && defaultName == name {
+			restoreErr = profiles.SetDefault(name)
+		}
+		if restoreErr != nil {
+			return fmt.Errorf("update profile %q: %w (restore failed: %w)", name, err, restoreErr)
+		}
+		return err
+	}
+	if defaultName == name {
+		return profiles.SetDefault(name)
+	}
+	return nil
 }
 
 // SetTestSDK configures the commands package for SDK-based testing.
