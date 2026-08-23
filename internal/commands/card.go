@@ -144,6 +144,8 @@ var cardListCmd = &cobra.Command{
 			linkNext = parseSDKLinkNext(resp)
 		}
 
+		hydrateCardColumns(items)
+
 		// Build summary
 		count := dataCount(items)
 		summary := fmt.Sprintf("%d cards", count)
@@ -192,6 +194,7 @@ var cardShowCmd = &cobra.Command{
 		}
 
 		items := normalizeAny(data)
+		hydrateCardColumns(items)
 
 		// Build summary
 		summary := fmt.Sprintf("Card #%s", cardNumber)
