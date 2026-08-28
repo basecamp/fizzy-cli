@@ -48,7 +48,7 @@ ACTIONS (RO = read-only):
 - delete_board: Delete a board (board administrators only)
 - get_board (RO): Get one board
 - list_accesses (RO, paginated): List account users with their access and involvement for a board
-- list_boards (RO): List the boards you have access to
+- list_boards (RO, paginated): List the boards you have access to
 - publish_board: Publish a board to a shareable public link (administrators only)
 - unpublish_board: Unpublish a board, removing public access (administrators only)
 - update_board: Update a board (administrators only)
@@ -189,7 +189,19 @@ ACTIONS (RO = read-only):
   "method": "GET",
   "path": "/boards",
   "summary": "List the boards you have access to",
-  "readonly": true
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
 }
 ---- describe publish_board ----
 {
@@ -1616,7 +1628,7 @@ Gateway tool: call with {"action": "...", "params": {...}}.
 Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
 
 ACTIONS (RO = read-only):
-- list_tags (RO): List the account's tags, alphabetically
+- list_tags (RO, paginated): List the account's tags, alphabetically
 ---- input schema ----
 {
   "additionalProperties": false,
@@ -1644,7 +1656,19 @@ ACTIONS (RO = read-only):
   "method": "GET",
   "path": "/tags",
   "summary": "List the account's tags, alphabetically",
-  "readonly": true
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
 }
 ==== TOOL fizzy_users ====
 Users: the people in the Fizzy account. Assign them to cards with the cards tool's toggle_assignment.
@@ -1654,7 +1678,7 @@ Call {"action": "describe", "params": {"action": "NAME"}} for an action's full p
 
 ACTIONS (RO = read-only):
 - get_user (RO): Get one user
-- list_users (RO): List the account's active users
+- list_users (RO, paginated): List the account's active users
 ---- input schema ----
 {
   "additionalProperties": false,
@@ -1703,5 +1727,17 @@ ACTIONS (RO = read-only):
   "method": "GET",
   "path": "/users",
   "summary": "List the account's active users",
-  "readonly": true
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
 }

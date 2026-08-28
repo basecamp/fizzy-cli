@@ -90,8 +90,9 @@ var Domains = []*Domain{
 				Params:  []Param{pathParam("board_id", "The board ID"), pageParam()},
 			},
 			{
-				Action: "list_boards", Method: "GET", Path: "/boards", ReadOnly: true,
+				Action: "list_boards", Method: "GET", Path: "/boards", ReadOnly: true, Paginated: true,
 				Summary: "List the boards you have access to",
+				Params:  []Param{pageParam()},
 			},
 			{
 				Action: "publish_board", Method: "POST", Path: "/boards/{board_id}/publication",
@@ -377,8 +378,9 @@ var Domains = []*Domain{
 		Blurb: "Tags: the labels applied to cards, account-wide. Apply or remove them with the cards tool's toggle_tag.",
 		Operations: []*Operation{
 			{
-				Action: "list_tags", Method: "GET", Path: "/tags", ReadOnly: true,
+				Action: "list_tags", Method: "GET", Path: "/tags", ReadOnly: true, Paginated: true,
 				Summary: "List the account's tags, alphabetically",
+				Params:  []Param{pageParam()},
 			},
 		},
 	},
@@ -393,8 +395,9 @@ var Domains = []*Domain{
 				Params:  []Param{pathParam("user_id", "The user ID")},
 			},
 			{
-				Action: "list_users", Method: "GET", Path: "/users", ReadOnly: true,
+				Action: "list_users", Method: "GET", Path: "/users", ReadOnly: true, Paginated: true,
 				Summary: "List the account's active users",
+				Params:  []Param{pageParam()},
 			},
 		},
 	},
