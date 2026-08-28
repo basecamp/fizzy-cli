@@ -1,0 +1,7 @@
+{
+  "source": "github.com/basecamp/fizzy-mcp-server",
+  "commit": "81f7c4a980b9eb8be1ef9d83a4c4d5d939d3afa6",
+  "path": "internal/catalog",
+  "files": ["catalog.go", "domains.go", "testdata/catalog_snapshot.txt"],
+  "synced_by": "scripts/sync-mcp-catalog.sh"
+}

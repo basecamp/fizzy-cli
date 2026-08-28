@@ -382,7 +382,7 @@ var rootCommandGroups = map[string][]string{
 	"core":            {"auth", "token", "activity", "board", "card", "search"},
 	"collaboration":   {"comment", "notification"},
 	"getting-started": {"setup", "signup"},
-	"discover":        {"doctor", "config", "commands", "version"},
+	"discover":        {"doctor", "config", "commands", "mcp", "version"},
 }
 
 var commandExamples = map[string]string{

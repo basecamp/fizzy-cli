@@ -146,6 +146,7 @@ CMD fizzy identity help
 CMD fizzy identity show
 CMD fizzy identity timezone-update
 CMD fizzy identity view
+CMD fizzy mcp
 CMD fizzy migrate
 CMD fizzy migrate board
 CMD fizzy migrate help
@@ -2010,6 +2011,22 @@ FLAG fizzy identity view --quiet type=bool
 FLAG fizzy identity view --styled type=bool
 FLAG fizzy identity view --token type=string
 FLAG fizzy identity view --verbose type=bool
+FLAG fizzy mcp --agent type=bool
+FLAG fizzy mcp --api-url type=string
+FLAG fizzy mcp --count type=bool
+FLAG fizzy mcp --domains type=stringSlice
+FLAG fizzy mcp --help type=bool
+FLAG fizzy mcp --ids-only type=bool
+FLAG fizzy mcp --jq type=string
+FLAG fizzy mcp --json type=bool
+FLAG fizzy mcp --limit type=int
+FLAG fizzy mcp --markdown type=bool
+FLAG fizzy mcp --profile type=string
+FLAG fizzy mcp --quiet type=bool
+FLAG fizzy mcp --styled type=bool
+FLAG fizzy mcp --token type=string
+FLAG fizzy mcp --verbose type=bool
+FLAG fizzy mcp --writes type=bool
 FLAG fizzy migrate --agent type=bool
 FLAG fizzy migrate --api-url type=string
 FLAG fizzy migrate --count type=bool
@@ -3454,6 +3471,7 @@ SUB fizzy identity help
 SUB fizzy identity show
 SUB fizzy identity timezone-update
 SUB fizzy identity view
+SUB fizzy mcp
 SUB fizzy migrate
 SUB fizzy migrate board
 SUB fizzy migrate help

@@ -10,6 +10,7 @@ fizzy-cli/
 │   ├── commands/        # Command implementations
 │   ├── config/          # Configuration management
 │   ├── errors/          # Error handling and types
+│   ├── mcpserver/       # `fizzy mcp` MCP server (catalog/ synced from fizzy-mcp-server)
 │   └── render/          # Output rendering (styled, markdown, columns)
 ├── e2e/                 # Go integration tests
 ├── skills/              # Agent skills
