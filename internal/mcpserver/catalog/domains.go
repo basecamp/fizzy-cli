@@ -55,7 +55,7 @@ var Domains = []*Domain{
 			{
 				Action: "get_identity", Method: "GET", Path: "/my/identity", ReadOnly: true, Unscoped: true,
 				Summary: "List the accounts the token can access, with your user record in each",
-				Doc:     "Each account carries a slug; account-scoped actions use it automatically when FIZZY_ACCOUNT is set, or discover it here when exactly one account exists.",
+				Doc:     "Each account carries a slug naming it in API paths. Account-scoped actions run against the account the server is configured for; this action shows every account the token can reach.",
 			},
 		},
 	},

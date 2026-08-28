@@ -236,8 +236,8 @@ fizzy config explain --profile acme
 ## MCP server
 
 `fizzy mcp` runs an MCP (Model Context Protocol) server on stdin/stdout, serving Fizzy
-boards, cards, comments, steps, tags, and users as tools backed by your signed-in
-account — the same credentials every other command uses. Register it with any MCP
+boards, columns, cards, comments, steps, tags, users, and your identity as tools
+backed by your signed-in account — the same credentials every other command uses. Register it with any MCP
 client as a stdio server:
 
 ```bash

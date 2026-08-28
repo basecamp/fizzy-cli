@@ -25,8 +25,8 @@ var mcpCmd = &cobra.Command{
 	Use:   "mcp",
 	Short: "Serve Fizzy to MCP clients over stdio",
 	Long: "Run an MCP (Model Context Protocol) server on stdin/stdout, serving Fizzy\n" +
-		"boards, cards, comments, steps, tags, and users as tools backed by your\n" +
-		"signed-in account.\n\n" +
+		"boards, columns, cards, comments, steps, tags, users, and your identity as\n" +
+		"tools backed by your signed-in account.\n\n" +
 		"Read-only by default; --writes serves write actions too (pair with a\n" +
 		"Read+Write access token). Register it with an MCP client as a stdio\n" +
 		"server, e.g.:\n\n" +
