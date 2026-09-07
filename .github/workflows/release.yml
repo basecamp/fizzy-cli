@@ -13,12 +13,12 @@ permissions: {}
 
 jobs:
   test:
-    uses: ./.github/workflows/test.yml
+    uses: $/.github/workflows/test.yml
     permissions:
       contents: read
 
   security:
-    uses: ./.github/workflows/security.yml
+    uses: $/.github/workflows/security.yml
     permissions:
       contents: read
       security-events: write
