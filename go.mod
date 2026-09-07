@@ -1,6 +1,6 @@
 module github.com/basecamp/fizzy-cli
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/basecamp/cli v0.2.1
@@ -16,7 +16,7 @@ require (
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
-	github.com/yuin/goldmark v1.8.5
+	github.com/yuin/goldmark v1.8.6
 	github.com/zalando/go-keyring v0.2.8
 	gopkg.in/yaml.v3 v3.0.1
 )
