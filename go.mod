@@ -1,6 +1,6 @@
 module github.com/basecamp/fizzy-cli
 
-go 1.26.5
+go 1.26.6
 
 require (
 	github.com/basecamp/cli v0.2.1
