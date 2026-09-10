@@ -31,6 +31,7 @@ var skillLocations = []SkillLocation{
 	{Name: "OpenCode (Global)", Path: "~/.config/opencode/skill/fizzy/SKILL.md"},
 	{Name: "OpenCode (Project)", Path: ".opencode/skill/fizzy/SKILL.md"},
 	{Name: "Codex (Global)", Path: codexGlobalSkillPath()},
+	{Name: "Grok (Global)", Path: grokGlobalSkillPath()},
 }
 
 var skillCmd = &cobra.Command{
@@ -257,11 +258,21 @@ func normalizeSkillPath(path string) string {
 }
 
 func codexGlobalSkillPath() string {
-	codexHome := strings.TrimSpace(os.Getenv("CODEX_HOME"))
-	if codexHome == "" {
-		return "~/.codex/skills/fizzy/SKILL.md"
+	return agentGlobalSkillPath("CODEX_HOME", "~/.codex")
+}
+
+func grokGlobalSkillPath() string {
+	return agentGlobalSkillPath("GROK_HOME", "~/.grok")
+}
+
+// agentGlobalSkillPath locates the skill under an agent's home directory:
+// homeEnv when set, otherwise homeDir.
+func agentGlobalSkillPath(homeEnv, homeDir string) string {
+	home := strings.TrimSpace(os.Getenv(homeEnv))
+	if home == "" {
+		return homeDir + "/skills/fizzy/SKILL.md"
 	}
-	return filepath.Join(codexHome, "skills", "fizzy", skillFilename)
+	return filepath.Join(home, "skills", "fizzy", skillFilename)
 }
 
 // expandSkillPath expands ~ to home directory.
