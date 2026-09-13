@@ -171,7 +171,7 @@ test_removes_only_a_skill_dropped_from_its_own_tree() {
   assert_clean_tree
 }
 
-test_a_stale_legacy_manifest_from_a_prefix_sibling_deletes_nothing() {
+test_a_stale_legacy_manifest_from_a_pre_fix_sibling_deletes_nothing() {
   sync_basecamp
   sync_fizzy
   # The pre-fix script rewrites .managed-skills with its own names after every
