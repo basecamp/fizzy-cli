@@ -99,15 +99,20 @@ goreleaser release --snapshot --clean
 ## Skills sync
 
 Stable releases mirror `skills/` into [basecamp/skills](https://github.com/basecamp/skills),
-which several CLIs share. `scripts/sync-skills.sh` owns only this CLI's skills there:
-it records the names it published in `.managed-skills.fizzy-cli` at the target root and
-removes a `skills/<name>` only when that manifest lists it, the release no longer ships
-it, and no other CLI's `.managed-skills.*` claims it (a collision is warned about and
-left alone). A target with no `.managed-skills.fizzy-cli` yet is a first run: nothing is
-removed. The legacy shared `.managed-skills` is rewritten as a comment-only tombstone
-so a CLI still on the pre-fix script — which deleted everything its own tree lacked —
-deletes nothing (basecamp/skills#5). `e2e/sync_skills_test.sh` pins the contract; it
-runs under `make test-scripts` (part of `make check`) and in CI.
+which several CLIs share. `scripts/sync-skills.sh` is the script every publishing CLI
+runs (the copy in the `basecamp/cli` seed is canonical; only the `CLI_NAME` default
+differs here). It owns only this CLI's skills there: it records the names it published
+in `.managed-skills.fizzy-cli` at the target root, refuses to publish a name another
+CLI's `.managed-skills.*` already holds, and removes a `skills/<name>` only when its own
+manifest lists it, the release no longer ships it, and no other manifest claims it (a
+claimed name is warned about and left alone). A target with no `.managed-skills.fizzy-cli`
+yet is a first run: nothing is removed. The legacy shared `.managed-skills` is rewritten
+as a comment-only tombstone so a CLI still on the pre-fix script — which deleted
+everything its own tree lacked — deletes nothing (basecamp/skills#5). When another CLI
+pushes to basecamp/skills between the clone and the push, the sync is applied again
+from the remote's new tip (ownership checks included) and pushed once more.
+`scripts/test-sync-skills.sh` pins the contract, racing publisher included; it runs as
+`make test-sync-skills` (part of `make check`) and in CI.
 
 The copy drops `*.go` and dotfiles, so `skills/embed.go` stays here and only
 `skills/fizzy/**` is published. Preview what a release would publish, offline:

@@ -1,4 +1,4 @@
-.PHONY: test test-unit test-scripts test-e2e e2e test-go test-file e2e-file test-run e2e-run build clean tidy help \
+.PHONY: test test-unit test-sync-skills test-e2e e2e test-go test-file e2e-file test-run e2e-run build clean tidy help \
 	check-toolchain fmt fmt-check vet lint tidy-check race-test vuln secrets \
 	replace-check security check release-check release tools \
 	surface-snapshot surface-check lint-actions
@@ -28,7 +28,7 @@ help:
 	@echo "Usage:"
 	@echo "  make build          Build the CLI"
 	@echo "  make test-unit      Run unit tests (no API required)"
-	@echo "  make test-scripts   Run shell script tests (no API required)"
+	@echo "  make test-sync-skills  Test the skills sync script (no API required)"
 	@echo "  make e2e            Run owner-only CLI contract e2e tests"
 	@echo "  make test-e2e       Alias for e2e"
 	@echo "  make test           Alias for e2e"
@@ -51,7 +51,7 @@ help:
 	@echo ""
 	@echo "  make lint-actions   Lint GitHub Actions workflows"
 	@echo "  make security       lint + vuln + secrets"
-	@echo "  make check          fmt-check + vet + lint + tidy-check + race-test + test-scripts"
+	@echo "  make check          fmt-check + vet + lint + tidy-check + race-test + test-sync-skills"
 	@echo "  make release-check  check + replace-check + vuln + race-test"
 	@echo "  make release        Run release preflight and tag"
 	@echo "  make tools          Install dev tools"
@@ -93,9 +93,9 @@ build: check-toolchain
 test-unit: check-toolchain
 	go test -v ./internal/...
 
-# Run shell script tests (no API required)
-test-scripts:
-	e2e/sync_skills_test.sh
+# Test the skills sync script against a throwaway basecamp/skills checkout (no network)
+test-sync-skills:
+	scripts/test-sync-skills.sh
 
 # Run e2e tests (requires API credentials)
 e2e: build
@@ -180,8 +180,8 @@ replace-check:
 # Security suite
 security: lint vuln secrets
 
-# Local CI gate (fmt, vet, lint, tidy, race-test, shell script tests)
-check: fmt-check vet lint tidy-check race-test test-scripts
+# Local CI gate (fmt, vet, lint, tidy, race-test, skills sync test)
+check: fmt-check vet lint tidy-check race-test test-sync-skills
 
 # Release preflight
 release-check: check replace-check vuln
