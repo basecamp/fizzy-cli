@@ -13,7 +13,7 @@ fizzy-cli/
 │   ├── mcpserver/       # `fizzy mcp` MCP server (catalog/ synced from fizzy-mcp-server)
 │   └── render/          # Output rendering (styled, markdown, columns)
 ├── e2e/                 # Go integration tests
-├── skills/              # Agent skills
+├── skills/              # Agent skills (mirrored to basecamp/skills on release)
 └── .claude-plugin/      # Claude Code integration
 ```
 

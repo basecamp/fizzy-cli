@@ -20,6 +20,7 @@ Pushing the tag triggers the GitHub Actions release workflow, which:
 7. For stable tags only, publishes the Homebrew cask to `basecamp/homebrew-tap`
 8. For stable tags only, publishes the Scoop manifest to `basecamp/homebrew-tap`
 9. For stable tags only, publishes to AUR (if `AUR_KEY` configured)
+10. For stable tags only, mirrors `skills/` into [basecamp/skills](https://github.com/basecamp/skills)
 
 ## Versioning
 
@@ -45,18 +46,19 @@ Prerelease behavior is intentionally conservative so existing package-manager us
 | Homebrew | Updates the normal `basecamp/tap/fizzy` cask. `brew upgrade fizzy` can move users to `v4.0.0`. | Does not update the normal cask (`skip_upload: auto`). Existing `brew upgrade fizzy` users stay on the latest stable cask. |
 | Scoop | Updates the normal `fizzy` manifest. `scoop update fizzy` can move users to `v4.0.0`. | Does not update the normal manifest (`skip_upload: auto`). Existing Scoop users stay on the latest stable manifest. |
 | AUR | Updates the normal `fizzy-cli` package if `AUR_KEY` is configured. | Skips the AUR publish job. Existing AUR users stay on the latest stable package. |
+| basecamp/skills | Mirrors `skills/fizzy` into the shared skills repo. | Skips the skills sync job. `npx skills add basecamp/skills` keeps serving the latest stable skill. |
 | Go install | The git tag exists for users who explicitly request it. | The prerelease tag exists for users who explicitly request it; no package-manager manifest is updated. |
 
 Technical testers can install prereleases explicitly from the GitHub release assets, for example by downloading the asset for their OS/architecture from `https://github.com/basecamp/fizzy-cli/releases/tag/v4.0.0-beta1`.
 
 ## CI Secrets
 
-All release credentials live in the `release` environment (`Settings > Environments > release`), so they are only exposed to jobs that pass the environment's required-reviewer gate. There are no repository-level release secrets. `HOMEBREW_TAP_TOKEN` does not exist as a stored secret — it is minted per-run from the `cli-release-bot` GitHub App credentials.
+All release credentials live in the `release` environment (`Settings > Environments > release`), so they are only exposed to jobs that pass the environment's required-reviewer gate. There are no repository-level release secrets. `HOMEBREW_TAP_TOKEN` and the skills sync token do not exist as stored secrets — each is minted per-run from the `cli-release-bot` GitHub App credentials, scoped to the one repo that job pushes to (`homebrew-tap`, `skills`). The app must be installed on both repos with contents write access.
 
 | Name | Type | Purpose |
 |------|------|---------|
 | `RELEASE_CLIENT_ID` | variable | GitHub App client ID for `cli-release-bot` |
-| `RELEASE_APP_PRIVATE_KEY` | secret | GitHub App private key for tap push |
+| `RELEASE_APP_PRIVATE_KEY` | secret | GitHub App private key for tap and skills push |
 | `AUR_KEY` | secret | ed25519 SSH private key for AUR (optional) |
 | `MACOS_SIGN_P12` | secret | Base64-encoded Developer ID Application .p12 |
 | `MACOS_SIGN_PASSWORD` | secret | Password for the .p12 certificate |
@@ -74,6 +76,7 @@ Set a secret with `gh secret set <NAME> --env release -R basecamp/fizzy-cli`; th
 | Homebrew | `basecamp/homebrew-tap` Casks/fizzy.rb | GoReleaser (stable tags only) |
 | Scoop | `basecamp/homebrew-tap` fizzy.json | GoReleaser (stable tags only) |
 | AUR | `aur.archlinux.org/packages/fizzy-cli` | `publish-aur.sh` (stable tags only) |
+| Skills | `basecamp/skills` skills/fizzy | `sync-skills.sh` (stable tags only) |
 | Go install | `go install github.com/basecamp/fizzy-cli/cmd/fizzy@latest` | Go module proxy |
 | curl installer | `scripts/install.sh` | Manual |
 
@@ -92,6 +95,34 @@ mkdir -p completions
 rm fizzy-tmp
 goreleaser release --snapshot --clean
 ```
+
+## Skills sync
+
+Stable releases mirror `skills/` into [basecamp/skills](https://github.com/basecamp/skills),
+which several CLIs share. `scripts/sync-skills.sh` owns only this CLI's skills there:
+it records the names it published in `.managed-skills.fizzy-cli` at the target root and
+removes a `skills/<name>` only when that manifest lists it, the release no longer ships
+it, and no other CLI's `.managed-skills.*` claims it (a collision is warned about and
+left alone). A target with no `.managed-skills.fizzy-cli` yet is a first run: nothing is
+removed. The legacy shared `.managed-skills` is rewritten as a comment-only tombstone
+so a CLI still on the pre-fix script — which deleted everything its own tree lacked —
+deletes nothing (basecamp/skills#5). `e2e/sync_skills_test.sh` pins the contract; it
+runs under `make test-scripts` (part of `make check`) and in CI.
+
+The copy drops `*.go` and dotfiles, so `skills/embed.go` stays here and only
+`skills/fizzy/**` is published. Preview what a release would publish, offline:
+
+```bash
+DRY_RUN=local RELEASE_TAG=v0.0.0 SOURCE_SHA=$(git rev-parse HEAD) scripts/sync-skills.sh
+```
+
+The job is `continue-on-error`, so a failed sync never fails a release that has
+already shipped. If it fails, a `skills-sync`-labeled issue is filed; recover with
+the `Sync skills` workflow (`workflow_dispatch`, stable tag, optional dry run). It
+refuses anything but the latest stable release so it cannot roll the distribution
+repo back, and it runs the sync script from the dispatching branch against the
+tag's skills tree — so when the failure was a defect in `sync-skills.sh` itself,
+merge the fix to master and dispatch; no new release needed.
 
 ## AUR Setup
 

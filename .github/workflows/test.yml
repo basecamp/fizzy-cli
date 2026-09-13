@@ -34,6 +34,10 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
+      # Shell scripts the release workflow runs, tested without a Go harness.
+      - name: Run shell script tests
+        run: e2e/sync_skills_test.sh
+
       - name: Build
         run: go build -o bin/fizzy ./cmd/fizzy
 
