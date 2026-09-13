@@ -111,8 +111,11 @@ as a comment-only tombstone so a CLI still on the pre-fix script — which delet
 everything its own tree lacked — deletes nothing (basecamp/skills#5). When another CLI
 pushes to basecamp/skills between the clone and the push, the sync is applied again
 from the remote's new tip (ownership checks included) and pushed once more.
-`scripts/test-sync-skills.sh` pins the contract, racing publisher included; it runs as
-`make test-sync-skills` (part of `make check`) and in CI.
+The script always clones the target fresh and pushes only the commit it made, so there
+is no checkout to hand it. `scripts/test-sync-skills.sh` pins the contract, racing
+publisher included, by running the script as both CLIs against a local bare repository
+— real clones, commits and pushes, no network; it runs as `make test-sync-skills` (part
+of `make check`) and in CI.
 
 The copy drops `*.go` and dotfiles, so `skills/embed.go` stays here and only
 `skills/fizzy/**` is published. Preview what a release would publish, offline:
