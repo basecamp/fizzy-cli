@@ -150,3 +150,120 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AUR_KEY: ${{ secrets.AUR_KEY }}
+
+  # Mirrors skills/ into basecamp/skills, the distribution repo shared by every
+  # CLI. The script owns only this CLI's skills there (.managed-skills.fizzy-cli)
+  # and never touches a sibling's. continue-on-error: a stale skills repo must
+  # not fail a release that has already shipped; the failure step files an
+  # issue instead, and sync-skills.yml is the manual way back.
+  sync-skills:
+    name: Sync skills
+    needs: [release]
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    continue-on-error: true
+    concurrency:
+      group: sync-skills
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # An older stable release can reach this job after a newer one has
+      # published — its run stalled, or its failed sync was rerun later — and
+      # the script mirrors the skills wholesale, so it would roll basecamp/skills
+      # back. The concurrency group serialises the jobs but does not order them,
+      # so this is the check the manual Sync skills workflow makes: only the
+      # latest stable release publishes. A failed lookup fails the job, which
+      # files the issue below rather than skipping in silence.
+      - name: Confirm this is the latest stable release
+        id: latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          latest=$(gh release view --repo "${GITHUB_REPOSITORY}" --json tagName --jq .tagName)
+          if [ "$TAG" = "$latest" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Skipping the skills sync for ${TAG}: the latest stable release is ${latest}, and syncing an older tag would roll basecamp/skills back."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate token for skills repo
+        if: steps.latest.outputs.publish == 'true'
+        id: skills-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: basecamp
+          repositories: skills
+          permission-contents: write
+
+      - name: Sync skills to distribution repo
+        if: steps.latest.outputs.publish == 'true'
+        id: sync
+        env:
+          SKILLS_TOKEN: ${{ steps.skills-token.outputs.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: scripts/sync-skills.sh
+
+      - name: Notify on sync failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO_SLUG: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          RUN_URL="https://github.com/${REPO_SLUG}/actions/runs/${RUN_ID}"
+          LABEL="skills-sync"
+          TITLE="Skills sync failure"
+          BODY="The automatic skills sync to basecamp/skills for [${REF_NAME}](${RUN_URL}) failed. Check the workflow run for details; once fixed, rerun the failed jobs in that run or dispatch the Sync skills workflow for ${REF_NAME}."
+
+          # Filed on this repo (the only one github.token can write to), one
+          # open issue per outage. Deduped by label, not title: a title lookup
+          # misses the moment someone retitles the issue while triaging it.
+          # The lookup fails closed — an API error must not read as "no open
+          # issue" and file a duplicate; the annotation below still records
+          # the failure.
+          notify_status=0
+          if ! matches=$(gh issue list --repo "$REPO_SLUG" --state open --label "$LABEL" \
+                           --json number --jq '[.[].number] | join(" ")'); then
+            echo "::error::Could not list open '${LABEL}' issues in ${REPO_SLUG}. Filing nothing rather than risk a duplicate."
+            notify_status=2
+          else
+            read -ra issues <<< "$matches"
+            case "${#issues[@]}" in
+              0)
+                echo "No open '${LABEL}' issue; filing one."
+                # --force makes this idempotent, so the label exists before the
+                # first issue carries it (gh issue create refuses an unknown label).
+                gh label create "$LABEL" --repo "$REPO_SLUG" --force \
+                  --color d93f0b --description "The release-time sync to basecamp/skills failed" \
+                  && gh issue create --repo "$REPO_SLUG" --title "$TITLE" --body "$BODY" --label "$LABEL" \
+                  || notify_status=$?
+                ;;
+              1)
+                echo "Commenting on existing '${LABEL}' issue #${issues[0]}."
+                gh issue comment --repo "$REPO_SLUG" "${issues[0]}" --body "$BODY" || notify_status=$?
+                ;;
+              *)
+                # Picking one arbitrarily would scatter one outage's history
+                # across issues a human already decided to keep separate.
+                echo "::error::${#issues[@]} open issues carry the '${LABEL}' label (${issues[*]}). Refusing to guess which one to update — consolidate them, then re-run."
+                notify_status=3
+                ;;
+            esac
+          fi
+
+          echo "::error::Skills sync to basecamp/skills failed for ${REF_NAME}. See ${RUN_URL}"
+          exit "$notify_status"

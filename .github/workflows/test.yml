@@ -34,6 +34,9 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
+      - name: Test the skills sync
+        run: make test-sync-skills
+
       - name: Build
         run: go build -o bin/fizzy ./cmd/fizzy
 

@@ -13,7 +13,7 @@ fizzy-cli/
 │   ├── mcpserver/       # `fizzy mcp` MCP server (catalog/ synced from fizzy-mcp-server)
 │   └── render/          # Output rendering (styled, markdown, columns)
 ├── e2e/                 # Go integration tests
-├── skills/              # Agent skills
+├── skills/              # Agent skills (mirrored to basecamp/skills on release)
 └── .claude-plugin/      # Claude Code integration
 ```
 
@@ -113,7 +113,7 @@ Token-based via personal access tokens. Run `fizzy setup` for interactive config
 
 ## Checks
 
-`make check` runs `fmt-check vet lint tidy-check race-test`. There is no `surface-check`
+`make check` runs `fmt-check vet lint tidy-check race-test test-sync-skills`. There is no `surface-check`
 in that list, but the surface gate still runs: `race-test` is
 `go test -race -count=1 ./internal/...`, which includes
 `internal/commands.TestSurfaceSnapshot`.
