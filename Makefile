@@ -95,7 +95,7 @@ test-unit: check-toolchain
 
 # Test the skills sync script against a throwaway basecamp/skills checkout (no network)
 test-sync-skills:
-	scripts/test-sync-skills.sh
+	EXPECTED_SOURCE=fizzy-cli scripts/test-sync-skills.sh
 
 # Run e2e tests (requires API credentials)
 e2e: build
