@@ -40,15 +40,12 @@ func parsePseudoColumnID(id string) (pseudoColumn, bool) {
 	}
 }
 
-// inferPseudoColumn determines which pseudo column a card belongs to when the
-// API returns an empty column object (cards in Not Now, Done, or Maybe have no
-// real column). The states are mutually exclusive upstream: closing a card
-// destroys its not_now record, and postponing clears its column. Drafts belong
-// to no lane, so they are left untouched.
+// inferPseudoColumn determines which pseudo column an open card without a real
+// column belongs to (cards in Not Now and Maybe have no real column; closed
+// cards are handled by hydrateCardColumn). Postponing a card clears its column,
+// and closing it destroys its not_now record. Drafts belong to no lane, so they
+// are left untouched.
 func inferPseudoColumn(card map[string]any) (pseudoColumn, bool) {
-	if jsonBool(card["closed"]) {
-		return pseudoColumnDone, true
-	}
 	if jsonBool(card["postponed"]) {
 		return pseudoColumnNotNow, true
 	}
@@ -70,9 +67,20 @@ func hydrateCardColumns(items any) {
 	}
 }
 
-// hydrateCardColumn replaces an empty column object with the inferred pseudo
-// column so consumers always see a usable column id/name.
+// hydrateCardColumn sets the column a card is shown in so consumers always see
+// a usable column id/name. Precedence:
+//
+//  1. A closed card is in Done, whatever its column. Closing a card doesn't
+//     clear its column, so the API still returns the column it was closed
+//     from, while Fizzy shows the card in Done.
+//  2. A card with a real column keeps it.
+//  3. A card without one is inferred by inferPseudoColumn: Not Now when
+//     postponed, Maybe? when published; drafts are left untouched.
 func hydrateCardColumn(card map[string]any) {
+	if jsonBool(card["closed"]) {
+		card["column"] = pseudoColumnObject(pseudoColumnDone)
+		return
+	}
 	column, _ := card["column"].(map[string]any)
 	if id, _ := column["id"].(string); id != "" {
 		return

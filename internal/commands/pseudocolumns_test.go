@@ -47,6 +47,32 @@ func TestHydrateCardColumn(t *testing.T) {
 		}
 	})
 
+	t.Run("hydrates closed card with a real column as done", func(t *testing.T) {
+		// Closing a card doesn't clear its column, so the API still returns
+		// the column the card was closed from.
+		card := cardWithEmptyColumn(8, map[string]any{
+			"closed": true,
+			"column": map[string]any{"id": "col-123", "name": "Development"},
+		})
+		hydrateCardColumn(card)
+
+		column := card["column"].(map[string]any)
+		if column["id"] != "done" || column["name"] != "Done" || column["pseudo"] != true {
+			t.Errorf("expected done pseudo column, got %v", column)
+		}
+	})
+
+	t.Run("hydrates closed card with no column key as done", func(t *testing.T) {
+		card := cardWithEmptyColumn(9, map[string]any{"closed": true})
+		delete(card, "column")
+		hydrateCardColumn(card)
+
+		column, ok := card["column"].(map[string]any)
+		if !ok || column["id"] != "done" {
+			t.Errorf("expected done pseudo column, got %v", card["column"])
+		}
+	})
+
 	t.Run("hydrates postponed card as not-now", func(t *testing.T) {
 		card := cardWithEmptyColumn(3, map[string]any{"postponed": true})
 		hydrateCardColumn(card)
@@ -150,6 +176,36 @@ func TestCardShowHydratesPseudoColumn(t *testing.T) {
 	}
 }
 
+func TestCardShowHydratesClosedCardWithRealColumnAsDone(t *testing.T) {
+	mock := NewMockClient()
+	mock.GetResponse = &client.APIResponse{
+		StatusCode: 200,
+		Data: cardWithEmptyColumn(217, map[string]any{
+			"closed": true,
+			"column": map[string]any{"id": "col-123", "name": "Development"},
+		}),
+	}
+
+	result := SetTestModeWithSDK(mock)
+	SetTestConfig("token", "account", "https://api.example.com")
+	defer resetTest()
+
+	err := cardShowCmd.RunE(cardShowCmd, []string{"217"})
+	assertExitCode(t, err, 0)
+
+	data, ok := result.Response.Data.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map response data, got %T", result.Response.Data)
+	}
+	column, ok := data["column"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected column map, got %T", data["column"])
+	}
+	if column["id"] != "done" || column["name"] != "Done" {
+		t.Errorf("expected done column for closed card, got %v", column)
+	}
+}
+
 func TestCardListHydratesPseudoColumns(t *testing.T) {
 	mock := NewMockClient()
 	mock.GetWithPaginationResponse = &client.APIResponse{
@@ -158,6 +214,13 @@ func TestCardListHydratesPseudoColumns(t *testing.T) {
 			cardWithEmptyColumn(1, nil),
 			cardWithEmptyColumn(2, map[string]any{"closed": true}),
 			cardWithEmptyColumn(3, map[string]any{"postponed": true}),
+			cardWithEmptyColumn(4, map[string]any{
+				"closed": true,
+				"column": map[string]any{"id": "col-123", "name": "Development"},
+			}),
+			cardWithEmptyColumn(5, map[string]any{
+				"column": map[string]any{"id": "col-123", "name": "Development"},
+			}),
 		},
 	}
 
@@ -172,7 +235,10 @@ func TestCardListHydratesPseudoColumns(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected array response data, got %T", result.Response.Data)
 	}
-	expected := []string{"maybe", "done", "not-now"}
+	expected := []string{"maybe", "done", "not-now", "done", "col-123"}
+	if len(arr) != len(expected) {
+		t.Fatalf("expected %d cards, got %d", len(expected), len(arr))
+	}
 	for i, want := range expected {
 		card := arr[i].(map[string]any)
 		column := card["column"].(map[string]any)
