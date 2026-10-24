@@ -12,6 +12,7 @@ jobs:
     with:
       extra-patterns: |
         scripts/publish-aur.sh
+        scripts/sync-skills.sh
     permissions:
       contents: read
       pull-requests: write

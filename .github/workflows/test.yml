@@ -34,6 +34,9 @@ jobs:
       - name: Run tests
         run: go test -v ./...
 
+      - name: Test the skills sync
+        run: make test-sync-skills
+
       - name: Build
         run: go build -o bin/fizzy ./cmd/fizzy
 
@@ -81,7 +84,7 @@ jobs:
 
       - name: govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
           govulncheck ./...
 
   lint-actions:
@@ -98,7 +101,7 @@ jobs:
         uses: rhysd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca # v1.7.12
 
       - name: Run zizmor
-        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        uses: zizmorcore/zizmor-action@70fb788f84895a7701f5643d103d587e460b5c99 # v0.6.3
         with:
           advanced-security: false
 

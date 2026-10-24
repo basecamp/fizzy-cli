@@ -233,6 +233,26 @@ fizzy config explain
 fizzy config explain --profile acme
 ```
 
+## MCP server
+
+`fizzy mcp` runs an MCP (Model Context Protocol) server on stdin/stdout, serving Fizzy
+boards, columns, cards, comments, steps, tags, users, and your identity as tools
+backed by your signed-in account — the same credentials every other command uses. Register it with any MCP
+client as a stdio server:
+
+```bash
+claude mcp add fizzy -- fizzy mcp        # Claude Code
+fizzy mcp --writes                       # serve write actions too (pair with a Read+Write token)
+fizzy mcp --domains boards,cards         # narrow the served tool surface
+```
+
+Each domain is one gateway tool (`fizzy_identity`, `fizzy_boards`, `fizzy_columns`,
+`fizzy_cards`, `fizzy_comments`, `fizzy_steps`, `fizzy_tags`, `fizzy_users`); call an
+action named `describe` for any action's parameter schema. Read-only by default —
+`--writes` opts in. Listings with more pages come back as
+`{"data": ..., "next_page": N}` — pass the number back as the action's `page`
+parameter. Logs go to stderr — stdout carries the MCP wire protocol.
+
 ## Troubleshooting
 
 ```bash

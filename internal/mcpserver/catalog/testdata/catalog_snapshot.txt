@@ -1,0 +1,1743 @@
+==== TOOL fizzy_identity ====
+Who you are on Fizzy: the accounts your token can reach and your user in each. Call this first when the account slug is unknown.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- get_identity (RO): List the accounts the token can access, with your user record in each
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "get_identity",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe get_identity ----
+{
+  "action": "get_identity",
+  "method": "GET",
+  "path": "/my/identity",
+  "summary": "List the accounts the token can access, with your user record in each",
+  "doc": "Each account carries a slug naming it in API paths. Account-scoped actions run against the account the server is configured for; this action shows every account the token can reach.",
+  "readonly": true,
+  "unscoped": true
+}
+==== TOOL fizzy_boards ====
+Fizzy boards: the kanban boards cards live on, who can access them, and public publication.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- create_board: Create a board
+- delete_board: Delete a board (board administrators only)
+- get_board (RO): Get one board
+- list_accesses (RO, paginated): List account users with their access and involvement for a board
+- list_boards (RO, paginated): List the boards you have access to
+- publish_board: Publish a board to a shareable public link (administrators only)
+- unpublish_board: Unpublish a board, removing public access (administrators only)
+- update_board: Update a board (administrators only)
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "create_board",
+        "delete_board",
+        "get_board",
+        "list_accesses",
+        "list_boards",
+        "publish_board",
+        "unpublish_board",
+        "update_board",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe create_board ----
+{
+  "action": "create_board",
+  "method": "POST",
+  "path": "/boards",
+  "summary": "Create a board",
+  "readonly": false,
+  "body": {
+    "properties": {
+      "all_access": {
+        "description": "Whether any user in the account can access this board (default true)",
+        "type": "boolean"
+      },
+      "auto_postpone_period_in_days": {
+        "description": "Days of inactivity before cards are automatically postponed",
+        "type": "integer"
+      },
+      "name": {
+        "description": "The name of the board",
+        "type": "string"
+      },
+      "public_description": {
+        "description": "Rich text description shown on the public board page",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "body_key": "board"
+}
+---- describe delete_board ----
+{
+  "action": "delete_board",
+  "method": "DELETE",
+  "path": "/boards/{board_id}",
+  "summary": "Delete a board (board administrators only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe get_board ----
+{
+  "action": "get_board",
+  "method": "GET",
+  "path": "/boards/{board_id}",
+  "summary": "Get one board",
+  "readonly": true,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe list_accesses ----
+{
+  "action": "list_accesses",
+  "method": "GET",
+  "path": "/boards/{board_id}/accesses",
+  "summary": "List account users with their access and involvement for a board",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
+}
+---- describe list_boards ----
+{
+  "action": "list_boards",
+  "method": "GET",
+  "path": "/boards",
+  "summary": "List the boards you have access to",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
+}
+---- describe publish_board ----
+{
+  "action": "publish_board",
+  "method": "POST",
+  "path": "/boards/{board_id}/publication",
+  "summary": "Publish a board to a shareable public link (administrators only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe unpublish_board ----
+{
+  "action": "unpublish_board",
+  "method": "DELETE",
+  "path": "/boards/{board_id}/publication",
+  "summary": "Unpublish a board, removing public access (administrators only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe update_board ----
+{
+  "action": "update_board",
+  "method": "PUT",
+  "path": "/boards/{board_id}",
+  "summary": "Update a board (administrators only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "all_access": {
+        "description": "Whether any user in the account can access this board",
+        "type": "boolean"
+      },
+      "auto_postpone_period_in_days": {
+        "description": "Days of inactivity before cards are automatically postponed",
+        "type": "integer"
+      },
+      "name": {
+        "description": "The name of the board",
+        "type": "string"
+      },
+      "public_description": {
+        "description": "Rich text description shown on the public board page",
+        "type": "string"
+      },
+      "user_ids": {
+        "description": "All user IDs who should have access (only when all_access is false; replaces the whole list)",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "body_key": "board"
+}
+==== TOOL fizzy_columns ====
+Workflow columns on a Fizzy board. Cards in Maybe?, Not Now, or Done live outside columns; move cards between columns with the cards tool's triage_card.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- create_column: Create a column on a board
+- delete_column: Delete a column
+- get_column (RO): Get one column
+- list_cards (RO, paginated): List the open cards in a column
+- list_columns (RO): List a board's columns
+- update_column: Rename or recolor a column
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "create_column",
+        "delete_column",
+        "get_column",
+        "list_cards",
+        "list_columns",
+        "update_column",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe create_column ----
+{
+  "action": "create_column",
+  "method": "POST",
+  "path": "/boards/{board_id}/columns",
+  "summary": "Create a column on a board",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "color": {
+        "description": "Column color, e.g. var(--color-card-default) (Blue), var(--color-card-1) (Gray) through var(--color-card-8) (Pink)",
+        "type": "string"
+      },
+      "name": {
+        "description": "The name of the column",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "body_key": "column"
+}
+---- describe delete_column ----
+{
+  "action": "delete_column",
+  "method": "DELETE",
+  "path": "/boards/{board_id}/columns/{column_id}",
+  "summary": "Delete a column",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    },
+    {
+      "name": "column_id",
+      "in": "path",
+      "required": true,
+      "description": "The column ID",
+      "schema": {
+        "description": "The column ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe get_column ----
+{
+  "action": "get_column",
+  "method": "GET",
+  "path": "/boards/{board_id}/columns/{column_id}",
+  "summary": "Get one column",
+  "readonly": true,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    },
+    {
+      "name": "column_id",
+      "in": "path",
+      "required": true,
+      "description": "The column ID",
+      "schema": {
+        "description": "The column ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe list_cards ----
+{
+  "action": "list_cards",
+  "method": "GET",
+  "path": "/boards/{board_id}/columns/{column_id}/cards",
+  "summary": "List the open cards in a column",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    },
+    {
+      "name": "column_id",
+      "in": "path",
+      "required": true,
+      "description": "The column ID",
+      "schema": {
+        "description": "The column ID",
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
+}
+---- describe list_columns ----
+{
+  "action": "list_columns",
+  "method": "GET",
+  "path": "/boards/{board_id}/columns",
+  "summary": "List a board's columns",
+  "readonly": true,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe update_column ----
+{
+  "action": "update_column",
+  "method": "PUT",
+  "path": "/boards/{board_id}/columns/{column_id}",
+  "summary": "Rename or recolor a column",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    },
+    {
+      "name": "column_id",
+      "in": "path",
+      "required": true,
+      "description": "The column ID",
+      "schema": {
+        "description": "The column ID",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "color": {
+        "description": "The column color",
+        "type": "string"
+      },
+      "name": {
+        "description": "The name of the column",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "body_key": "column"
+}
+==== TOOL fizzy_cards ====
+Fizzy cards: create, find, and update cards; close and reopen; move between columns (triage), boards, and Not Now; tag, assign, watch, and mark golden.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- close_card: Close a card (move it to Done)
+- create_card: Create a card on a board (new cards start in Maybe? triage)
+- delete_card: Delete a card (creator or board administrators only)
+- get_card (RO): Get one card with its board, column, assignees, tags, and steps
+- list_cards (RO, paginated): List cards you have access to, filtered by board, column, tag, assignee, state, or search terms
+- mark_golden: Mark a card as golden
+- move_card: Move a card to a different board
+- postpone_card: Move a card to Not Now
+- reopen_card: Reopen a closed card
+- toggle_assignment: Toggle assignment of a user to/from a card
+- toggle_tag: Toggle a tag on or off for a card, creating the tag if needed
+- triage_card: Move a card into a workflow column
+- unmark_golden: Remove golden status from a card
+- untriage_card: Send a card back to triage (Maybe?)
+- unwatch_card: Unsubscribe from notifications for a card
+- update_card: Update a card's title, description, status, or tags
+- watch_card: Subscribe to notifications for a card
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "close_card",
+        "create_card",
+        "delete_card",
+        "get_card",
+        "list_cards",
+        "mark_golden",
+        "move_card",
+        "postpone_card",
+        "reopen_card",
+        "toggle_assignment",
+        "toggle_tag",
+        "triage_card",
+        "unmark_golden",
+        "untriage_card",
+        "unwatch_card",
+        "update_card",
+        "watch_card",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe close_card ----
+{
+  "action": "close_card",
+  "method": "POST",
+  "path": "/cards/{card_number}/closure",
+  "summary": "Close a card (move it to Done)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe create_card ----
+{
+  "action": "create_card",
+  "method": "POST",
+  "path": "/boards/{board_id}/cards",
+  "summary": "Create a card on a board (new cards start in Maybe? triage)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "board_id",
+      "in": "path",
+      "required": true,
+      "description": "The board ID",
+      "schema": {
+        "description": "The board ID",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "description": {
+        "description": "Rich text description of the card",
+        "type": "string"
+      },
+      "status": {
+        "description": "Initial status (default published)",
+        "enum": [
+          "published",
+          "drafted"
+        ],
+        "type": "string"
+      },
+      "tag_ids": {
+        "description": "Tag IDs to apply to the card",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": {
+        "description": "The title of the card",
+        "type": "string"
+      }
+    },
+    "required": [
+      "title"
+    ],
+    "type": "object"
+  },
+  "body_key": "card"
+}
+---- describe delete_card ----
+{
+  "action": "delete_card",
+  "method": "DELETE",
+  "path": "/cards/{card_number}",
+  "summary": "Delete a card (creator or board administrators only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe get_card ----
+{
+  "action": "get_card",
+  "method": "GET",
+  "path": "/cards/{card_number}",
+  "summary": "Get one card with its board, column, assignees, tags, and steps",
+  "readonly": true,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe list_cards ----
+{
+  "action": "list_cards",
+  "method": "GET",
+  "path": "/cards",
+  "summary": "List cards you have access to, filtered by board, column, tag, assignee, state, or search terms",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "assignee_ids",
+      "in": "query",
+      "description": "Filter by assignee user ID(s)",
+      "schema": {
+        "description": "Assignee user IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "assignment_status",
+      "in": "query",
+      "description": "Filter by assignment status",
+      "schema": {
+        "description": "Assignment status",
+        "enum": [
+          "unassigned"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "name": "board_ids",
+      "in": "query",
+      "description": "Filter by board ID(s)",
+      "schema": {
+        "description": "Board IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "card_ids",
+      "in": "query",
+      "description": "Filter to specific card ID(s)",
+      "schema": {
+        "description": "Card IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "closer_ids",
+      "in": "query",
+      "description": "Filter by user ID(s) who closed the cards",
+      "schema": {
+        "description": "Closer user IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "closure",
+      "in": "query",
+      "description": "Filter by closure date",
+      "schema": {
+        "description": "Closure date range",
+        "enum": [
+          "today",
+          "yesterday",
+          "thisweek",
+          "lastweek",
+          "thismonth",
+          "lastmonth",
+          "thisyear",
+          "lastyear"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "name": "column_ids",
+      "in": "query",
+      "description": "Filter by workflow column ID(s); repeated values are ORed",
+      "schema": {
+        "description": "Column IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "creation",
+      "in": "query",
+      "description": "Filter by creation date",
+      "schema": {
+        "description": "Creation date range",
+        "enum": [
+          "today",
+          "yesterday",
+          "thisweek",
+          "lastweek",
+          "thismonth",
+          "lastmonth",
+          "thisyear",
+          "lastyear"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "name": "creator_ids",
+      "in": "query",
+      "description": "Filter by card creator ID(s)",
+      "schema": {
+        "description": "Creator user IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "indexed_by",
+      "in": "query",
+      "description": "Filter by card state",
+      "schema": {
+        "description": "Card state",
+        "enum": [
+          "all",
+          "maybe",
+          "closed",
+          "not_now",
+          "stalled",
+          "postponing_soon",
+          "golden"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    },
+    {
+      "name": "sorted_by",
+      "in": "query",
+      "description": "Sort order",
+      "schema": {
+        "description": "Sort order",
+        "enum": [
+          "latest",
+          "newest",
+          "oldest"
+        ],
+        "type": "string"
+      }
+    },
+    {
+      "name": "tag_ids",
+      "in": "query",
+      "description": "Filter by tag ID(s)",
+      "schema": {
+        "description": "Tag IDs",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    },
+    {
+      "name": "terms",
+      "in": "query",
+      "description": "Search terms to filter cards",
+      "schema": {
+        "description": "Search terms",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      }
+    }
+  ]
+}
+---- describe mark_golden ----
+{
+  "action": "mark_golden",
+  "method": "POST",
+  "path": "/cards/{card_number}/goldness",
+  "summary": "Mark a card as golden",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe move_card ----
+{
+  "action": "move_card",
+  "method": "PUT",
+  "path": "/cards/{card_number}/board",
+  "summary": "Move a card to a different board",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "board_id": {
+        "description": "The ID of the board to move the card to",
+        "type": "string"
+      }
+    },
+    "required": [
+      "board_id"
+    ],
+    "type": "object"
+  }
+}
+---- describe postpone_card ----
+{
+  "action": "postpone_card",
+  "method": "POST",
+  "path": "/cards/{card_number}/not_now",
+  "summary": "Move a card to Not Now",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe reopen_card ----
+{
+  "action": "reopen_card",
+  "method": "DELETE",
+  "path": "/cards/{card_number}/closure",
+  "summary": "Reopen a closed card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe toggle_assignment ----
+{
+  "action": "toggle_assignment",
+  "method": "POST",
+  "path": "/cards/{card_number}/assignments",
+  "summary": "Toggle assignment of a user to/from a card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "assignee_id": {
+        "description": "The ID of the user to assign or unassign",
+        "type": "string"
+      }
+    },
+    "required": [
+      "assignee_id"
+    ],
+    "type": "object"
+  }
+}
+---- describe toggle_tag ----
+{
+  "action": "toggle_tag",
+  "method": "POST",
+  "path": "/cards/{card_number}/taggings",
+  "summary": "Toggle a tag on or off for a card, creating the tag if needed",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "tag_title": {
+        "description": "The title of the tag (leading # is stripped)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "tag_title"
+    ],
+    "type": "object"
+  }
+}
+---- describe triage_card ----
+{
+  "action": "triage_card",
+  "method": "POST",
+  "path": "/cards/{card_number}/triage",
+  "summary": "Move a card into a workflow column",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "column_id": {
+        "description": "The ID of the column to move the card into",
+        "type": "string"
+      }
+    },
+    "required": [
+      "column_id"
+    ],
+    "type": "object"
+  }
+}
+---- describe unmark_golden ----
+{
+  "action": "unmark_golden",
+  "method": "DELETE",
+  "path": "/cards/{card_number}/goldness",
+  "summary": "Remove golden status from a card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe untriage_card ----
+{
+  "action": "untriage_card",
+  "method": "DELETE",
+  "path": "/cards/{card_number}/triage",
+  "summary": "Send a card back to triage (Maybe?)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe unwatch_card ----
+{
+  "action": "unwatch_card",
+  "method": "DELETE",
+  "path": "/cards/{card_number}/watch",
+  "summary": "Unsubscribe from notifications for a card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe update_card ----
+{
+  "action": "update_card",
+  "method": "PUT",
+  "path": "/cards/{card_number}",
+  "summary": "Update a card's title, description, status, or tags",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "description": {
+        "description": "Rich text description of the card",
+        "type": "string"
+      },
+      "status": {
+        "description": "Card status",
+        "enum": [
+          "drafted",
+          "published"
+        ],
+        "type": "string"
+      },
+      "tag_ids": {
+        "description": "Tag IDs to apply to the card",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": {
+        "description": "The title of the card",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "body_key": "card"
+}
+---- describe watch_card ----
+{
+  "action": "watch_card",
+  "method": "POST",
+  "path": "/cards/{card_number}/watch",
+  "summary": "Subscribe to notifications for a card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+==== TOOL fizzy_comments ====
+Comments on Fizzy cards, chronological. Bodies support rich text.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- create_comment: Comment on a card
+- delete_comment: Delete a comment (comment creator only)
+- get_comment (RO): Get one comment
+- list_comments (RO, paginated): List a card's comments, oldest first
+- update_comment: Update a comment (comment creator only)
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "create_comment",
+        "delete_comment",
+        "get_comment",
+        "list_comments",
+        "update_comment",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe create_comment ----
+{
+  "action": "create_comment",
+  "method": "POST",
+  "path": "/cards/{card_number}/comments",
+  "summary": "Comment on a card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "body": {
+        "description": "The comment body (supports rich text)",
+        "type": "string"
+      }
+    },
+    "required": [
+      "body"
+    ],
+    "type": "object"
+  },
+  "body_key": "comment"
+}
+---- describe delete_comment ----
+{
+  "action": "delete_comment",
+  "method": "DELETE",
+  "path": "/cards/{card_number}/comments/{comment_id}",
+  "summary": "Delete a comment (comment creator only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "comment_id",
+      "in": "path",
+      "required": true,
+      "description": "The comment ID",
+      "schema": {
+        "description": "The comment ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe get_comment ----
+{
+  "action": "get_comment",
+  "method": "GET",
+  "path": "/cards/{card_number}/comments/{comment_id}",
+  "summary": "Get one comment",
+  "readonly": true,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "comment_id",
+      "in": "path",
+      "required": true,
+      "description": "The comment ID",
+      "schema": {
+        "description": "The comment ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe list_comments ----
+{
+  "action": "list_comments",
+  "method": "GET",
+  "path": "/cards/{card_number}/comments",
+  "summary": "List a card's comments, oldest first",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
+}
+---- describe update_comment ----
+{
+  "action": "update_comment",
+  "method": "PUT",
+  "path": "/cards/{card_number}/comments/{comment_id}",
+  "summary": "Update a comment (comment creator only)",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "comment_id",
+      "in": "path",
+      "required": true,
+      "description": "The comment ID",
+      "schema": {
+        "description": "The comment ID",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "body": {
+        "description": "The updated comment body",
+        "type": "string"
+      }
+    },
+    "required": [
+      "body"
+    ],
+    "type": "object"
+  },
+  "body_key": "comment"
+}
+==== TOOL fizzy_steps ====
+Steps: the checklist items on a Fizzy card.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- create_step: Add a step to a card
+- delete_step: Delete a step
+- get_step (RO): Get one step
+- list_steps (RO): List a card's steps
+- update_step: Edit a step or toggle its completion
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "create_step",
+        "delete_step",
+        "get_step",
+        "list_steps",
+        "update_step",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe create_step ----
+{
+  "action": "create_step",
+  "method": "POST",
+  "path": "/cards/{card_number}/steps",
+  "summary": "Add a step to a card",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "completed": {
+        "description": "Whether the step is completed (default false)",
+        "type": "boolean"
+      },
+      "content": {
+        "description": "The step text",
+        "type": "string"
+      }
+    },
+    "required": [
+      "content"
+    ],
+    "type": "object"
+  },
+  "body_key": "step"
+}
+---- describe delete_step ----
+{
+  "action": "delete_step",
+  "method": "DELETE",
+  "path": "/cards/{card_number}/steps/{step_id}",
+  "summary": "Delete a step",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "step_id",
+      "in": "path",
+      "required": true,
+      "description": "The step ID",
+      "schema": {
+        "description": "The step ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe get_step ----
+{
+  "action": "get_step",
+  "method": "GET",
+  "path": "/cards/{card_number}/steps/{step_id}",
+  "summary": "Get one step",
+  "readonly": true,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "step_id",
+      "in": "path",
+      "required": true,
+      "description": "The step ID",
+      "schema": {
+        "description": "The step ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe list_steps ----
+{
+  "action": "list_steps",
+  "method": "GET",
+  "path": "/cards/{card_number}/steps",
+  "summary": "List a card's steps",
+  "readonly": true,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe update_step ----
+{
+  "action": "update_step",
+  "method": "PUT",
+  "path": "/cards/{card_number}/steps/{step_id}",
+  "summary": "Edit a step or toggle its completion",
+  "readonly": false,
+  "params": [
+    {
+      "name": "card_number",
+      "in": "path",
+      "required": true,
+      "description": "The card number (the number in the card's URL, not its ID)",
+      "schema": {
+        "description": "The card number (the number in the card's URL, not its ID)",
+        "type": "string"
+      }
+    },
+    {
+      "name": "step_id",
+      "in": "path",
+      "required": true,
+      "description": "The step ID",
+      "schema": {
+        "description": "The step ID",
+        "type": "string"
+      }
+    }
+  ],
+  "body": {
+    "properties": {
+      "completed": {
+        "description": "Whether the step is completed",
+        "type": "boolean"
+      },
+      "content": {
+        "description": "The step text",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "body_key": "step"
+}
+==== TOOL fizzy_tags ====
+Tags: the labels applied to cards, account-wide. Apply or remove them with the cards tool's toggle_tag.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- list_tags (RO, paginated): List the account's tags, alphabetically
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "list_tags",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe list_tags ----
+{
+  "action": "list_tags",
+  "method": "GET",
+  "path": "/tags",
+  "summary": "List the account's tags, alphabetically",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
+}
+==== TOOL fizzy_users ====
+Users: the people in the Fizzy account. Assign them to cards with the cards tool's toggle_assignment.
+
+Gateway tool: call with {"action": "...", "params": {...}}.
+Call {"action": "describe", "params": {"action": "NAME"}} for an action's full parameter schema.
+
+ACTIONS (RO = read-only):
+- get_user (RO): Get one user
+- list_users (RO, paginated): List the account's active users
+---- input schema ----
+{
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "get_user",
+        "list_users",
+        "describe"
+      ],
+      "type": "string"
+    },
+    "params": {
+      "description": "Parameters for the action. Call describe for the action's schema.",
+      "type": "object"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "type": "object"
+}
+---- describe get_user ----
+{
+  "action": "get_user",
+  "method": "GET",
+  "path": "/users/{user_id}",
+  "summary": "Get one user",
+  "readonly": true,
+  "params": [
+    {
+      "name": "user_id",
+      "in": "path",
+      "required": true,
+      "description": "The user ID",
+      "schema": {
+        "description": "The user ID",
+        "type": "string"
+      }
+    }
+  ]
+}
+---- describe list_users ----
+{
+  "action": "list_users",
+  "method": "GET",
+  "path": "/users",
+  "summary": "List the account's active users",
+  "readonly": true,
+  "paginated": true,
+  "params": [
+    {
+      "name": "page",
+      "in": "query",
+      "description": "Page number; responses include next_page when more results exist.",
+      "schema": {
+        "description": "Page number",
+        "type": "integer"
+      }
+    }
+  ]
+}
