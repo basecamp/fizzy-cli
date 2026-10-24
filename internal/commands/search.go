@@ -32,6 +32,7 @@ use 'fizzy card list' with --search and the relevant filter flags.`,
 		}
 
 		items := normalizeAny(raw)
+		hydrateCardColumns(items)
 		count := dataCount(items)
 		summary := fmt.Sprintf("%d results for %q", count, query)
 

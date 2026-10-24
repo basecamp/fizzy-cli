@@ -516,6 +516,8 @@ var boardClosedCmd = &cobra.Command{
 			linkNext = parseSDKLinkNext(resp)
 		}
 
+		hydrateCardColumns(items)
+
 		count := dataCount(items)
 		summary := fmt.Sprintf("%d closed cards", count)
 		if boardClosedAll {
@@ -590,6 +592,8 @@ var boardPostponedCmd = &cobra.Command{
 			linkNext = parseSDKLinkNext(resp)
 		}
 
+		hydrateCardColumns(items)
+
 		count := dataCount(items)
 		summary := fmt.Sprintf("%d postponed cards", count)
 		if boardPostponedAll {
@@ -663,6 +667,8 @@ var boardStreamCmd = &cobra.Command{
 			items = normalizeAny(data)
 			linkNext = parseSDKLinkNext(resp)
 		}
+
+		hydrateCardColumns(items)
 
 		count := dataCount(items)
 		summary := fmt.Sprintf("%d stream cards", count)
