@@ -8,8 +8,8 @@ github.com/aymanbagabas/go-udiff v0.3.1 h1:LV+qyBQ2pqe0u42ZsUEtPiCaUoqgA9gYRDs3v
 github.com/aymanbagabas/go-udiff v0.3.1/go.mod h1:G0fsKmG+P6ylD0r6N/KgQD/nWzgfnl8ZBcNLgcbrw8E=
 github.com/basecamp/cli v0.2.1 h1:8GyehPVtsTXla0oOPu4QgXRjwwzJ99prlByvyi+0HRQ=
 github.com/basecamp/cli v0.2.1/go.mod h1:p8tt/DatJ2LAzWO6N6tNfV8x3gF5T3IxDTo+U8FfWPo=
-github.com/basecamp/fizzy-sdk/go v0.2.4 h1:eTkLA/C9Pr72kS0ld30oIHftxw7LvKRJAV/543b7GDk=
-github.com/basecamp/fizzy-sdk/go v0.2.4/go.mod h1:xut9OSlqnbsHrdLiBL3YWJHeGAUC9Q+i0eJyGGwLq44=
+github.com/basecamp/fizzy-sdk/go v0.3.0 h1:WpaFl4xV0lS7BZ+Sf09ov4Yl5jRqtoeZqUUM+KCRk0Y=
+github.com/basecamp/fizzy-sdk/go v0.3.0/go.mod h1:/rdkaGOCbFmpjpK++VxzCzDagm03I62VYyU6YwpqZ2s=
 github.com/basecamp/mcp v0.0.0-20260828100356-2d6f44b51e9d h1:zEQVGq1x1nhKMZ2TudFAcSJ32CHT8richI1vQakIKz4=
 github.com/basecamp/mcp v0.0.0-20260828100356-2d6f44b51e9d/go.mod h1:Ee2c/q1/pg+5T5741PIuA3s6VJMQC7I0XBNXIHIujzA=
 github.com/catppuccin/go v0.3.0 h1:d+0/YicIq+hSTo5oPuRi5kOpqkVA5tAsU6dNhvRu+aY=
