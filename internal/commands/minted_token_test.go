@@ -345,3 +345,37 @@ func TestLogoutWarnsWhenTheSignupTokenCannotBeRead(t *testing.T) {
 		t.Errorf("stderr = %q, want the revocation warning (logout error: %v)", stderr, err)
 	}
 }
+
+// The config-file copy signup falls back to still counts when the
+// credential store can't be read.
+func TestLogoutRevokesTheConfigFileCopyWhenTheStoreCannotBeRead(t *testing.T) {
+	rig := newMintedTokenRig(t, http.StatusOK)
+	if err := saveSignupConfig("minted-token", "acct", rig.server.URL); err != nil {
+		t.Fatal(err)
+	}
+	global := config.LoadGlobal()
+	global.Token = "minted-token"
+	if err := global.Save(); err != nil {
+		t.Fatal(err)
+	}
+	SetTestConfig("minted-token", "acct", rig.server.URL)
+	backup := rig.credDir + "-backup"
+	if err := os.Rename(rig.credDir, backup); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(rig.credDir, []byte("not a directory"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(rig.credDir); os.Rename(backup, rig.credDir) })
+
+	stderr := captureStderr(t, func() {
+		authLogoutCmd.Flags().Set("all", "false")
+		_ = authLogoutCmd.RunE(authLogoutCmd, nil)
+	})
+	if got := rig.fizzy.revoked(); len(got) != 1 || got[0] != "minted-token" {
+		t.Errorf("revoked %d tokens, want the config-file copy once", len(got))
+	}
+	if strings.Contains(stderr, "could not revoke") {
+		t.Errorf("stderr = %q, want no revocation warning", stderr)
+	}
+}

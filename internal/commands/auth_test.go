@@ -884,7 +884,7 @@ func TestAuthLogoutAllReportsCredentialDeletionFailure(t *testing.T) {
 	}
 	SetTestCreds(store)
 	SetTestProfiles(profileStore)
-	err := authLogoutAll()
+	err := authLogoutAll(context.Background())
 	if removeErr := os.Remove(credDir); removeErr != nil {
 		t.Fatalf("unblock credential directory: %v", removeErr)
 	}
@@ -928,7 +928,7 @@ func TestAuthLogoutAllCleansInvalidProfileMetadata(t *testing.T) {
 	SetTestProfiles(profileStore)
 	defer resetTest()
 
-	if err := authLogoutAll(); err != nil {
+	if err := authLogoutAll(context.Background()); err != nil {
 		t.Fatalf("logout all: %v", err)
 	}
 	if _, err := store.Load("profile:agent"); err == nil {

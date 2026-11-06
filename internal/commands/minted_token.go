@@ -95,19 +95,21 @@ func mintedTokenFor(mark string, candidates ...string) string {
 // storedTokenCandidates are the places a profile's token can be stored: its
 // credential-store entry, and the global config file signup falls back to
 // when the credential store is unavailable. A credential store that can't be
-// read is an error, not an absent token: the token may be there, and live.
+// read is returned as an error beside the candidates still found: the token
+// may be there, and live.
 func storedTokenCandidates(profileName string) ([]string, error) {
 	var candidates []string
+	var loadErr error
 	if creds != nil {
 		token, err := credsLoadProfileToken(profileName)
 		switch {
 		case err == nil:
 			candidates = append(candidates, token)
 		case !isCredentialNotFound(err):
-			return nil, fmt.Errorf("reading the stored token: %w", err)
+			loadErr = fmt.Errorf("reading the stored token: %w", err)
 		}
 	}
-	return append(candidates, config.LoadGlobal().Token), nil
+	return append(candidates, config.LoadGlobal().Token), loadErr
 }
 
 // mintedTokenRevocation is what became of a profile's CLI-created token.
@@ -127,12 +129,12 @@ func revokeProfileMintedToken(ctx context.Context, name string, p *profile.Profi
 	if mark == "" {
 		return mintedTokenRevocation{}
 	}
-	candidates, err := storedTokenCandidates(name)
-	if err != nil {
-		return warnMintedTokenRevocation(name, mintedTokenRevocation{Attempted: true, Err: err})
-	}
+	candidates, loadErr := storedTokenCandidates(name)
 	token := mintedTokenFor(mark, candidates...)
-	if token == "" {
+	switch {
+	case token == "" && loadErr != nil:
+		return warnMintedTokenRevocation(name, mintedTokenRevocation{Attempted: true, Err: loadErr})
+	case token == "":
 		return mintedTokenRevocation{}
 	}
 	baseURL := config.DefaultAPIURL

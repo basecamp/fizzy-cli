@@ -110,7 +110,7 @@ var authLogoutCmd = &cobra.Command{
 		all, _ := cmd.Flags().GetBool("all")
 
 		if all {
-			return authLogoutAll()
+			return authLogoutAll(commandContext(cmd))
 		}
 
 		profileName := currentProfileName()
@@ -133,7 +133,7 @@ var authLogoutCmd = &cobra.Command{
 			wasDefault = defaultName == profileName
 			// Before anything is deleted: the token to revoke is read from
 			// where it is stored.
-			ctx, cancel := context.WithTimeout(cmd.Context(), mintedTokenLogoutTimeout)
+			ctx, cancel := context.WithTimeout(commandContext(cmd), mintedTokenLogoutTimeout)
 			revocation = revokeProfileMintedToken(ctx, profileName, p)
 			cancel()
 		}
@@ -179,13 +179,22 @@ var authLogoutCmd = &cobra.Command{
 	},
 }
 
-func authLogoutAll() error {
+// commandContext is cmd's context, or the background one for a command run
+// without one (RunE called directly).
+func commandContext(cmd *cobra.Command) context.Context {
+	if ctx := cmd.Context(); ctx != nil {
+		return ctx
+	}
+	return context.Background()
+}
+
+func authLogoutAll(ctx context.Context) error {
 	profileNames := map[string]bool{}
 	credentialNames := map[string]bool{}
 	var cleanupErrors []error
 
 	revocations := map[string]mintedTokenRevocation{}
-	ctx, cancel := context.WithTimeout(context.Background(), mintedTokenLogoutTimeout)
+	ctx, cancel := context.WithTimeout(ctx, mintedTokenLogoutTimeout)
 	defer cancel()
 	if profiles != nil {
 		allProfiles, _, err := profiles.List()
