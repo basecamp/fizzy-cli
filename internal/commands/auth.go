@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -132,7 +133,9 @@ var authLogoutCmd = &cobra.Command{
 			wasDefault = defaultName == profileName
 			// Before anything is deleted: the token to revoke is read from
 			// where it is stored.
-			revocation = revokeProfileMintedToken(profileName, p)
+			ctx, cancel := context.WithTimeout(cmd.Context(), mintedTokenLogoutTimeout)
+			revocation = revokeProfileMintedToken(ctx, profileName, p)
+			cancel()
 		}
 
 		var cleanupErrors []error
@@ -176,38 +179,21 @@ var authLogoutCmd = &cobra.Command{
 	},
 }
 
-// reportMintedTokenRevocations adds to a logout's result whether the tokens
-// the CLI created were revoked, and warns on stderr about any that weren't:
-// the token is forgotten here but still valid at Fizzy.
-func reportMintedTokenRevocations(result map[string]any, revocations map[string]mintedTokenRevocation) {
-	revoked := false
-	for name, r := range revocations {
-		if !r.Attempted {
-			continue
-		}
-		if r.Err == nil {
-			revoked = true
-			continue
-		}
-		result["revoke_error"] = r.Err.Error()
-		fmt.Fprintf(os.Stderr, "Warning: could not revoke the token fizzy signup created for %q (%v); it stays valid until you revoke it in Fizzy's access tokens\n", name, r.Err)
-	}
-	result["revoked"] = revoked
-}
-
 func authLogoutAll() error {
 	profileNames := map[string]bool{}
 	credentialNames := map[string]bool{}
 	var cleanupErrors []error
 
 	revocations := map[string]mintedTokenRevocation{}
+	ctx, cancel := context.WithTimeout(context.Background(), mintedTokenLogoutTimeout)
+	defer cancel()
 	if profiles != nil {
 		allProfiles, _, err := profiles.List()
 		if err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 		}
 		for name, p := range allProfiles {
-			revocations[name] = revokeProfileMintedToken(name, p)
+			revocations[name] = revokeProfileMintedToken(ctx, name, p)
 			profileNames[name] = true
 			credentialNames[name] = true
 			binding, err := resolveProfileAccountBinding(name, p)

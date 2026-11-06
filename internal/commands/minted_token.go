@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"sort"
 	"strings"
 	"time"
 
@@ -29,14 +31,21 @@ import (
 // never revoke a pasted token.
 const mintedTokenExtraKey = "minted_token_sha256" //nolint:gosec // G101: a metadata key, not a credential
 
-// mintedTokenRevocationTimeout bounds the revocation request: a logout must
-// not hang on a slow server, and it forgets the token locally regardless.
-var mintedTokenRevocationTimeout = 10 * time.Second
+// mintedTokenRevocationTimeout bounds each revocation request, and
+// mintedTokenLogoutTimeout all of one logout's together (--all revokes one
+// per profile): a logout must not hang on a slow server, and it forgets the
+// tokens locally regardless.
+var (
+	mintedTokenRevocationTimeout = 10 * time.Second
+	mintedTokenLogoutTimeout     = 20 * time.Second
+)
 
 // mintedTokenRevocationClient sends the revocation. It follows no redirect:
 // the token goes to the Fizzy that minted it and nowhere else, and a redirect
 // is reported as a failed revocation. Replaceable in tests.
-var mintedTokenRevocationClient = func() *http.Client {
+var mintedTokenRevocationClient = newMintedTokenRevocationClient
+
+func newMintedTokenRevocationClient() *http.Client {
 	return &http.Client{
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
@@ -57,15 +66,22 @@ func setMintedTokenMark(extra map[string]json.RawMessage, token string, minted b
 	extra[mintedTokenExtraKey], _ = json.Marshal(mintedTokenDigest(token))
 }
 
-// mintedTokenFor returns the profile's CLI-created token: the first of the
-// stored candidates whose digest the profile recorded. Empty when the profile
-// recorded none, or none of the candidates is it.
-func mintedTokenFor(p *profile.Profile, candidates ...string) string {
+// mintedTokenMark is the digest a profile recorded for the token the CLI
+// created, or "" when it recorded none.
+func mintedTokenMark(p *profile.Profile) string {
 	if p == nil || p.Extra == nil {
 		return ""
 	}
 	var mark string
-	if raw, ok := p.Extra[mintedTokenExtraKey]; !ok || json.Unmarshal(raw, &mark) != nil || mark == "" {
+	if raw, ok := p.Extra[mintedTokenExtraKey]; !ok || json.Unmarshal(raw, &mark) != nil {
+		return ""
+	}
+	return mark
+}
+
+// mintedTokenFor returns the first candidate whose digest is mark, or "".
+func mintedTokenFor(mark string, candidates ...string) string {
+	if mark == "" {
 		return ""
 	}
 	for _, token := range candidates {
@@ -78,30 +94,44 @@ func mintedTokenFor(p *profile.Profile, candidates ...string) string {
 
 // storedTokenCandidates are the places a profile's token can be stored: its
 // credential-store entry, and the global config file signup falls back to
-// when the credential store is unavailable.
-func storedTokenCandidates(profileName string) []string {
+// when the credential store is unavailable. A credential store that can't be
+// read is an error, not an absent token: the token may be there, and live.
+func storedTokenCandidates(profileName string) ([]string, error) {
 	var candidates []string
 	if creds != nil {
-		if token, err := credsLoadProfileToken(profileName); err == nil {
+		token, err := credsLoadProfileToken(profileName)
+		switch {
+		case err == nil:
 			candidates = append(candidates, token)
+		case !isCredentialNotFound(err):
+			return nil, fmt.Errorf("reading the stored token: %w", err)
 		}
 	}
-	return append(candidates, config.LoadGlobal().Token)
+	return append(candidates, config.LoadGlobal().Token), nil
 }
 
 // mintedTokenRevocation is what became of a profile's CLI-created token.
 type mintedTokenRevocation struct {
-	// Attempted: the profile held a token the CLI created.
+	// Attempted: the profile records a token the CLI created.
 	Attempted bool
 	// Err is why an attempted revocation did not go through.
 	Err error
 }
 
 // revokeProfileMintedToken revokes the token the CLI created for p, if it
-// still holds one, at the profile's Fizzy. Best effort: the caller forgets
-// the token locally whatever happens here.
-func revokeProfileMintedToken(name string, p *profile.Profile) mintedTokenRevocation {
-	token := mintedTokenFor(p, storedTokenCandidates(name)...)
+// still holds one, at the profile's Fizzy, and warns on stderr when that
+// doesn't go through. Best effort: the caller forgets the token locally
+// whatever happens here, so the warning comes before any cleanup can fail.
+func revokeProfileMintedToken(ctx context.Context, name string, p *profile.Profile) mintedTokenRevocation {
+	mark := mintedTokenMark(p)
+	if mark == "" {
+		return mintedTokenRevocation{}
+	}
+	candidates, err := storedTokenCandidates(name)
+	if err != nil {
+		return warnMintedTokenRevocation(name, mintedTokenRevocation{Attempted: true, Err: err})
+	}
+	token := mintedTokenFor(mark, candidates...)
 	if token == "" {
 		return mintedTokenRevocation{}
 	}
@@ -109,18 +139,47 @@ func revokeProfileMintedToken(name string, p *profile.Profile) mintedTokenRevoca
 	if p.BaseURL != "" {
 		baseURL = p.BaseURL
 	}
-	return mintedTokenRevocation{Attempted: true, Err: revokeToken(baseURL, token)}
+	return warnMintedTokenRevocation(name, mintedTokenRevocation{Attempted: true, Err: revokeToken(ctx, baseURL, token)})
+}
+
+func warnMintedTokenRevocation(name string, r mintedTokenRevocation) mintedTokenRevocation {
+	if r.Err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not revoke the token fizzy signup created for %q (%v); it stays valid until you revoke it in Fizzy's access tokens\n", name, r.Err)
+	}
+	return r
+}
+
+// reportMintedTokenRevocations adds to a logout's result whether the tokens
+// the CLI created were revoked: revoked is true only when at least one was
+// due and every one went through, and revoke_error names each that didn't.
+func reportMintedTokenRevocations(result map[string]any, revocations map[string]mintedTokenRevocation) {
+	attempted := false
+	var failures []string
+	for name, r := range revocations {
+		if !r.Attempted {
+			continue
+		}
+		attempted = true
+		if r.Err != nil {
+			failures = append(failures, fmt.Sprintf("%s: %v", name, r.Err))
+		}
+	}
+	if len(failures) > 0 {
+		sort.Strings(failures)
+		result["revoke_error"] = strings.Join(failures, "; ")
+	}
+	result["revoked"] = attempted && len(failures) == 0
 }
 
 // revokeToken asks Fizzy to revoke token (RFC 7009). Fizzy's revocation
 // endpoint takes a personal access token on possession alone and answers 200
 // whatever the token's state; any other answer is reported, never the token.
-func revokeToken(baseURL, token string) error {
+func revokeToken(ctx context.Context, baseURL, token string) error {
 	endpoint := strings.TrimSuffix(baseURL, "/") + "/oauth/revocation"
 	if err := validateSignupURL(endpoint); err != nil {
 		return err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), mintedTokenRevocationTimeout)
+	ctx, cancel := context.WithTimeout(ctx, mintedTokenRevocationTimeout)
 	defer cancel()
 	form := url.Values{"token": {token}, "token_type_hint": {"access_token"}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
