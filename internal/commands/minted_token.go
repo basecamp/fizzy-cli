@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -112,6 +113,10 @@ func storedTokenCandidates(profileName string) ([]string, error) {
 	return append(candidates, config.LoadGlobal().Token), loadErr
 }
 
+// errMintedTokenNotStored is a profile marked with a signup token that holds
+// none of the tokens stored for it.
+var errMintedTokenNotStored = errors.New("the token is no longer stored here, so it can't be revoked from the CLI")
+
 // mintedTokenRevocation is what became of a profile's CLI-created token.
 type mintedTokenRevocation struct {
 	// Attempted: the profile records a token the CLI created.
@@ -135,7 +140,10 @@ func revokeProfileMintedToken(ctx context.Context, name string, p *profile.Profi
 	case token == "" && loadErr != nil:
 		return warnMintedTokenRevocation(name, mintedTokenRevocation{Attempted: true, Err: loadErr})
 	case token == "":
-		return mintedTokenRevocation{}
+		// Marked, but the token isn't stored any more (a keyring reset, a
+		// downgrade, a save that didn't drop the mark): it may still be live,
+		// and this logout drops the last record of it.
+		return warnMintedTokenRevocation(name, mintedTokenRevocation{Attempted: true, Err: errMintedTokenNotStored})
 	}
 	baseURL := config.DefaultAPIURL
 	if p.BaseURL != "" {

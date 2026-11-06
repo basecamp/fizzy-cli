@@ -190,7 +190,12 @@ func TestLogoutOnlyForgetsATokenTheCLIDidNotCreate(t *testing.T) {
 			setup(t, rig)
 			SetTestConfig("pasted-token", "acct", rig.server.URL)
 
-			data := rig.logout(t, false)
+			var data map[string]any
+			stderr := captureStderr(t, func() { data = rig.logout(t, false) })
+			stale := name == "stale mark beside a pasted token"
+			if warned := strings.Contains(stderr, "no longer stored here"); warned != stale {
+				t.Errorf("stderr = %q, want the no-longer-stored warning only for a stale mark", stderr)
+			}
 			if got := rig.fizzy.revoked(); len(got) != 0 {
 				t.Errorf("revoked %d tokens, want none", len(got))
 			}
