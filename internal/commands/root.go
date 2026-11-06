@@ -1385,10 +1385,13 @@ func ensureProfileForAccount(name, account, baseURL, board string) error {
 	if board != "" {
 		boardUpdate = &board
 	}
-	return ensureProfileForAccountWithBoard(name, account, baseURL, boardUpdate)
+	return ensureProfileForAccountWithBoard(name, account, baseURL, boardUpdate, nil)
 }
 
-func ensureProfileForAccountWithBoard(name, account, baseURL string, board *string) error {
+// ensureProfileForAccountWithBoard is ensureProfileForAccount with the board
+// update explicit (nil keeps it, "" clears it) and editExtra, when given,
+// applied to the profile's extra metadata last.
+func ensureProfileForAccountWithBoard(name, account, baseURL string, board *string, editExtra func(map[string]json.RawMessage)) error {
 	if profiles == nil {
 		if account != "" && account != name {
 			return fmt.Errorf("profile store is unavailable for alias %q", name)
@@ -1433,6 +1436,9 @@ func ensureProfileForAccountWithBoard(name, account, baseURL string, board *stri
 		} else {
 			extra["account"] = func() json.RawMessage { b, _ := json.Marshal(account); return b }()
 		}
+	}
+	if editExtra != nil {
+		editExtra(extra)
 	}
 
 	p := &profile.Profile{
