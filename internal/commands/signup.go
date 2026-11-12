@@ -814,6 +814,7 @@ func saveSignupConfig(token, account, apiURL string) error {
 		Account:                account,
 		BaseURL:                apiURL,
 		Token:                  token,
+		MintedToken:            true,
 		AllowYAMLTokenFallback: true,
 		UpdateGlobal: func(globalCfg *config.Config, credentialStored bool) {
 			if credentialStored {

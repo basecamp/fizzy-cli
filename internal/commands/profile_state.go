@@ -207,6 +207,10 @@ type profileCredentialSaveOptions struct {
 	Token                  string
 	AllowYAMLTokenFallback bool
 	UpdateGlobal           func(*config.Config, bool)
+
+	// MintedToken says the CLI created Token itself (fizzy signup), so a
+	// logout revokes it. Any other save replaces the token and drops the mark.
+	MintedToken bool
 }
 
 func saveProfileCredentialState(opts profileCredentialSaveOptions) (error, error) {
@@ -246,7 +250,8 @@ func saveProfileCredentialState(opts profileCredentialSaveOptions) (error, error
 		return stderrors.Join(rollbackErrors...)
 	}
 
-	if err := ensureProfileForAccountWithBoard(opts.ProfileName, opts.Account, opts.BaseURL, opts.Board); err != nil {
+	markToken := func(extra map[string]json.RawMessage) { setMintedTokenMark(extra, opts.Token, opts.MintedToken) }
+	if err := ensureProfileForAccountWithBoard(opts.ProfileName, opts.Account, opts.BaseURL, opts.Board, markToken); err != nil {
 		return nil, err
 	}
 	if profiles != nil {
