@@ -17,7 +17,7 @@
 
 `fizzy` is a command-line interface for [Fizzy](https://fizzy.do). Manage boards, cards, comments, and more from your terminal or through AI agents.
 
-- Works standalone or with any AI agent (Claude, Codex, Copilot, Gemini)
+- Works standalone or with any AI agent (Claude, Codex, Copilot, Gemini, Grok)
 - JSON output with breadcrumbs for easy navigation
 - Token authentication via personal access tokens
 - Includes agent skill and Claude plugin setup
