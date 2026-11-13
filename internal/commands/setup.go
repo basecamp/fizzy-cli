@@ -296,6 +296,14 @@ func runSetup(cmd *cobra.Command, args []string) error {
 		if err := newConfig.SaveLocal(); err != nil {
 			return err
 		}
+		// The person just wrote this file's api_url and token themselves.
+		if _, err := config.TrustLocal(""); err != nil {
+			return &output.Error{
+				Code:    output.CodeAPI,
+				Message: "saved .fizzy.yaml but could not trust it, so its api_url and token are ignored: " + config.DisplayPath(err.Error()),
+				Hint:    "Run: fizzy config trust",
+			}
+		}
 		fmt.Println()
 		fmt.Println("✓ Configuration saved to .fizzy.yaml")
 		fmt.Println()

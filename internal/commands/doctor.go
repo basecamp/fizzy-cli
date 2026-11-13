@@ -409,7 +409,28 @@ func checkDoctorLocalConfig(verbose bool) DoctorCheck {
 	if path == "" {
 		return DoctorCheck{Name: "Local Config", Status: "skip", Message: "Not found"}
 	}
-	return validateDoctorConfigFile(path, "Local Config", verbose)
+	check := validateDoctorConfigFile(path, "Local Config", verbose)
+	if local := config.LoadLocal(); check.Status == "pass" && local != nil && len(local.Ignored) > 0 {
+		check.Status = "warn"
+		check.Message = fmt.Sprintf("%s: %s ignored, the file is not trusted", config.DisplayPath(path), strings.Join(local.Ignored, " and "))
+		check.Hint = "Review the file, then run: fizzy config trust"
+	}
+	return check
+}
+
+func allProfilesForDoctor() map[string]*profile.Profile {
+	all, _ := profileStoreInfo()
+	return all
+}
+
+// appliedLocalConfig is the local config as config.Load applies it: without
+// the api_url and token of a file that is not trusted.
+func appliedLocalConfig() *config.Config {
+	local := config.LoadLocal()
+	if local == nil {
+		return nil
+	}
+	return &local.Config
 }
 
 func validateDoctorConfigFile(path, name string, verbose bool) DoctorCheck {
@@ -486,7 +507,7 @@ func resolveDoctorEffectiveConfig() doctorEffectiveConfig {
 	}
 
 	globalCfg, _ := loadDoctorConfigFile(globalConfigPathForDoctor())
-	localCfg, _ := loadDoctorConfigFile(config.LocalConfigPath())
+	localCfg := appliedLocalConfig()
 	resolvedProfile, profileCfg := resolveDoctorProfileContext()
 	if eff.ProfileName == "" {
 		eff.ProfileName = firstNonEmpty(resolvedProfile, cfg.Account)
@@ -515,6 +536,8 @@ func resolveDoctorEffectiveConfig() doctorEffectiveConfig {
 	case os.Getenv("FIZZY_API_URL") != "":
 		eff.APIURLSource = "env FIZZY_API_URL"
 	case profileCfg != nil && profileCfg.BaseURL != "":
+		eff.APIURLSource = "profile store"
+	case accountProfileBaseURL(allProfilesForDoctor()) != "":
 		eff.APIURLSource = "profile store"
 	case localCfg != nil && localCfg.APIURL != "":
 		eff.APIURLSource = "local config"
@@ -1275,7 +1298,7 @@ func doctorTargetsFromProfileStore() []doctorEffectiveConfig {
 		return nil
 	}
 	globalCfg, _ := loadDoctorConfigFile(globalConfigPathForDoctor())
-	localCfg, _ := loadDoctorConfigFile(config.LocalConfigPath())
+	localCfg := appliedLocalConfig()
 
 	names := make([]string, 0, len(allProfiles))
 	for name := range allProfiles {

@@ -13,6 +13,8 @@ ARG fizzy comment attachments help 00 [command]
 ARG fizzy comment help 00 [command]
 ARG fizzy completion 00 [bash|zsh|fish|powershell]
 ARG fizzy config help 00 [command]
+ARG fizzy config trust 00 [path]
+ARG fizzy config untrust 00 [path]
 ARG fizzy help 00 [command]
 ARG fizzy identity help 00 [command]
 ARG fizzy migrate help 00 [command]
@@ -138,6 +140,8 @@ CMD fizzy config
 CMD fizzy config explain
 CMD fizzy config help
 CMD fizzy config show
+CMD fizzy config trust
+CMD fizzy config untrust
 CMD fizzy config view
 CMD fizzy doctor
 CMD fizzy help
@@ -1897,6 +1901,34 @@ FLAG fizzy config show --quiet type=bool
 FLAG fizzy config show --styled type=bool
 FLAG fizzy config show --token type=string
 FLAG fizzy config show --verbose type=bool
+FLAG fizzy config trust --agent type=bool
+FLAG fizzy config trust --api-url type=string
+FLAG fizzy config trust --count type=bool
+FLAG fizzy config trust --help type=bool
+FLAG fizzy config trust --ids-only type=bool
+FLAG fizzy config trust --jq type=string
+FLAG fizzy config trust --json type=bool
+FLAG fizzy config trust --limit type=int
+FLAG fizzy config trust --markdown type=bool
+FLAG fizzy config trust --profile type=string
+FLAG fizzy config trust --quiet type=bool
+FLAG fizzy config trust --styled type=bool
+FLAG fizzy config trust --token type=string
+FLAG fizzy config trust --verbose type=bool
+FLAG fizzy config untrust --agent type=bool
+FLAG fizzy config untrust --api-url type=string
+FLAG fizzy config untrust --count type=bool
+FLAG fizzy config untrust --help type=bool
+FLAG fizzy config untrust --ids-only type=bool
+FLAG fizzy config untrust --jq type=string
+FLAG fizzy config untrust --json type=bool
+FLAG fizzy config untrust --limit type=int
+FLAG fizzy config untrust --markdown type=bool
+FLAG fizzy config untrust --profile type=string
+FLAG fizzy config untrust --quiet type=bool
+FLAG fizzy config untrust --styled type=bool
+FLAG fizzy config untrust --token type=string
+FLAG fizzy config untrust --verbose type=bool
 FLAG fizzy config view --agent type=bool
 FLAG fizzy config view --api-url type=string
 FLAG fizzy config view --count type=bool
@@ -3463,6 +3495,8 @@ SUB fizzy config
 SUB fizzy config explain
 SUB fizzy config help
 SUB fizzy config show
+SUB fizzy config trust
+SUB fizzy config untrust
 SUB fizzy config view
 SUB fizzy doctor
 SUB fizzy help

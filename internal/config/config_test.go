@@ -421,6 +421,7 @@ board: local-board
 	// Set working directory to project
 	SetTestWorkingDir(projectDir)
 	defer ResetTestWorkingDir()
+	trustLocalConfig(t)
 
 	cfg := Load()
 
@@ -467,6 +468,7 @@ api_url: https://parent.api.url
 	// Set working directory to deep subdirectory
 	SetTestWorkingDir(deepDir)
 	defer ResetTestWorkingDir()
+	trustLocalConfig(t)
 
 	cfg := Load()
 

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -93,10 +94,88 @@ from flags, environment variables, profile settings, local config, and global co
 	},
 }
 
+var configTrustCmd = &cobra.Command{
+	Use:   "trust [path]",
+	Short: "Trust a local config's api_url and token",
+	Long: `Trust the api_url and token in a local config (.fizzy.yaml), so they apply.
+
+A local config sets the account and the board without trust. Its api_url and
+token decide where your credentials are sent, so they are ignored until you
+trust the file. Trust covers those two settings as they are now: if either
+changes, as a pull or a checkout can change them, the file is untrusted again.
+
+Without a path, trusts the nearest .fizzy.yaml, in this directory or a parent.
+Read the file first.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		entry, err := cfgpkg.TrustLocal(firstArg(args))
+		if err != nil {
+			return localTrustError(err)
+		}
+		printDetail(map[string]any{"path": entry.Path, "trusted": true}, "Trusted "+cfgpkg.DisplayPath(entry.Path), []Breadcrumb{
+			breadcrumb("show", "fizzy config show", "Show the effective config"),
+			breadcrumb("untrust", "fizzy config untrust", "Remove the trust"),
+		})
+		return nil
+	},
+}
+
+var configUntrustCmd = &cobra.Command{
+	Use:   "untrust [path]",
+	Short: "Remove trust from a local config",
+	Long: `Remove trust from a local config (.fizzy.yaml), so its api_url and token are ignored again.
+
+Without a path, untrusts the nearest .fizzy.yaml, in this directory or a parent.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path, removed, err := cfgpkg.UntrustLocal(firstArg(args))
+		if err != nil {
+			return localTrustError(err)
+		}
+		summary := "Removed trust from " + cfgpkg.DisplayPath(path)
+		if !removed {
+			summary = cfgpkg.DisplayPath(path) + " was not trusted"
+		}
+		printDetail(map[string]any{"path": path, "trusted": false}, summary, []Breadcrumb{
+			breadcrumb("trust", "fizzy config trust", "Trust it again"),
+		})
+		return nil
+	},
+}
+
+// localTrustError tells a request that names no usable file, which is the
+// caller's to fix, from a failure to read or write, which is not.
+func localTrustError(err error) error {
+	switch {
+	case errors.Is(err, cfgpkg.ErrNoLocalConfig):
+		return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+	case errors.Is(err, os.ErrNotExist):
+		return &output.Error{Code: output.CodeNotFound, Message: err.Error()}
+	default:
+		return &output.Error{Code: output.CodeAPI, Message: err.Error()}
+	}
+}
+
+// isLocalTrustCommand reports whether cmd only changes local trust records,
+// so it runs whatever the profile, account and token settings are.
+func isLocalTrustCommand(cmd *cobra.Command) bool {
+	return cmd.Name() != "" && cmd.Parent() != nil && cmd.Parent().Name() == "config" &&
+		(cmd.Name() == "trust" || cmd.Name() == "untrust")
+}
+
+func firstArg(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	return args[0]
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configExplainCmd)
+	configCmd.AddCommand(configTrustCmd)
+	configCmd.AddCommand(configUntrustCmd)
 }
 
 func configShowData(verbose bool) map[string]any {
@@ -150,7 +229,23 @@ func configShowData(verbose bool) map[string]any {
 func configExplainData() map[string]any {
 	eff := resolveDoctorEffectiveConfig()
 	globalCfg, _ := loadDoctorConfigFile(globalConfigPathForDoctor())
-	localCfg, _ := loadDoctorConfigFile(cfgpkg.LocalConfigPath())
+	localCfg := appliedLocalConfig()
+	localAPIURL := unsetString(fieldValue(localCfg, func(c *cfgpkg.Config) string { return c.APIURL }))
+	localToken := configuredString(localCfg != nil && localCfg.Token != "", "configured in local config")
+	if local := cfgpkg.LoadLocal(); local != nil {
+		// What an untrusted file sets is shown, as ignored, so the reader sees
+		// why another source applies.
+		if raw, err := loadDoctorConfigFile(local.Path); err == nil {
+			for _, key := range local.Ignored {
+				switch key {
+				case "api_url":
+					localAPIURL = cfgpkg.DisplayPath(raw.APIURL) + " (ignored: the file is not trusted)"
+				case "token":
+					localToken = "ignored: the file is not trusted"
+				}
+			}
+		}
+	}
 	resolvedProfile, profileCfg := resolveDoctorProfileContext()
 	_, defaultProfile := profileStoreInfo()
 	binding, _ := resolveProfileAccountBinding(resolvedProfile, profileCfg)
@@ -192,8 +287,8 @@ func configExplainData() map[string]any {
 		Candidates: []configExplainCandidate{
 			{Source: "flag --api-url", Value: unsetString(cfgAPIURL), Selected: eff.APIURLSource == "flag --api-url"},
 			{Source: "env FIZZY_API_URL", Value: unsetString(strings.TrimSpace(getEnv("FIZZY_API_URL"))), Selected: eff.APIURLSource == "env FIZZY_API_URL"},
-			{Source: profileSourceLabel(resolvedProfile, eff.ProfileName), Value: unsetString(profileBaseURL(profileCfg)), Selected: eff.APIURLSource == "profile store"},
-			{Source: "local config", Value: unsetString(fieldValue(localCfg, func(c *cfgpkg.Config) string { return c.APIURL })), Selected: eff.APIURLSource == "local config"},
+			{Source: profileSourceLabel(resolvedProfile, eff.ProfileName), Value: unsetString(firstNonEmpty(profileBaseURL(profileCfg), accountProfileBaseURL(allProfilesForDoctor()))), Selected: eff.APIURLSource == "profile store"},
+			{Source: "local config", Value: localAPIURL, Selected: eff.APIURLSource == "local config"},
 			{Source: "global config", Value: unsetString(fieldValue(globalCfg, func(c *cfgpkg.Config) string { return c.APIURL })), Selected: eff.APIURLSource == "global config"},
 			{Source: "default", Value: cfgpkg.DefaultAPIURL, Selected: eff.APIURLSource == "default"},
 		},
@@ -218,7 +313,7 @@ func configExplainData() map[string]any {
 			{Source: "flag --token", Value: configuredString(cfgToken != "", "configured via flag"), Selected: eff.TokenSourceRaw == "flag"},
 			{Source: "env FIZZY_TOKEN", Value: configuredString(strings.TrimSpace(getEnv("FIZZY_TOKEN")) != "", "configured in environment"), Selected: eff.TokenSourceRaw == "env"},
 			{Source: profileTokenSourceLabel(resolvedProfile, eff.ProfileName), Value: configuredString(profileToken != "", profileCredentialValue(eff.TokenSourceRaw, profileToken != "")), Selected: eff.TokenSourceRaw == "keyring" || eff.TokenSourceRaw == "fallback-file" || eff.TokenSourceRaw == "legacy-keyring" || eff.TokenSourceRaw == "legacy-fallback"},
-			{Source: "local config", Value: configuredString(localCfg != nil && localCfg.Token != "", "configured in local config"), Selected: eff.TokenSourceRaw == "local-config"},
+			{Source: "local config", Value: localToken, Selected: eff.TokenSourceRaw == "local-config"},
 			{Source: "global config", Value: configuredString(globalCfg != nil && globalCfg.Token != "", "configured in global config"), Selected: eff.TokenSourceRaw == "global-config"},
 		},
 	}

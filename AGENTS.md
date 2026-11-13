@@ -90,6 +90,15 @@ The CLI reads config from multiple sources with this priority:
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
+**Local config trust.** A `.fizzy.yaml` is found by walking up from the working
+directory, so a cloned repo can supply one. Its `account` and `board` apply without
+trust. Its `api_url` and `token` decide where a credential is sent and which one, so
+`config.LoadLocal` (`internal/config/trust.go`) drops them and lists them in `Ignored`,
+and `config.Load` prints the warning, unless `fizzy config trust` recorded a digest of
+those two values that still matches. Anything that reads the local file for its settings
+goes through `LoadLocal`, never around it, and a new key that can redirect or replace a
+credential joins `trustDigest`.
+
 **`--board` is command-scoped, not global.** `fizzy --board X ...` fails with
 `unknown flag`; it is declared per-command, by nineteen of them across the activity,
 board, card, column and webhook groups. So `fizzy card list --board X` works while
