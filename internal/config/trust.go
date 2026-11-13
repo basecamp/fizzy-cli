@@ -199,8 +199,9 @@ func containsPath(paths []string, path string) bool {
 	return false
 }
 
-// DisplayPath is path without control characters, for messages: a directory
-// name can hold a newline, and a message must not let it forge output.
+// DisplayPath is a path, or other text a local config or its location
+// supplies, without control characters, for messages: a directory name can
+// hold a newline, and a message must not let it forge output.
 func DisplayPath(path string) string {
 	return strings.Map(func(r rune) rune {
 		if unicode.IsControl(r) {
@@ -324,8 +325,9 @@ func lockTrustFile(lockPath string) (func(), error) {
 			return nil, fmt.Errorf("cannot lock the trust store: %w", err)
 		}
 		if info, statErr := os.Stat(lockPath); statErr == nil && time.Since(info.ModTime()) > trustLockStale {
-			_ = os.Remove(lockPath)
-			continue
+			if os.Remove(lockPath) == nil {
+				continue
+			}
 		}
 		if time.Now().After(deadline) {
 			return nil, fmt.Errorf("the trust store is locked by another fizzy command (%s)", lockPath)

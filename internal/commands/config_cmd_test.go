@@ -492,8 +492,35 @@ func TestAnAccountNamedProfileKeepsItsTokenOnItsOwnHost(t *testing.T) {
 func TestAnAccountNamedProfileWithoutATokenDoesNotSetTheHost(t *testing.T) {
 	accountNamedProfiles(t)
 
+	t.Setenv("FIZZY_TOKEN", "env-token")
+
 	if err := resolveProfile(); err != nil {
 		t.Fatalf("resolve profile: %v", err)
+	}
+	resolveToken()
+	if cfg.Token != "env-token" {
+		t.Fatalf("want the token from the environment, got %q", cfg.Token)
+	}
+	if cfg.APIURL != "https://app.fizzy.do" {
+		t.Errorf("want the configured host kept, got %q", cfg.APIURL)
+	}
+}
+
+// A token from the environment replaces the profile's own, so it stays on the
+// configured host too.
+func TestAnAccountNamedProfileDoesNotSetTheHostForAnotherToken(t *testing.T) {
+	accountNamedProfiles(t)
+	if err := credsSaveProfileToken("acme", "acme-token"); err != nil {
+		t.Fatalf("save token: %v", err)
+	}
+	t.Setenv("FIZZY_TOKEN", "env-token")
+
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile: %v", err)
+	}
+	resolveToken()
+	if cfg.Token != "env-token" {
+		t.Fatalf("want the token from the environment, got %q", cfg.Token)
 	}
 	if cfg.APIURL != "https://app.fizzy.do" {
 		t.Errorf("want the configured host kept, got %q", cfg.APIURL)
@@ -526,8 +553,8 @@ func TestConfigExplainShowsIgnoredLocalSettings(t *testing.T) {
 	}
 }
 
-// Trusting a file that cannot be read is not a usage error: only a request
-// that names no file is.
+// Trusting a file that is missing, malformed or unreadable is not a usage
+// error: only a request that names no file is.
 func TestConfigTrustErrorCodes(t *testing.T) {
 	config.SetTestConfigDir(t.TempDir())
 	config.SetTestWorkingDir(t.TempDir())
@@ -555,6 +582,13 @@ func TestConfigTrustErrorCodes(t *testing.T) {
 		t.Fatalf("write: %v", err)
 	}
 	if got := code(configTrustCmd.RunE(configTrustCmd, []string{bad})); got != output.CodeAPI {
+		t.Errorf("malformed config: got %q", got)
+	}
+	dir := filepath.Join(t.TempDir(), config.LocalConfigFile)
+	if err := os.Mkdir(dir, 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if got := code(configTrustCmd.RunE(configTrustCmd, []string{dir})); got != output.CodeAPI {
 		t.Errorf("unreadable config: got %q", got)
 	}
 }

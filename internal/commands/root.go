@@ -1285,11 +1285,15 @@ func applyAccountProfileHost(allProfiles map[string]*profile.Profile) {
 }
 
 // accountProfileBaseURL is the host of the stored profile the configured
-// account names, when no profile is active and that profile holds a token.
-// The host follows the credential: a profile with no token of its own does
-// not pull a token from another source over to its host.
+// account names, when no profile is active and that profile's own token is
+// the one in use. The host follows the credential: a token from another
+// source, whether the profile has none or FIZZY_TOKEN or --token replaces it,
+// is not pulled over to the profile's host.
 func accountProfileBaseURL(allProfiles map[string]*profile.Profile) string {
 	if activeProfile != "" || cfg == nil || cfg.Account == "" || creds == nil {
+		return ""
+	}
+	if os.Getenv("FIZZY_TOKEN") != "" || cfgToken != "" {
 		return ""
 	}
 	p := allProfiles[cfg.Account]

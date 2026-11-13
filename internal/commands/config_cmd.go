@@ -239,7 +239,7 @@ func configExplainData() map[string]any {
 			for _, key := range local.Ignored {
 				switch key {
 				case "api_url":
-					localAPIURL = raw.APIURL + " (ignored: the file is not trusted)"
+					localAPIURL = cfgpkg.DisplayPath(raw.APIURL) + " (ignored: the file is not trusted)"
 				case "token":
 					localToken = "ignored: the file is not trusted"
 				}
