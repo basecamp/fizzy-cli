@@ -52,6 +52,15 @@ if grep -q '^replace' go.mod; then
   exit 1
 fi
 
+# DRY_RUN is this script's switch (0 or 1). The skills-sync test reads a DRY_RUN
+# of its own, where only 'local' and 'remote' are valid, so keep this one out of
+# the checks' environment. `make release DRY_RUN=1` also carries it into the
+# nested make through MAKEFLAGS, which unsetting the shell variable does not
+# undo, so the nested make is given an empty one.
+release_check() {
+  env -u DRY_RUN make DRY_RUN= release-check
+}
+
 echo "Release preflight for $VERSION"
 echo "  Branch: $CURRENT_BRANCH"
 echo "  Commit: $LOCAL"
@@ -60,7 +69,7 @@ if [ "$DRY_RUN" = "1" ]; then
   echo ""
   echo "DRY RUN: Would run 'make release-check', tag $VERSION, and push"
   echo "Running release-check..."
-  make release-check
+  release_check
   echo ""
   echo "DRY RUN complete. No tag created."
   exit 0
@@ -68,7 +77,7 @@ fi
 
 echo ""
 echo "Running release-check..."
-make release-check
+release_check
 
 echo ""
 echo "Creating tag $VERSION..."

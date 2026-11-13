@@ -37,11 +37,6 @@ printf '[user]\n\tname = test\n\temail = test@example.com\n' > "$GIT_CONFIG_GLOB
 # fixtures there.
 unset SKILLS_TOKEN
 
-# Each case names the DRY_RUN it wants. One inherited from the caller is some
-# other tool's: `make release DRY_RUN=1` runs this test in its preflight, and
-# the script accepts only 'local' or 'remote'.
-unset DRY_RUN
-
 # A file:// URL rather than a path: git ignores --depth for a path, and the
 # script's clone is shallow, so the retry has to fetch as it would from GitHub.
 origin="${work}/origin.git"
