@@ -2,14 +2,17 @@ package commands
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/basecamp/cli/credstore"
 	"github.com/basecamp/cli/output"
 	"github.com/basecamp/cli/profile"
 	"github.com/basecamp/fizzy-cli/internal/config"
+	"github.com/spf13/cobra"
 )
 
 func TestConfigShow(t *testing.T) {
@@ -414,38 +417,154 @@ func TestDoctorWarnsOnAnUntrustedLocalConfig(t *testing.T) {
 	}
 }
 
-// With several profiles and no default, no profile is chosen and the
-// configured account names the credential. A cloned repo's local config can
-// set that account, so the token it selects goes to its own profile's host,
-// not to the host the YAML config or the default would give it.
-func TestAnAccountNamedProfileKeepsItsTokenOnItsOwnHost(t *testing.T) {
+// accountNamedProfiles sets up several stored profiles with no default, as
+// logging out of the default profile leaves them, and the account "acme"
+// configured.
+func accountNamedProfiles(t *testing.T) {
+	t.Helper()
 	t.Setenv("FIZZY_API_URL", "")
 	t.Setenv("FIZZY_PROFILE", "")
 	t.Setenv("FIZZY_ACCOUNT", "")
+	t.Setenv("FIZZY_TOKEN", "")
+	t.Setenv("FIZZY_ACCOUNT_HOST_NO_KR", "1")
+	config.SetTestConfigDir(t.TempDir())
+	config.SetTestWorkingDir(t.TempDir())
+	t.Cleanup(config.ResetTestConfigDir)
+	t.Cleanup(config.ResetTestWorkingDir)
 
-	// The profile store as logging out of the default profile leaves it.
 	storePath := filepath.Join(t.TempDir(), "config.json")
 	stored := `{"profiles":{"acme":{"base_url":"https://fizzy.acme.example"},"other":{"base_url":"https://app.fizzy.do"}}}`
 	if err := os.WriteFile(storePath, []byte(stored), 0o600); err != nil {
 		t.Fatalf("write profile store: %v", err)
 	}
-	profileStore := profile.NewStore(storePath)
+	store := credstore.NewStore(credstore.StoreOptions{
+		ServiceName:   "fizzy-account-host-test",
+		DisableEnvVar: "FIZZY_ACCOUNT_HOST_NO_KR",
+		FallbackDir:   t.TempDir(),
+	})
 
 	SetTestModeWithSDK(NewMockClient())
-	SetTestProfiles(profileStore)
+	SetTestProfiles(profile.NewStore(storePath))
+	SetTestCreds(store)
 	SetTestConfig("", "acme", "https://app.fizzy.do")
-	defer resetTest()
+	t.Cleanup(resetTest)
+}
+
+// With several profiles and no default, no profile is chosen and the
+// configured account names the credential. A cloned repo's local config can
+// set that account, so the token it selects goes to its own profile's host,
+// not to the host the YAML config or the default would give it.
+func TestAnAccountNamedProfileKeepsItsTokenOnItsOwnHost(t *testing.T) {
+	accountNamedProfiles(t)
+	if err := credsSaveProfileToken("acme", "acme-token"); err != nil {
+		t.Fatalf("save token: %v", err)
+	}
 
 	if err := resolveProfile(); err != nil {
 		t.Fatalf("resolve profile: %v", err)
 	}
+	resolveToken()
 	if activeProfile != "" {
 		t.Fatalf("want no profile chosen, got %q", activeProfile)
 	}
-	if currentProfileName() != "acme" {
-		t.Fatalf("the account names the credential, got %q", currentProfileName())
+	if cfg.Token != "acme-token" {
+		t.Fatalf("the account names the credential, got token %q", cfg.Token)
 	}
 	if cfg.APIURL != "https://fizzy.acme.example" {
 		t.Errorf("want the profile's own host, got %q", cfg.APIURL)
+	}
+
+	// config explain shows that host as the selected candidate.
+	field := configExplainData()["api_url"].(configExplainField)
+	var selected []string
+	for _, c := range field.Candidates {
+		if c.Selected {
+			selected = append(selected, c.Value)
+		}
+	}
+	if len(selected) != 1 || selected[0] != "https://fizzy.acme.example" {
+		t.Errorf("explain: want the profile's host selected, got %v", selected)
+	}
+}
+
+// The host follows the credential. A profile with no token of its own does
+// not pull a token from another source over to its host.
+func TestAnAccountNamedProfileWithoutATokenDoesNotSetTheHost(t *testing.T) {
+	accountNamedProfiles(t)
+
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile: %v", err)
+	}
+	if cfg.APIURL != "https://app.fizzy.do" {
+		t.Errorf("want the configured host kept, got %q", cfg.APIURL)
+	}
+}
+
+// config explain shows what an untrusted local config sets, as ignored.
+func TestConfigExplainShowsIgnoredLocalSettings(t *testing.T) {
+	accountNamedProfiles(t)
+	workDir := t.TempDir()
+	config.SetTestWorkingDir(workDir)
+	if err := os.WriteFile(filepath.Join(workDir, config.LocalConfigFile), []byte("api_url: https://other.example.com\ntoken: planted\n"), 0o600); err != nil {
+		t.Fatalf("write local config: %v", err)
+	}
+
+	data := configExplainData()
+	for _, name := range []string{"api_url", "token"} {
+		var local configExplainCandidate
+		for _, c := range data[name].(configExplainField).Candidates {
+			if c.Source == "local config" {
+				local = c
+			}
+		}
+		if local.Selected || !strings.Contains(local.Value, "ignored: the file is not trusted") {
+			t.Errorf("%s: got %#v", name, local)
+		}
+		if strings.Contains(local.Value, "planted") {
+			t.Errorf("%s: the token is shown: %q", name, local.Value)
+		}
+	}
+}
+
+// Trusting a file that cannot be read is not a usage error: only a request
+// that names no file is.
+func TestConfigTrustErrorCodes(t *testing.T) {
+	config.SetTestConfigDir(t.TempDir())
+	config.SetTestWorkingDir(t.TempDir())
+	defer config.ResetTestConfigDir()
+	defer config.ResetTestWorkingDir()
+	SetTestModeWithSDK(NewMockClient())
+	defer resetTest()
+
+	code := func(err error) string {
+		var e *output.Error
+		if !errors.As(err, &e) {
+			t.Fatalf("want an output error, got %v", err)
+		}
+		return e.Code
+	}
+	if got := code(configTrustCmd.RunE(configTrustCmd, []string{})); got != output.CodeUsage {
+		t.Errorf("no local config: got %q", got)
+	}
+	missing := filepath.Join(t.TempDir(), config.LocalConfigFile)
+	if got := code(configTrustCmd.RunE(configTrustCmd, []string{missing})); got != output.CodeNotFound {
+		t.Errorf("missing file: got %q", got)
+	}
+	bad := filepath.Join(t.TempDir(), config.LocalConfigFile)
+	if err := os.WriteFile(bad, []byte("api_url: [\n"), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if got := code(configTrustCmd.RunE(configTrustCmd, []string{bad})); got != output.CodeAPI {
+		t.Errorf("unreadable config: got %q", got)
+	}
+}
+
+// The trust commands only change local trust records, so the profile, account
+// and token checks do not apply to them.
+func TestTrustCommandsAreLocal(t *testing.T) {
+	for cmd, want := range map[*cobra.Command]bool{configTrustCmd: true, configUntrustCmd: true, configShowCmd: false, rootCmd: false} {
+		if got := isLocalTrustCommand(cmd); got != want {
+			t.Errorf("%s: got %v", cmd.CommandPath(), got)
+		}
 	}
 }

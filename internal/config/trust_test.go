@@ -52,10 +52,15 @@ func loadWithWarnings(t *testing.T) (*Config, string) {
 	if err != nil {
 		t.Fatalf("pipe: %v", err)
 	}
+	defer r.Close()
 	os.Stderr = w
-	cfg := Load()
-	os.Stderr = orig
-	w.Close()
+	cfg := func() *Config {
+		defer func() {
+			os.Stderr = orig
+			w.Close()
+		}()
+		return Load()
+	}()
 	var buf bytes.Buffer
 	io.Copy(&buf, r)
 	return cfg, buf.String()
@@ -189,5 +194,92 @@ func TestTrustLocalWithoutALocalConfigFails(t *testing.T) {
 
 	if _, err := TrustLocal(""); err == nil {
 		t.Error("want an error")
+	}
+}
+
+// The trust store stays in the preferred config directory: it does not follow
+// the global config file to a legacy directory, where removing that file
+// would leave every trusted entry behind.
+func TestTheTrustStoreDoesNotFollowALegacyGlobalConfig(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	legacy := filepath.Join(home, ".fizzy", "config.yaml")
+	if err := os.MkdirAll(filepath.Dir(legacy), 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	writeLocalConfig(t, legacy, "account: acme\n")
+
+	want := filepath.Join(home, ".config", "fizzy", trustFileName)
+	if got, err := trustFilePath(); err != nil || got != want {
+		t.Fatalf("with a legacy global config: got %q, %v", got, err)
+	}
+	if err := os.Remove(legacy); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if got, err := trustFilePath(); err != nil || got != want {
+		t.Fatalf("without it: got %q, %v", got, err)
+	}
+}
+
+// Commands that trust and untrust at the same time each keep what the others
+// wrote: none saves a copy of the store it read before another's change.
+func TestConcurrentTrustChangesKeepEachOther(t *testing.T) {
+	localConfigHere(t, "account: acme\n")
+	const files = 8
+	paths := make([]string, files)
+	for i := range paths {
+		paths[i] = filepath.Join(t.TempDir(), LocalConfigFile)
+		writeLocalConfig(t, paths[i], "api_url: https://fizzy.example.com\n")
+	}
+
+	errs := make(chan error, files)
+	for _, path := range paths {
+		go func() {
+			_, err := TrustLocal(path)
+			errs <- err
+		}()
+	}
+	for range paths {
+		if err := <-errs; err != nil {
+			t.Fatalf("trust: %v", err)
+		}
+	}
+	if got := len(TrustedLocals()); got != files {
+		t.Fatalf("want %d trusted files, got %d", files, got)
+	}
+	if left, _ := filepath.Glob(filepath.Join(testConfigDir, trustFileName+".*")); len(left) != 0 {
+		t.Fatalf("temporary or lock files left behind: %v", left)
+	}
+}
+
+// A trusted file reached through a link is untrusted by that link even after
+// its target is gone.
+func TestUntrustThroughALinkWhoseTargetIsGone(t *testing.T) {
+	localConfigHere(t, "account: acme\n")
+	target := filepath.Join(t.TempDir(), LocalConfigFile)
+	writeLocalConfig(t, target, "api_url: https://fizzy.example.com\n")
+	link := filepath.Join(t.TempDir(), LocalConfigFile)
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if _, err := TrustLocal(link); err != nil {
+		t.Fatalf("trust: %v", err)
+	}
+	if err := os.Remove(target); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	if _, removed, err := UntrustLocal(link); err != nil || !removed {
+		t.Fatalf("untrust: removed=%v, %v", removed, err)
+	}
+	if got := TrustedLocals(); len(got) != 0 {
+		t.Fatalf("trust left behind: %#v", got)
+	}
+}
+
+func TestDisplayPathDropsControlCharacters(t *testing.T) {
+	if got := DisplayPath("/tmp/a\nTrusted /etc\x1b[2K/.fizzy.yaml"); got != "/tmp/aTrusted /etc[2K/.fizzy.yaml" {
+		t.Fatalf("got %q", got)
 	}
 }

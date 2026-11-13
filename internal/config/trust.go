@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+	"unicode"
 
 	"gopkg.in/yaml.v3"
 )
@@ -23,6 +25,9 @@ type TrustEntry struct {
 	TrustedAt string `json:"trusted_at"`
 	Digest    string `json:"digest"`
 }
+
+// ErrNoLocalConfig reports that there is no local config to act on.
+var ErrNoLocalConfig = fmt.Errorf("no %s found here or in a parent directory", LocalConfigFile)
 
 type trustFile struct {
 	Trusted []TrustEntry `json:"trusted"`
@@ -86,7 +91,7 @@ func LoadLocal() *LocalConfig {
 func TrustLocal(path string) (*TrustEntry, error) {
 	if path == "" {
 		if path = findLocalConfig(); path == "" {
-			return nil, fmt.Errorf("no %s found here or in a parent directory", LocalConfigFile)
+			return nil, ErrNoLocalConfig
 		}
 	}
 	canon, err := canonicalPath(path)
@@ -98,7 +103,7 @@ func TrustLocal(path string) (*TrustEntry, error) {
 		return nil, fmt.Errorf("cannot read config: %w", err)
 	}
 	var file Config
-	if err := yaml.Unmarshal(data, &file); err != nil {
+	if err = yaml.Unmarshal(data, &file); err != nil {
 		return nil, fmt.Errorf("cannot trust %s: %w", path, err)
 	}
 
@@ -107,19 +112,17 @@ func TrustLocal(path string) (*TrustEntry, error) {
 		TrustedAt: time.Now().UTC().Format(time.RFC3339),
 		Digest:    trustDigest(file),
 	}
-	tf := loadTrustFile()
-	found := false
-	for i := range tf.Trusted {
-		if tf.Trusted[i].Path == canon {
-			tf.Trusted[i] = entry
-			found = true
-			break
+	err = updateTrustFile(func(tf *trustFile) bool {
+		for i := range tf.Trusted {
+			if tf.Trusted[i].Path == canon {
+				tf.Trusted[i] = entry
+				return true
+			}
 		}
-	}
-	if !found {
 		tf.Trusted = append(tf.Trusted, entry)
-	}
-	if err := saveTrustFile(tf); err != nil {
+		return true
+	})
+	if err != nil {
 		return nil, err
 	}
 	return &entry, nil
@@ -130,31 +133,81 @@ func TrustLocal(path string) (*TrustEntry, error) {
 func UntrustLocal(path string) (string, bool, error) {
 	if path == "" {
 		if path = findLocalConfig(); path == "" {
-			return "", false, fmt.Errorf("no %s found here or in a parent directory", LocalConfigFile)
+			return "", false, ErrNoLocalConfig
 		}
 	}
-	canon, err := canonicalPath(path)
-	if err != nil {
-		// A file that is gone can still be untrusted by the path it had.
-		if canon, err = filepath.Abs(path); err != nil {
-			return "", false, err
-		}
+	// A file that is gone, or a link whose target is, can still be untrusted
+	// by the paths it could have been trusted under.
+	candidates := unresolvedPaths(path)
+	if canon, err := canonicalPath(path); err == nil {
+		candidates = []string{canon}
 	}
-	tf := loadTrustFile()
-	kept := tf.Trusted[:0]
+	if len(candidates) == 0 {
+		return "", false, fmt.Errorf("cannot resolve path %s", path)
+	}
+	shown := candidates[0]
 	removed := false
-	for _, e := range tf.Trusted {
-		if e.Path == canon {
-			removed = true
-			continue
+	err := updateTrustFile(func(tf *trustFile) bool {
+		kept := tf.Trusted[:0]
+		for _, e := range tf.Trusted {
+			if containsPath(candidates, e.Path) {
+				removed = true
+				shown = e.Path
+				continue
+			}
+			kept = append(kept, e)
 		}
-		kept = append(kept, e)
+		tf.Trusted = kept
+		return removed
+	})
+	return shown, removed, err
+}
+
+// unresolvedPaths lists the canonical paths a local config that no longer
+// resolves could have had: its own, with its directory's links resolved, and,
+// for a dangling link, its target's.
+func unresolvedPaths(path string) []string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil
 	}
-	if !removed {
-		return canon, false, nil
+	paths := []string{abs}
+	add := func(p string) {
+		if dir, err := filepath.EvalSymlinks(filepath.Dir(p)); err == nil {
+			p = filepath.Join(dir, filepath.Base(p))
+		}
+		if !containsPath(paths, p) {
+			paths = append(paths, p)
+		}
 	}
-	tf.Trusted = kept
-	return canon, true, saveTrustFile(tf)
+	add(abs)
+	if target, err := os.Readlink(abs); err == nil {
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(filepath.Dir(abs), target)
+		}
+		add(filepath.Clean(target))
+	}
+	return paths
+}
+
+func containsPath(paths []string, path string) bool {
+	for _, p := range paths {
+		if p == path {
+			return true
+		}
+	}
+	return false
+}
+
+// DisplayPath is path without control characters, for messages: a directory
+// name can hold a newline, and a message must not let it forge output.
+func DisplayPath(path string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, path)
 }
 
 // TrustedLocals lists the trusted local configs.
@@ -200,17 +253,13 @@ func canonicalPath(path string) (string, error) {
 	return filepath.Clean(resolved), nil
 }
 
-// trustFilePath is the trust store beside the global config in use, or beside
-// the preferred one when there is none yet.
+// trustFilePath is the trust store, in the preferred config directory. It does
+// not follow the global config file to a legacy directory: trust must not move
+// when that file is created or removed.
 func trustFilePath() (string, error) {
 	paths := globalConfigPaths()
 	if len(paths) == 0 {
 		return "", errors.New("unable to determine config path")
-	}
-	for _, path := range paths {
-		if _, err := os.Stat(path); err == nil {
-			return filepath.Join(filepath.Dir(path), trustFileName), nil
-		}
 	}
 	return filepath.Join(filepath.Dir(paths[0]), trustFileName), nil
 }
@@ -231,7 +280,11 @@ func loadTrustFile() trustFile {
 	return tf
 }
 
-func saveTrustFile(tf trustFile) error {
+// updateTrustFile applies change to the trust store and saves it when change
+// reports a difference. A lock file serializes the read, the change and the
+// save across processes, so one command cannot write back entries another
+// just removed.
+func updateTrustFile(change func(*trustFile) bool) error {
 	path, err := trustFilePath()
 	if err != nil {
 		return err
@@ -239,13 +292,64 @@ func saveTrustFile(tf trustFile) error {
 	if err = os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
+	unlock, err := lockTrustFile(path + ".lock")
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
+	tf := loadTrustFile()
+	if !change(&tf) {
+		return nil
+	}
+	return saveTrustFile(path, tf)
+}
+
+const (
+	trustLockWait  = 5 * time.Second
+	trustLockStale = 30 * time.Second
+)
+
+// lockTrustFile takes the lock by creating lockPath, which only one process
+// can do. A lock left by a process that died is taken over once it is stale.
+func lockTrustFile(lockPath string) (func(), error) {
+	deadline := time.Now().Add(trustLockWait)
+	for {
+		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			_ = f.Close()
+			return func() { _ = os.Remove(lockPath) }, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return nil, fmt.Errorf("cannot lock the trust store: %w", err)
+		}
+		if info, statErr := os.Stat(lockPath); statErr == nil && time.Since(info.ModTime()) > trustLockStale {
+			_ = os.Remove(lockPath)
+			continue
+		}
+		if time.Now().After(deadline) {
+			return nil, fmt.Errorf("the trust store is locked by another fizzy command (%s)", lockPath)
+		}
+		time.Sleep(25 * time.Millisecond)
+	}
+}
+
+func saveTrustFile(path string, tf trustFile) error {
 	data, err := json.MarshalIndent(tf, "", "  ")
 	if err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err = os.WriteFile(tmp, append(data, '\n'), 0o600); err != nil {
+	tmp, err := os.CreateTemp(filepath.Dir(path), trustFileName+".*.tmp")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	defer func() { _ = os.Remove(tmp.Name()) }()
+	if _, err = tmp.Write(append(data, '\n')); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err = tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), path)
 }

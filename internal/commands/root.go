@@ -125,7 +125,11 @@ var rootCmd = &cobra.Command{
 		// In test mode, cfg is already set by SetTestConfig - don't overwrite
 		if cfg == nil {
 			// Load config from file/env
-			cfg = config.Load()
+			if isLocalTrustCommand(cmd) {
+				cfg = config.LoadWithoutTrustWarning()
+			} else {
+				cfg = config.Load()
+			}
 		}
 
 		// Initialize credential store (skip in test mode)
@@ -168,18 +172,19 @@ var rootCmd = &cobra.Command{
 				} else if activeProfile == "" {
 					return &output.Error{Code: output.CodeUsage, Message: err.Error()}
 				}
-			} else if cmd != authSwitchCmd && !doctorAllProfiles {
+			} else if cmd != authSwitchCmd && !doctorAllProfiles && !isLocalTrustCommand(cmd) {
 				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
 			}
 		}
-		if cfg.Account != "" && cmd != authLogoutCmd && cmd != authSwitchCmd && !doctorAllProfiles {
+		if cfg.Account != "" && cmd != authLogoutCmd && cmd != authSwitchCmd && !doctorAllProfiles && !isLocalTrustCommand(cmd) {
 			if err := validateAccountIdentifier(cfg.Account); err != nil {
 				return &output.Error{Code: output.CodeUsage, Message: err.Error()}
 			}
 		}
 		// Commands that replace or remove credentials do not resolve or migrate
 		// an existing token first. Profile sweeps resolve each target separately.
-		if cmd != authLoginCmd && cmd != authLogoutCmd && cmd != authSwitchCmd && !doctorAllProfiles {
+		// Trusting a local config sends nothing, so it resolves no token either.
+		if cmd != authLoginCmd && cmd != authLogoutCmd && cmd != authSwitchCmd && !doctorAllProfiles && !isLocalTrustCommand(cmd) {
 			resolveToken()
 		}
 
@@ -1280,15 +1285,21 @@ func applyAccountProfileHost(allProfiles map[string]*profile.Profile) {
 }
 
 // accountProfileBaseURL is the host of the stored profile the configured
-// account names, when no profile is active.
+// account names, when no profile is active and that profile holds a token.
+// The host follows the credential: a profile with no token of its own does
+// not pull a token from another source over to its host.
 func accountProfileBaseURL(allProfiles map[string]*profile.Profile) string {
-	if activeProfile != "" || cfg == nil || cfg.Account == "" {
+	if activeProfile != "" || cfg == nil || cfg.Account == "" || creds == nil {
 		return ""
 	}
-	if p := allProfiles[cfg.Account]; p != nil {
-		return p.BaseURL
+	p := allProfiles[cfg.Account]
+	if p == nil || p.BaseURL == "" {
+		return ""
 	}
-	return ""
+	if t, err := credsLoadProfileToken(cfg.Account); err != nil || t == "" {
+		return ""
+	}
+	return p.BaseURL
 }
 
 // profileEnvVar returns the FIZZY_PROFILE env var, falling back to FIZZY_ACCOUNT

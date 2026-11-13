@@ -129,6 +129,16 @@ func findLocalConfig() string {
 // that its api_url and token are ignored, with a warning, until the file is
 // trusted with `fizzy config trust`.
 func Load() *Config {
+	return load(true)
+}
+
+// LoadWithoutTrustWarning is Load without the warning about an untrusted local
+// config, for the commands that trust or untrust one.
+func LoadWithoutTrustWarning() *Config {
+	return load(false)
+}
+
+func load(warnUntrusted bool) *Config {
 	cfg := &Config{
 		APIURL: DefaultAPIURL,
 	}
@@ -157,7 +167,9 @@ func Load() *Config {
 		if local.Config.Board != "" {
 			cfg.Board = local.Config.Board
 		}
-		warnUntrustedLocal(local)
+		if warnUntrusted {
+			warnUntrustedLocal(local)
+		}
 	}
 
 	// Override with environment variables
@@ -189,7 +201,7 @@ func warnUntrustedLocal(local *LocalConfig) {
 		return
 	}
 	fmt.Fprintf(os.Stderr, "Warning: ignoring %s in %s: the file is not trusted. Review it, then run: fizzy config trust\n",
-		strings.Join(local.Ignored, " and "), local.Path)
+		strings.Join(local.Ignored, " and "), DisplayPath(local.Path))
 }
 
 // LoadGlobal loads configuration only from the global config file(s) and defaults.

@@ -412,7 +412,7 @@ func checkDoctorLocalConfig(verbose bool) DoctorCheck {
 	check := validateDoctorConfigFile(path, "Local Config", verbose)
 	if local := config.LoadLocal(); check.Status == "pass" && local != nil && len(local.Ignored) > 0 {
 		check.Status = "warn"
-		check.Message = fmt.Sprintf("%s: %s ignored, the file is not trusted", path, strings.Join(local.Ignored, " and "))
+		check.Message = fmt.Sprintf("%s: %s ignored, the file is not trusted", config.DisplayPath(path), strings.Join(local.Ignored, " and "))
 		check.Hint = "Review the file, then run: fizzy config trust"
 	}
 	return check

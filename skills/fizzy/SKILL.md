@@ -187,7 +187,7 @@ account: 123456789
 board: 03foq1hqmyy91tuyz3ghugg6c
 ```
 
-`account` and `board` apply from any `.fizzy.yaml`. An `api_url` or `token` in one is
+`account` and `board` apply from the nearest `.fizzy.yaml`. An `api_url` or `token` in it is
 ignored, with a warning on stderr, until the person trusts the file with
 `fizzy config trust`, and again whenever either value changes. Never run
 `fizzy config trust` on a file you did not write unless the person asked you to.
