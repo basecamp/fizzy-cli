@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -124,7 +125,9 @@ func findLocalConfig() string {
 // overwrites values that Load() set from YAML — but preserves env var values.
 //
 // Local config (.fizzy.yaml) is searched for in the current directory and parent
-// directories. Values from local config override global config values.
+// directories. Values from local config override global config values, except
+// that its api_url and token are ignored, with a warning, until the file is
+// trusted with `fizzy config trust`.
 func Load() *Config {
 	cfg := &Config{
 		APIURL: DefaultAPIURL,
@@ -138,26 +141,23 @@ func Load() *Config {
 		}
 	}
 
-	// Override with local config (walks up directory tree)
-	if localPath := findLocalConfig(); localPath != "" {
-		if data, err := os.ReadFile(localPath); err == nil {
-			var localCfg Config
-			if yaml.Unmarshal(data, &localCfg) == nil {
-				// Only override non-empty values from local config
-				if localCfg.Token != "" {
-					cfg.Token = localCfg.Token
-				}
-				if localCfg.Account != "" {
-					cfg.Account = localCfg.Account
-				}
-				if localCfg.APIURL != "" {
-					cfg.APIURL = localCfg.APIURL
-				}
-				if localCfg.Board != "" {
-					cfg.Board = localCfg.Board
-				}
-			}
+	// Override with local config (walks up directory tree). Its api_url and
+	// token apply only while the file is trusted (trust.go).
+	if local := LoadLocal(); local != nil {
+		// Only override non-empty values from local config
+		if local.Config.Token != "" {
+			cfg.Token = local.Config.Token
 		}
+		if local.Config.Account != "" {
+			cfg.Account = local.Config.Account
+		}
+		if local.Config.APIURL != "" {
+			cfg.APIURL = local.Config.APIURL
+		}
+		if local.Config.Board != "" {
+			cfg.Board = local.Config.Board
+		}
+		warnUntrustedLocal(local)
 	}
 
 	// Override with environment variables
@@ -176,6 +176,20 @@ func Load() *Config {
 
 	ensureAPIURL(cfg)
 	return cfg
+}
+
+// warnedUntrustedLocal keeps the warning to one per file in a process.
+var warnedUntrustedLocal sync.Map
+
+func warnUntrustedLocal(local *LocalConfig) {
+	if len(local.Ignored) == 0 {
+		return
+	}
+	if _, warned := warnedUntrustedLocal.LoadOrStore(local.Path, true); warned {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "Warning: ignoring %s in %s: the file is not trusted. Review it, then run: fizzy config trust\n",
+		strings.Join(local.Ignored, " and "), local.Path)
 }
 
 // LoadGlobal loads configuration only from the global config file(s) and defaults.

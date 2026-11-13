@@ -198,6 +198,13 @@ Configuration priority (highest to lowest):
 
 `FIZZY_ACCOUNT` is accepted as a deprecated alias for `FIZZY_PROFILE`.
 
+A local `.fizzy.yaml` sets the account and the board. Its `api_url` and `token` decide
+where your credentials are sent, so they are ignored, with a warning, until you trust the
+file: read it, then run `fizzy config trust` in that directory. Trust covers those two
+settings as they are: if either changes, as a pull can change them, the file needs trusting
+again. `fizzy setup` trusts the local file it writes, and `fizzy config untrust` removes
+the trust.
+
 Profiles created by `fizzy setup` use the account slug as their name and continue to work without changes. A profile can also use a distinct name by storing its account in the profile's `extra` settings. This supports separate credentials for multiple users of the same account:
 
 ```bash

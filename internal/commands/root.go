@@ -1231,9 +1231,11 @@ func resolveProfile() error {
 			return err
 		}
 		// Otherwise (ambiguous default, etc.) — not fatal, just skip profile
+		applyAccountProfileHost(allProfiles)
 		return nil
 	}
 	if resolved == "" {
+		applyAccountProfileHost(allProfiles)
 		return nil
 	}
 
@@ -1264,6 +1266,29 @@ func resolveProfile() error {
 		}
 	}
 	return nil
+}
+
+// applyAccountProfileHost keeps a stored profile's credential on that
+// profile's host. With no profile chosen, the configured account names the
+// credential (currentProfileName), and a local config in a cloned repo can set
+// the account: the token it selects must not go to whatever host the YAML
+// config or the default names instead.
+func applyAccountProfileHost(allProfiles map[string]*profile.Profile) {
+	if baseURL := accountProfileBaseURL(allProfiles); baseURL != "" && os.Getenv("FIZZY_API_URL") == "" {
+		cfg.APIURL = baseURL
+	}
+}
+
+// accountProfileBaseURL is the host of the stored profile the configured
+// account names, when no profile is active.
+func accountProfileBaseURL(allProfiles map[string]*profile.Profile) string {
+	if activeProfile != "" || cfg == nil || cfg.Account == "" {
+		return ""
+	}
+	if p := allProfiles[cfg.Account]; p != nil {
+		return p.BaseURL
+	}
+	return ""
 }
 
 // profileEnvVar returns the FIZZY_PROFILE env var, falling back to FIZZY_ACCOUNT

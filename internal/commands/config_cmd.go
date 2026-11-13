@@ -93,10 +93,68 @@ from flags, environment variables, profile settings, local config, and global co
 	},
 }
 
+var configTrustCmd = &cobra.Command{
+	Use:   "trust [path]",
+	Short: "Trust a local config's api_url and token",
+	Long: `Trust the api_url and token in a local config (.fizzy.yaml), so they apply.
+
+A local config sets the account and the board without trust. Its api_url and
+token decide where your credentials are sent, so they are ignored until you
+trust the file. Trust covers those two settings as they are now: if either
+changes, as a pull or a checkout can change them, the file is untrusted again.
+
+Without a path, trusts the nearest .fizzy.yaml, in this directory or a parent.
+Read the file first.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		entry, err := cfgpkg.TrustLocal(firstArg(args))
+		if err != nil {
+			return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+		}
+		printDetail(map[string]any{"path": entry.Path, "trusted": true}, "Trusted "+entry.Path, []Breadcrumb{
+			breadcrumb("show", "fizzy config show", "Show the effective config"),
+			breadcrumb("untrust", "fizzy config untrust", "Remove the trust"),
+		})
+		return nil
+	},
+}
+
+var configUntrustCmd = &cobra.Command{
+	Use:   "untrust [path]",
+	Short: "Remove trust from a local config",
+	Long: `Remove trust from a local config (.fizzy.yaml), so its api_url and token are ignored again.
+
+Without a path, untrusts the nearest .fizzy.yaml, in this directory or a parent.`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		path, removed, err := cfgpkg.UntrustLocal(firstArg(args))
+		if err != nil {
+			return &output.Error{Code: output.CodeUsage, Message: err.Error()}
+		}
+		summary := "Removed trust from " + path
+		if !removed {
+			summary = path + " was not trusted"
+		}
+		printDetail(map[string]any{"path": path, "trusted": false}, summary, []Breadcrumb{
+			breadcrumb("trust", "fizzy config trust", "Trust it again"),
+		})
+		return nil
+	},
+}
+
+func firstArg(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	return args[0]
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configExplainCmd)
+	configCmd.AddCommand(configTrustCmd)
+	configCmd.AddCommand(configUntrustCmd)
 }
 
 func configShowData(verbose bool) map[string]any {
@@ -150,7 +208,7 @@ func configShowData(verbose bool) map[string]any {
 func configExplainData() map[string]any {
 	eff := resolveDoctorEffectiveConfig()
 	globalCfg, _ := loadDoctorConfigFile(globalConfigPathForDoctor())
-	localCfg, _ := loadDoctorConfigFile(cfgpkg.LocalConfigPath())
+	localCfg := appliedLocalConfig()
 	resolvedProfile, profileCfg := resolveDoctorProfileContext()
 	_, defaultProfile := profileStoreInfo()
 	binding, _ := resolveProfileAccountBinding(resolvedProfile, profileCfg)

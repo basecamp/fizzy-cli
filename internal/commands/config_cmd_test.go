@@ -341,3 +341,111 @@ func TestConfigExplainStyledOutput(t *testing.T) {
 		t.Fatalf("expected next steps section, got:\n%s", raw)
 	}
 }
+
+// `fizzy config trust` is what lets a local config's api_url apply, and
+// `fizzy config untrust` takes it away again.
+func TestConfigTrustAndUntrust(t *testing.T) {
+	workDir := t.TempDir()
+	config.SetTestConfigDir(t.TempDir())
+	config.SetTestWorkingDir(workDir)
+	defer config.ResetTestConfigDir()
+	defer config.ResetTestWorkingDir()
+	t.Setenv("FIZZY_API_URL", "")
+
+	if err := os.WriteFile(filepath.Join(workDir, config.LocalConfigFile), []byte("api_url: https://fizzy.example.com\n"), 0o600); err != nil {
+		t.Fatalf("write local config: %v", err)
+	}
+	if got := config.Load().APIURL; got != config.DefaultAPIURL {
+		t.Fatalf("before trust: want the default api_url, got %q", got)
+	}
+
+	result := SetTestModeWithSDK(NewMockClient())
+	defer resetTest()
+
+	assertExitCode(t, configTrustCmd.RunE(configTrustCmd, []string{}), 0)
+	data, _ := result.Response.Data.(map[string]any)
+	if data["trusted"] != true || !strings.HasSuffix(data["path"].(string), config.LocalConfigFile) {
+		t.Fatalf("trust: got %#v", result.Response.Data)
+	}
+	if got := config.Load().APIURL; got != "https://fizzy.example.com" {
+		t.Fatalf("after trust: got %q", got)
+	}
+
+	assertExitCode(t, configUntrustCmd.RunE(configUntrustCmd, []string{}), 0)
+	if got := config.Load().APIURL; got != config.DefaultAPIURL {
+		t.Fatalf("after untrust: want the default api_url, got %q", got)
+	}
+}
+
+func TestConfigTrustWithoutALocalConfigIsAUsageError(t *testing.T) {
+	config.SetTestConfigDir(t.TempDir())
+	config.SetTestWorkingDir(t.TempDir())
+	defer config.ResetTestConfigDir()
+	defer config.ResetTestWorkingDir()
+
+	SetTestModeWithSDK(NewMockClient())
+	defer resetTest()
+
+	err := configTrustCmd.RunE(configTrustCmd, []string{})
+	if err == nil || !strings.Contains(err.Error(), config.LocalConfigFile) {
+		t.Fatalf("want an error naming the file, got %v", err)
+	}
+}
+
+// Doctor says when a local config's api_url and token are being ignored, and
+// does not attribute the effective values to it.
+func TestDoctorWarnsOnAnUntrustedLocalConfig(t *testing.T) {
+	workDir := t.TempDir()
+	config.SetTestWorkingDir(workDir)
+	config.SetTestConfigDir(t.TempDir())
+	defer config.ResetTestWorkingDir()
+	defer config.ResetTestConfigDir()
+
+	if err := os.WriteFile(filepath.Join(workDir, config.LocalConfigFile), []byte("api_url: https://evil.example.com\ntoken: planted\n"), 0o600); err != nil {
+		t.Fatalf("write local config: %v", err)
+	}
+
+	check := checkDoctorLocalConfig(false)
+	if check.Status != "warn" || !strings.Contains(check.Message, "api_url and token ignored") || !strings.Contains(check.Hint, "fizzy config trust") {
+		t.Fatalf("got %#v", check)
+	}
+	if local := appliedLocalConfig(); local == nil || local.APIURL != "" || local.Token != "" {
+		t.Fatalf("the ignored values are not reported as the local config's, got %#v", local)
+	}
+}
+
+// With several profiles and no default, no profile is chosen and the
+// configured account names the credential. A cloned repo's local config can
+// set that account, so the token it selects goes to its own profile's host,
+// not to the host the YAML config or the default would give it.
+func TestAnAccountNamedProfileKeepsItsTokenOnItsOwnHost(t *testing.T) {
+	t.Setenv("FIZZY_API_URL", "")
+	t.Setenv("FIZZY_PROFILE", "")
+	t.Setenv("FIZZY_ACCOUNT", "")
+
+	// The profile store as logging out of the default profile leaves it.
+	storePath := filepath.Join(t.TempDir(), "config.json")
+	stored := `{"profiles":{"acme":{"base_url":"https://fizzy.acme.example"},"other":{"base_url":"https://app.fizzy.do"}}}`
+	if err := os.WriteFile(storePath, []byte(stored), 0o600); err != nil {
+		t.Fatalf("write profile store: %v", err)
+	}
+	profileStore := profile.NewStore(storePath)
+
+	SetTestModeWithSDK(NewMockClient())
+	SetTestProfiles(profileStore)
+	SetTestConfig("", "acme", "https://app.fizzy.do")
+	defer resetTest()
+
+	if err := resolveProfile(); err != nil {
+		t.Fatalf("resolve profile: %v", err)
+	}
+	if activeProfile != "" {
+		t.Fatalf("want no profile chosen, got %q", activeProfile)
+	}
+	if currentProfileName() != "acme" {
+		t.Fatalf("the account names the credential, got %q", currentProfileName())
+	}
+	if cfg.APIURL != "https://fizzy.acme.example" {
+		t.Errorf("want the profile's own host, got %q", cfg.APIURL)
+	}
+}
