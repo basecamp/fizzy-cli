@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
@@ -101,12 +102,15 @@ var authLoginCmd = &cobra.Command{
 var authLogoutCmd = &cobra.Command{
 	Use:   "logout",
 	Short: "Remove saved credentials",
-	Long:  "Removes saved credentials for the current profile (or all profiles with --all).",
+	Long: "Removes saved credentials for the current profile (or all profiles with --all).\n\n" +
+		"A token fizzy signup created is revoked at Fizzy first, best effort: if Fizzy can't confirm it, " +
+		"the credential is still removed and a warning says so. A token given to fizzy auth login is only " +
+		"removed, never revoked, since it may be in use elsewhere; revoke it in Fizzy's access tokens.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		all, _ := cmd.Flags().GetBool("all")
 
 		if all {
-			return authLogoutAll()
+			return authLogoutAll(commandContext(cmd))
 		}
 
 		profileName := currentProfileName()
@@ -118,13 +122,20 @@ var authLogoutCmd = &cobra.Command{
 		// which identity remains active.
 		wasDefault := false
 		profileExists := false
+		var revocation mintedTokenRevocation
 		if profiles != nil {
 			allProfiles, defaultName, err := profiles.List()
 			if err != nil {
 				return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 			}
-			_, profileExists = allProfiles[profileName]
+			var p *profile.Profile
+			p, profileExists = allProfiles[profileName]
 			wasDefault = defaultName == profileName
+			// Before anything is deleted: the token to revoke is read from
+			// where it is stored.
+			ctx, cancel := context.WithTimeout(commandContext(cmd), mintedTokenLogoutTimeout)
+			revocation = revokeProfileMintedToken(ctx, profileName, p)
+			cancel()
 		}
 
 		var cleanupErrors []error
@@ -157,26 +168,41 @@ var authLogoutCmd = &cobra.Command{
 			breadcrumb("login", "fizzy auth login <token>", "Log in again"),
 		}
 
-		printMutation(map[string]any{
+		result := map[string]any{
 			"authenticated": false,
 			"profile":       profileName,
 			"message":       "Logged out successfully",
-		}, "", breadcrumbs)
+		}
+		reportMintedTokenRevocations(result, map[string]mintedTokenRevocation{profileName: revocation})
+		printMutation(result, "", breadcrumbs)
 		return nil
 	},
 }
 
-func authLogoutAll() error {
+// commandContext is cmd's context, or the background one for a command run
+// without one (RunE called directly).
+func commandContext(cmd *cobra.Command) context.Context {
+	if ctx := cmd.Context(); ctx != nil {
+		return ctx
+	}
+	return context.Background()
+}
+
+func authLogoutAll(ctx context.Context) error {
 	profileNames := map[string]bool{}
 	credentialNames := map[string]bool{}
 	var cleanupErrors []error
 
+	revocations := map[string]mintedTokenRevocation{}
+	ctx, cancel := context.WithTimeout(ctx, mintedTokenLogoutTimeout)
+	defer cancel()
 	if profiles != nil {
 		allProfiles, _, err := profiles.List()
 		if err != nil {
 			return &output.Error{Code: output.CodeAPI, Message: err.Error()}
 		}
 		for name, p := range allProfiles {
+			revocations[name] = revokeProfileMintedToken(ctx, name, p)
 			profileNames[name] = true
 			credentialNames[name] = true
 			binding, err := resolveProfileAccountBinding(name, p)
@@ -222,10 +248,12 @@ func authLogoutAll() error {
 		breadcrumb("signup", "fizzy signup", "Sign up"),
 	}
 
-	printMutation(map[string]any{
+	result := map[string]any{
 		"authenticated": false,
 		"message":       "Logged out of all profiles",
-	}, "", breadcrumbs)
+	}
+	reportMintedTokenRevocations(result, revocations)
+	printMutation(result, "", breadcrumbs)
 	return nil
 }
 
