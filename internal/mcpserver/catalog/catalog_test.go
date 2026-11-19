@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	toolkit "github.com/basecamp/mcp/catalog"
 	"github.com/basecamp/mcp/mcptest"
 )
 
@@ -54,6 +55,39 @@ func TestOnlyIdentityIsUnscoped(t *testing.T) {
 		for _, op := range d.Operations {
 			if op.Unscoped && op.Action != "get_identity" {
 				t.Errorf("%s/%s is unscoped; unscoped operations are the deliberate exception", d.Key, op.Action)
+			}
+		}
+	}
+}
+
+// TestDestructiveMatchesBridgeClassifier pins the destructive curation to
+// the toolkit's action-name bridge classifier — the same heuristic the
+// generated catalogs fall back on until SDK behavior models carry the
+// trait — so the hand-written catalog can't silently drift from the
+// convention. Divergence is deliberate and documented, or it's an error.
+func TestDestructiveMatchesBridgeClassifier(t *testing.T) {
+	// Hand-reviewed exceptions: destructive despite a name the prefix
+	// heuristic misses. Each entry documents why.
+	exceptions := map[string]string{
+		// Unpublishing destroys the publication and its secure-token key;
+		// republishing mints a new URL, so the old public link is
+		// irrecoverable.
+		"boards/unpublish_board": "invalidates the public link for good",
+	}
+	for _, d := range load(t) {
+		for _, op := range d.Operations {
+			key := d.Key + "/" + op.Action
+			if why, ok := exceptions[key]; ok {
+				if !op.Destructive {
+					t.Errorf("%s: exception (%s) must set Destructive", key, why)
+				}
+				if toolkit.BridgeDestructive(op.Action) {
+					t.Errorf("%s: the bridge now classifies this action; drop the exception", key)
+				}
+				continue
+			}
+			if got, want := op.Destructive, toolkit.BridgeDestructive(op.Action); got != want {
+				t.Errorf("%s: Destructive = %v drifts from the bridge classifier (%v) without a documented exception", key, got, want)
 			}
 		}
 	}
@@ -106,7 +140,7 @@ func TestValidateRejectsCurationMistakes(t *testing.T) {
 	}{
 		{
 			"unsorted operations",
-			&Domain{Key: "x", Tool: "fizzy_x", Operations: []*Operation{
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
 				{Action: "b", Method: "GET", Path: "/b", ReadOnly: true},
 				{Action: "a", Method: "GET", Path: "/a", ReadOnly: true},
 			}},
@@ -114,36 +148,57 @@ func TestValidateRejectsCurationMistakes(t *testing.T) {
 		},
 		{
 			"reserved describe action",
-			&Domain{Key: "x", Tool: "fizzy_x", Operations: []*Operation{
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
 				{Action: "describe", Method: "GET", Path: "/x", ReadOnly: true},
 			}},
 			"reserved",
 		},
 		{
 			"write marked read-only",
-			&Domain{Key: "x", Tool: "fizzy_x", Operations: []*Operation{
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
 				{Action: "a", Method: "POST", Path: "/a", ReadOnly: true},
 			}},
 			"readonly must mirror the method",
 		},
 		{
 			"path token without param",
-			&Domain{Key: "x", Tool: "fizzy_x", Operations: []*Operation{
-				{Action: "a", Method: "GET", Path: "/a/{id}", ReadOnly: true},
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
+				{Action: "a", Method: "GET", Path: "/a/{id}", ReadOnly: true, Idempotent: true},
 			}},
 			"no matching path param",
 		},
 		{
 			"path param not in path",
-			&Domain{Key: "x", Tool: "fizzy_x", Operations: []*Operation{
-				{Action: "a", Method: "GET", Path: "/a", ReadOnly: true,
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
+				{Action: "a", Method: "GET", Path: "/a", ReadOnly: true, Idempotent: true,
 					Params: []Param{{Name: "id", In: "path", Required: true, Schema: str("x")}}},
 			}},
 			"does not appear in path",
 		},
 		{
-			"body_key without body",
+			"missing title",
 			&Domain{Key: "x", Tool: "fizzy_x", Operations: []*Operation{
+				{Action: "a", Method: "GET", Path: "/a", ReadOnly: true, Idempotent: true},
+			}},
+			"no title",
+		},
+		{
+			"read not marked idempotent",
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
+				{Action: "a", Method: "GET", Path: "/a", ReadOnly: true},
+			}},
+			"idempotent by nature",
+		},
+		{
+			"read marked destructive",
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
+				{Action: "a", Method: "GET", Path: "/a", ReadOnly: true, Idempotent: true, Destructive: true},
+			}},
+			"both readonly and destructive",
+		},
+		{
+			"body_key without body",
+			&Domain{Key: "x", Tool: "fizzy_x", Title: "X", Operations: []*Operation{
 				{Action: "a", Method: "POST", Path: "/a", BodyKey: "thing"},
 			}},
 			"without a body schema",

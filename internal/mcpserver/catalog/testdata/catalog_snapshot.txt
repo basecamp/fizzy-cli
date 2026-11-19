@@ -35,6 +35,8 @@ ACTIONS (RO = read-only):
   "summary": "List the accounts the token can access, with your user record in each",
   "doc": "Each account carries a slug naming it in API paths. Account-scoped actions run against the account the server is configured for; this action shows every account the token can reach.",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "unscoped": true
 }
 ==== TOOL fizzy_boards ====
@@ -45,12 +47,12 @@ Call {"action": "describe", "params": {"action": "NAME"}} for an action's full p
 
 ACTIONS (RO = read-only):
 - create_board: Create a board
-- delete_board: Delete a board (board administrators only)
+- delete_board (destructive): Delete a board (board administrators only)
 - get_board (RO): Get one board
 - list_accesses (RO, paginated): List account users with their access and involvement for a board
 - list_boards (RO, paginated): List the boards you have access to
 - publish_board: Publish a board to a shareable public link (administrators only)
-- unpublish_board: Unpublish a board, removing public access (administrators only)
+- unpublish_board (destructive): Unpublish a board, removing public access (administrators only)
 - update_board: Update a board (administrators only)
 ---- input schema ----
 {
@@ -87,6 +89,8 @@ ACTIONS (RO = read-only):
   "path": "/boards",
   "summary": "Create a board",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "body": {
     "properties": {
       "all_access": {
@@ -120,6 +124,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}",
   "summary": "Delete a board (board administrators only)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": true,
   "params": [
     {
       "name": "board_id",
@@ -140,6 +146,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}",
   "summary": "Get one board",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -160,6 +168,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/accesses",
   "summary": "List account users with their access and involvement for a board",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {
@@ -190,6 +200,8 @@ ACTIONS (RO = read-only):
   "path": "/boards",
   "summary": "List the boards you have access to",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {
@@ -210,6 +222,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/publication",
   "summary": "Publish a board to a shareable public link (administrators only)",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -230,6 +244,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/publication",
   "summary": "Unpublish a board, removing public access (administrators only)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": true,
   "params": [
     {
       "name": "board_id",
@@ -250,6 +266,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}",
   "summary": "Update a board (administrators only)",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -300,7 +318,7 @@ Call {"action": "describe", "params": {"action": "NAME"}} for an action's full p
 
 ACTIONS (RO = read-only):
 - create_column: Create a column on a board
-- delete_column: Delete a column
+- delete_column (destructive): Delete a column
 - get_column (RO): Get one column
 - list_cards (RO, paginated): List the open cards in a column
 - list_columns (RO): List a board's columns
@@ -338,6 +356,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/columns",
   "summary": "Create a column on a board",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -375,6 +395,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/columns/{column_id}",
   "summary": "Delete a column",
   "readonly": false,
+  "idempotent": false,
+  "destructive": true,
   "params": [
     {
       "name": "board_id",
@@ -405,6 +427,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/columns/{column_id}",
   "summary": "Get one column",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -435,6 +459,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/columns/{column_id}/cards",
   "summary": "List the open cards in a column",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {
@@ -475,6 +501,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/columns",
   "summary": "List a board's columns",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -495,6 +523,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/columns/{column_id}",
   "summary": "Rename or recolor a column",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -541,7 +571,7 @@ Call {"action": "describe", "params": {"action": "NAME"}} for an action's full p
 ACTIONS (RO = read-only):
 - close_card: Close a card (move it to Done)
 - create_card: Create a card on a board (new cards start in Maybe? triage)
-- delete_card: Delete a card (creator or board administrators only)
+- delete_card (destructive): Delete a card (creator or board administrators only)
 - get_card (RO): Get one card with its board, column, assignees, tags, and steps
 - list_cards (RO, paginated): List cards you have access to, filtered by board, column, tag, assignee, state, or search terms
 - mark_golden: Mark a card as golden
@@ -600,6 +630,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/closure",
   "summary": "Close a card (move it to Done)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -620,6 +652,8 @@ ACTIONS (RO = read-only):
   "path": "/boards/{board_id}/cards",
   "summary": "Create a card on a board (new cards start in Maybe? triage)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "board_id",
@@ -672,6 +706,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}",
   "summary": "Delete a card (creator or board administrators only)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": true,
   "params": [
     {
       "name": "card_number",
@@ -692,6 +728,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}",
   "summary": "Get one card with its board, column, assignees, tags, and steps",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -712,6 +750,8 @@ ACTIONS (RO = read-only):
   "path": "/cards",
   "summary": "List cards you have access to, filtered by board, column, tag, assignee, state, or search terms",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {
@@ -910,6 +950,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/goldness",
   "summary": "Mark a card as golden",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -930,6 +972,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/board",
   "summary": "Move a card to a different board",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -962,6 +1006,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/not_now",
   "summary": "Move a card to Not Now",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -982,6 +1028,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/closure",
   "summary": "Reopen a closed card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1002,6 +1050,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/assignments",
   "summary": "Toggle assignment of a user to/from a card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1034,6 +1084,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/taggings",
   "summary": "Toggle a tag on or off for a card, creating the tag if needed",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1066,6 +1118,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/triage",
   "summary": "Move a card into a workflow column",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1098,6 +1152,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/goldness",
   "summary": "Remove golden status from a card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1118,6 +1174,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/triage",
   "summary": "Send a card back to triage (Maybe?)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1138,6 +1196,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/watch",
   "summary": "Unsubscribe from notifications for a card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1158,6 +1218,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}",
   "summary": "Update a card's title, description, status, or tags",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1207,6 +1269,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/watch",
   "summary": "Subscribe to notifications for a card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1228,7 +1292,7 @@ Call {"action": "describe", "params": {"action": "NAME"}} for an action's full p
 
 ACTIONS (RO = read-only):
 - create_comment: Comment on a card
-- delete_comment: Delete a comment (comment creator only)
+- delete_comment (destructive): Delete a comment (comment creator only)
 - get_comment (RO): Get one comment
 - list_comments (RO, paginated): List a card's comments, oldest first
 - update_comment: Update a comment (comment creator only)
@@ -1264,6 +1328,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/comments",
   "summary": "Comment on a card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1297,6 +1363,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/comments/{comment_id}",
   "summary": "Delete a comment (comment creator only)",
   "readonly": false,
+  "idempotent": false,
+  "destructive": true,
   "params": [
     {
       "name": "card_number",
@@ -1327,6 +1395,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/comments/{comment_id}",
   "summary": "Get one comment",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1357,6 +1427,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/comments",
   "summary": "List a card's comments, oldest first",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {
@@ -1387,6 +1459,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/comments/{comment_id}",
   "summary": "Update a comment (comment creator only)",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1431,7 +1505,7 @@ Call {"action": "describe", "params": {"action": "NAME"}} for an action's full p
 
 ACTIONS (RO = read-only):
 - create_step: Add a step to a card
-- delete_step: Delete a step
+- delete_step (destructive): Delete a step
 - get_step (RO): Get one step
 - list_steps (RO): List a card's steps
 - update_step: Edit a step or toggle its completion
@@ -1467,6 +1541,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/steps",
   "summary": "Add a step to a card",
   "readonly": false,
+  "idempotent": false,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1504,6 +1580,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/steps/{step_id}",
   "summary": "Delete a step",
   "readonly": false,
+  "idempotent": false,
+  "destructive": true,
   "params": [
     {
       "name": "card_number",
@@ -1534,6 +1612,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/steps/{step_id}",
   "summary": "Get one step",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1564,6 +1644,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/steps",
   "summary": "List a card's steps",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1584,6 +1666,8 @@ ACTIONS (RO = read-only):
   "path": "/cards/{card_number}/steps/{step_id}",
   "summary": "Edit a step or toggle its completion",
   "readonly": false,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "card_number",
@@ -1657,6 +1741,8 @@ ACTIONS (RO = read-only):
   "path": "/tags",
   "summary": "List the account's tags, alphabetically",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {
@@ -1708,6 +1794,8 @@ ACTIONS (RO = read-only):
   "path": "/users/{user_id}",
   "summary": "Get one user",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "params": [
     {
       "name": "user_id",
@@ -1728,6 +1816,8 @@ ACTIONS (RO = read-only):
   "path": "/users",
   "summary": "List the account's active users",
   "readonly": true,
+  "idempotent": true,
+  "destructive": false,
   "paginated": true,
   "params": [
     {

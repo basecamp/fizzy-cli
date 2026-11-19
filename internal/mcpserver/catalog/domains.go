@@ -46,14 +46,27 @@ var cardNumber = pathParam("card_number", "The card number (the number in the ca
 // Domains is the hand-written v1 catalog, in tool display order. Each
 // operation mirrors one endpoint in Fizzy's public API docs (docs/api in
 // the fizzy repo); operations within a domain are sorted by action name.
+//
+// Annotation curation, pending fizzy-sdk model exports:
+//   - Destructive starts from parity with the toolkit's BridgeDestructive
+//     action-name classifier (delete_* here); hand-reviewed exceptions carry
+//     a comment and are pinned by the drift test. The DELETE-method state
+//     toggles (reopen_card, untriage_card, unmark_golden, unwatch_card)
+//     reverse cleanly, so they stay clean; unpublish_board is the one
+//     exception, documented inline.
+//   - Idempotent is true on every read (enforced by validate) and on writes
+//     whose repeat provably converges: PUT-style updates, and publish_board,
+//     which the API docs define as returning the existing publication when
+//     already published. Toggles and the other POSTs stay false.
 var Domains = []*Domain{
 	{
 		Key:   "identity",
 		Tool:  "fizzy_identity",
+		Title: "Fizzy Identity",
 		Blurb: "Who you are on Fizzy: the accounts your token can reach and your user in each. Call this first when the account slug is unknown.",
 		Operations: []*Operation{
 			{
-				Action: "get_identity", Method: "GET", Path: "/my/identity", ReadOnly: true, Unscoped: true,
+				Action: "get_identity", Method: "GET", Path: "/my/identity", ReadOnly: true, Idempotent: true, Unscoped: true,
 				Summary: "List the accounts the token can access, with your user record in each",
 				Doc:     "Each account carries a slug naming it in API paths. Account-scoped actions run against the account the server is configured for; this action shows every account the token can reach.",
 			},
@@ -62,6 +75,7 @@ var Domains = []*Domain{
 	{
 		Key:   "boards",
 		Tool:  "fizzy_boards",
+		Title: "Fizzy Boards",
 		Blurb: "Fizzy boards: the kanban boards cards live on, who can access them, and public publication.",
 		Operations: []*Operation{
 			{
@@ -75,37 +89,42 @@ var Domains = []*Domain{
 				}, "name"),
 			},
 			{
-				Action: "delete_board", Method: "DELETE", Path: "/boards/{board_id}",
+				Action: "delete_board", Method: "DELETE", Path: "/boards/{board_id}", Destructive: true,
 				Summary: "Delete a board (board administrators only)",
 				Params:  []Param{pathParam("board_id", "The board ID")},
 			},
 			{
-				Action: "get_board", Method: "GET", Path: "/boards/{board_id}", ReadOnly: true,
+				Action: "get_board", Method: "GET", Path: "/boards/{board_id}", ReadOnly: true, Idempotent: true,
 				Summary: "Get one board",
 				Params:  []Param{pathParam("board_id", "The board ID")},
 			},
 			{
-				Action: "list_accesses", Method: "GET", Path: "/boards/{board_id}/accesses", ReadOnly: true, Paginated: true,
+				Action: "list_accesses", Method: "GET", Path: "/boards/{board_id}/accesses", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List account users with their access and involvement for a board",
 				Params:  []Param{pathParam("board_id", "The board ID"), pageParam()},
 			},
 			{
-				Action: "list_boards", Method: "GET", Path: "/boards", ReadOnly: true, Paginated: true,
+				Action: "list_boards", Method: "GET", Path: "/boards", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List the boards you have access to",
 				Params:  []Param{pageParam()},
 			},
 			{
-				Action: "publish_board", Method: "POST", Path: "/boards/{board_id}/publication",
+				// Idempotent per the API docs: publishing an already-published
+				// board returns the existing publication.
+				Action: "publish_board", Method: "POST", Path: "/boards/{board_id}/publication", Idempotent: true,
 				Summary: "Publish a board to a shareable public link (administrators only)",
 				Params:  []Param{pathParam("board_id", "The board ID")},
 			},
 			{
-				Action: "unpublish_board", Method: "DELETE", Path: "/boards/{board_id}/publication",
+				// Destructive beyond what the name-prefix bridge sees: unpublishing
+				// destroys the publication and its secure-token key, so republishing
+				// mints a new URL — the old public link is gone for good.
+				Action: "unpublish_board", Method: "DELETE", Path: "/boards/{board_id}/publication", Destructive: true,
 				Summary: "Unpublish a board, removing public access (administrators only)",
 				Params:  []Param{pathParam("board_id", "The board ID")},
 			},
 			{
-				Action: "update_board", Method: "PUT", Path: "/boards/{board_id}", BodyKey: "board",
+				Action: "update_board", Method: "PUT", Path: "/boards/{board_id}", Idempotent: true, BodyKey: "board",
 				Summary: "Update a board (administrators only)",
 				Params:  []Param{pathParam("board_id", "The board ID")},
 				Body: object(map[string]any{
@@ -121,6 +140,7 @@ var Domains = []*Domain{
 	{
 		Key:   "columns",
 		Tool:  "fizzy_columns",
+		Title: "Fizzy Columns",
 		Blurb: "Workflow columns on a Fizzy board. Cards in Maybe?, Not Now, or Done live outside columns; move cards between columns with the cards tool's triage_card.",
 		Operations: []*Operation{
 			{
@@ -133,27 +153,27 @@ var Domains = []*Domain{
 				}, "name"),
 			},
 			{
-				Action: "delete_column", Method: "DELETE", Path: "/boards/{board_id}/columns/{column_id}",
+				Action: "delete_column", Method: "DELETE", Path: "/boards/{board_id}/columns/{column_id}", Destructive: true,
 				Summary: "Delete a column",
 				Params:  []Param{pathParam("board_id", "The board ID"), pathParam("column_id", "The column ID")},
 			},
 			{
-				Action: "get_column", Method: "GET", Path: "/boards/{board_id}/columns/{column_id}", ReadOnly: true,
+				Action: "get_column", Method: "GET", Path: "/boards/{board_id}/columns/{column_id}", ReadOnly: true, Idempotent: true,
 				Summary: "Get one column",
 				Params:  []Param{pathParam("board_id", "The board ID"), pathParam("column_id", "The column ID")},
 			},
 			{
-				Action: "list_cards", Method: "GET", Path: "/boards/{board_id}/columns/{column_id}/cards", ReadOnly: true, Paginated: true,
+				Action: "list_cards", Method: "GET", Path: "/boards/{board_id}/columns/{column_id}/cards", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List the open cards in a column",
 				Params:  []Param{pathParam("board_id", "The board ID"), pathParam("column_id", "The column ID"), pageParam()},
 			},
 			{
-				Action: "list_columns", Method: "GET", Path: "/boards/{board_id}/columns", ReadOnly: true,
+				Action: "list_columns", Method: "GET", Path: "/boards/{board_id}/columns", ReadOnly: true, Idempotent: true,
 				Summary: "List a board's columns",
 				Params:  []Param{pathParam("board_id", "The board ID")},
 			},
 			{
-				Action: "update_column", Method: "PUT", Path: "/boards/{board_id}/columns/{column_id}", BodyKey: "column",
+				Action: "update_column", Method: "PUT", Path: "/boards/{board_id}/columns/{column_id}", Idempotent: true, BodyKey: "column",
 				Summary: "Rename or recolor a column",
 				Params:  []Param{pathParam("board_id", "The board ID"), pathParam("column_id", "The column ID")},
 				Body: object(map[string]any{
@@ -166,6 +186,7 @@ var Domains = []*Domain{
 	{
 		Key:   "cards",
 		Tool:  "fizzy_cards",
+		Title: "Fizzy Cards",
 		Blurb: "Fizzy cards: create, find, and update cards; close and reopen; move between columns (triage), boards, and Not Now; tag, assign, watch, and mark golden.",
 		Operations: []*Operation{
 			{
@@ -185,17 +206,17 @@ var Domains = []*Domain{
 				}, "title"),
 			},
 			{
-				Action: "delete_card", Method: "DELETE", Path: "/cards/{card_number}",
+				Action: "delete_card", Method: "DELETE", Path: "/cards/{card_number}", Destructive: true,
 				Summary: "Delete a card (creator or board administrators only)",
 				Params:  []Param{cardNumber},
 			},
 			{
-				Action: "get_card", Method: "GET", Path: "/cards/{card_number}", ReadOnly: true,
+				Action: "get_card", Method: "GET", Path: "/cards/{card_number}", ReadOnly: true, Idempotent: true,
 				Summary: "Get one card with its board, column, assignees, tags, and steps",
 				Params:  []Param{cardNumber},
 			},
 			{
-				Action: "list_cards", Method: "GET", Path: "/cards", ReadOnly: true, Paginated: true,
+				Action: "list_cards", Method: "GET", Path: "/cards", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List cards you have access to, filtered by board, column, tag, assignee, state, or search terms",
 				Params: []Param{
 					queryParam("assignee_ids", "Filter by assignee user ID(s)", strArray("Assignee user IDs")),
@@ -220,7 +241,7 @@ var Domains = []*Domain{
 				Params:  []Param{cardNumber},
 			},
 			{
-				Action: "move_card", Method: "PUT", Path: "/cards/{card_number}/board",
+				Action: "move_card", Method: "PUT", Path: "/cards/{card_number}/board", Idempotent: true,
 				Summary: "Move a card to a different board",
 				Params:  []Param{cardNumber},
 				Body: object(map[string]any{
@@ -277,7 +298,7 @@ var Domains = []*Domain{
 				Params:  []Param{cardNumber},
 			},
 			{
-				Action: "update_card", Method: "PUT", Path: "/cards/{card_number}", BodyKey: "card",
+				Action: "update_card", Method: "PUT", Path: "/cards/{card_number}", Idempotent: true, BodyKey: "card",
 				Summary: "Update a card's title, description, status, or tags",
 				Params:  []Param{cardNumber},
 				Body: object(map[string]any{
@@ -297,6 +318,7 @@ var Domains = []*Domain{
 	{
 		Key:   "comments",
 		Tool:  "fizzy_comments",
+		Title: "Fizzy Comments",
 		Blurb: "Comments on Fizzy cards, chronological. Bodies support rich text.",
 		Operations: []*Operation{
 			{
@@ -308,22 +330,22 @@ var Domains = []*Domain{
 				}, "body"),
 			},
 			{
-				Action: "delete_comment", Method: "DELETE", Path: "/cards/{card_number}/comments/{comment_id}",
+				Action: "delete_comment", Method: "DELETE", Path: "/cards/{card_number}/comments/{comment_id}", Destructive: true,
 				Summary: "Delete a comment (comment creator only)",
 				Params:  []Param{cardNumber, pathParam("comment_id", "The comment ID")},
 			},
 			{
-				Action: "get_comment", Method: "GET", Path: "/cards/{card_number}/comments/{comment_id}", ReadOnly: true,
+				Action: "get_comment", Method: "GET", Path: "/cards/{card_number}/comments/{comment_id}", ReadOnly: true, Idempotent: true,
 				Summary: "Get one comment",
 				Params:  []Param{cardNumber, pathParam("comment_id", "The comment ID")},
 			},
 			{
-				Action: "list_comments", Method: "GET", Path: "/cards/{card_number}/comments", ReadOnly: true, Paginated: true,
+				Action: "list_comments", Method: "GET", Path: "/cards/{card_number}/comments", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List a card's comments, oldest first",
 				Params:  []Param{cardNumber, pageParam()},
 			},
 			{
-				Action: "update_comment", Method: "PUT", Path: "/cards/{card_number}/comments/{comment_id}", BodyKey: "comment",
+				Action: "update_comment", Method: "PUT", Path: "/cards/{card_number}/comments/{comment_id}", Idempotent: true, BodyKey: "comment",
 				Summary: "Update a comment (comment creator only)",
 				Params:  []Param{cardNumber, pathParam("comment_id", "The comment ID")},
 				Body: object(map[string]any{
@@ -335,6 +357,7 @@ var Domains = []*Domain{
 	{
 		Key:   "steps",
 		Tool:  "fizzy_steps",
+		Title: "Fizzy Steps",
 		Blurb: "Steps: the checklist items on a Fizzy card.",
 		Operations: []*Operation{
 			{
@@ -347,22 +370,22 @@ var Domains = []*Domain{
 				}, "content"),
 			},
 			{
-				Action: "delete_step", Method: "DELETE", Path: "/cards/{card_number}/steps/{step_id}",
+				Action: "delete_step", Method: "DELETE", Path: "/cards/{card_number}/steps/{step_id}", Destructive: true,
 				Summary: "Delete a step",
 				Params:  []Param{cardNumber, pathParam("step_id", "The step ID")},
 			},
 			{
-				Action: "get_step", Method: "GET", Path: "/cards/{card_number}/steps/{step_id}", ReadOnly: true,
+				Action: "get_step", Method: "GET", Path: "/cards/{card_number}/steps/{step_id}", ReadOnly: true, Idempotent: true,
 				Summary: "Get one step",
 				Params:  []Param{cardNumber, pathParam("step_id", "The step ID")},
 			},
 			{
-				Action: "list_steps", Method: "GET", Path: "/cards/{card_number}/steps", ReadOnly: true,
+				Action: "list_steps", Method: "GET", Path: "/cards/{card_number}/steps", ReadOnly: true, Idempotent: true,
 				Summary: "List a card's steps",
 				Params:  []Param{cardNumber},
 			},
 			{
-				Action: "update_step", Method: "PUT", Path: "/cards/{card_number}/steps/{step_id}", BodyKey: "step",
+				Action: "update_step", Method: "PUT", Path: "/cards/{card_number}/steps/{step_id}", Idempotent: true, BodyKey: "step",
 				Summary: "Edit a step or toggle its completion",
 				Params:  []Param{cardNumber, pathParam("step_id", "The step ID")},
 				Body: object(map[string]any{
@@ -375,10 +398,11 @@ var Domains = []*Domain{
 	{
 		Key:   "tags",
 		Tool:  "fizzy_tags",
+		Title: "Fizzy Tags",
 		Blurb: "Tags: the labels applied to cards, account-wide. Apply or remove them with the cards tool's toggle_tag.",
 		Operations: []*Operation{
 			{
-				Action: "list_tags", Method: "GET", Path: "/tags", ReadOnly: true, Paginated: true,
+				Action: "list_tags", Method: "GET", Path: "/tags", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List the account's tags, alphabetically",
 				Params:  []Param{pageParam()},
 			},
@@ -387,15 +411,16 @@ var Domains = []*Domain{
 	{
 		Key:   "users",
 		Tool:  "fizzy_users",
+		Title: "Fizzy Users",
 		Blurb: "Users: the people in the Fizzy account. Assign them to cards with the cards tool's toggle_assignment.",
 		Operations: []*Operation{
 			{
-				Action: "get_user", Method: "GET", Path: "/users/{user_id}", ReadOnly: true,
+				Action: "get_user", Method: "GET", Path: "/users/{user_id}", ReadOnly: true, Idempotent: true,
 				Summary: "Get one user",
 				Params:  []Param{pathParam("user_id", "The user ID")},
 			},
 			{
-				Action: "list_users", Method: "GET", Path: "/users", ReadOnly: true, Paginated: true,
+				Action: "list_users", Method: "GET", Path: "/users", ReadOnly: true, Idempotent: true, Paginated: true,
 				Summary: "List the account's active users",
 				Params:  []Param{pageParam()},
 			},

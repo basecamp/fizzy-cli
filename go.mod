@@ -5,14 +5,14 @@ go 1.26.11
 require (
 	github.com/basecamp/cli v0.2.1
 	github.com/basecamp/fizzy-sdk/go v0.3.0
-	github.com/basecamp/mcp v0.0.0-20260828100356-2d6f44b51e9d
+	github.com/basecamp/mcp v0.0.0-20261118214004-663b2e5d2836
 	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/hashicorp/go-version v1.9.0
 	github.com/itchyny/gojq v0.12.20
 	github.com/mattn/go-isatty v0.0.24
-	github.com/modelcontextprotocol/go-sdk v1.8.0
+	github.com/modelcontextprotocol/go-sdk v1.8.1-0.20261014132652-7c486efa8223
 	github.com/muesli/termenv v0.16.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.1.0

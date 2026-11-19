@@ -15,8 +15,15 @@ import (
 	"sort"
 	"strings"
 
+	toolkit "github.com/basecamp/mcp/catalog"
 	"github.com/basecamp/mcp/gateway"
 )
+
+// WriteSemantics is the toolkit catalog's behavior-model vocabulary for how
+// the server interprets a write's request body — aliased rather than
+// redefined, so the hand-written catalog speaks exactly the vocabulary the
+// fizzy-sdk model exports will use when generation replaces this package.
+type WriteSemantics = toolkit.WriteSemantics
 
 // Param is one path or query parameter of an operation.
 type Param struct {
@@ -36,10 +43,25 @@ type Operation struct {
 	Summary  string `json:"summary"`
 	Doc      string `json:"doc,omitempty"`
 	ReadOnly bool   `json:"readonly"`
+	// Idempotent marks operations safe to repeat: every read (enforced by
+	// validate), plus writes whose repeat provably converges — PUT-style
+	// updates and the documented already-published publish.
+	Idempotent bool `json:"idempotent"`
+	// Destructive marks operations that delete or irreversibly alter data.
+	// Curation starts from parity with the toolkit's BridgeDestructive
+	// action-name classifier; hand-reviewed exceptions are pinned by the
+	// drift test in catalog_test.go.
+	Destructive bool `json:"destructive"`
 	// Paginated marks endpoints that page via the Link header; responses
 	// carry next_page when more results exist, fetched by passing page.
-	Paginated bool    `json:"paginated,omitempty"`
-	Params    []Param `json:"params,omitempty"`
+	Paginated bool `json:"paginated,omitempty"`
+	// WriteSemantics declares how the server treats the request body on
+	// write — most importantly whether omitted fields are cleared. Fizzy's
+	// API docs declare no such semantics today, so no operation sets it;
+	// the field keeps describe payloads shape-compatible with the toolkit
+	// catalog until fizzy-sdk model exports carry the real values.
+	WriteSemantics *WriteSemantics `json:"write_semantics,omitempty"`
+	Params         []Param         `json:"params,omitempty"`
 	// Body is the JSON Schema of the request body's properties. The handler
 	// nests supplied fields under BodyKey when set ({"card": {...}}).
 	Body map[string]any `json:"body,omitempty"`
@@ -54,6 +76,7 @@ type Operation struct {
 type Domain struct {
 	Key        string       // short name, e.g. "cards"
 	Tool       string       // MCP tool name, e.g. "fizzy_cards"
+	Title      string       // human-readable tool title, e.g. "Fizzy Cards"
 	Blurb      string       // first line of the tool description
 	Operations []*Operation // sorted by action name
 }
@@ -65,6 +88,9 @@ func (d *Domain) Name() string { return d.Key }
 
 // ToolName returns the MCP tool name, e.g. "fizzy_cards".
 func (d *Domain) ToolName() string { return d.Tool }
+
+// ToolTitle returns the human-readable tool title, e.g. "Fizzy Cards".
+func (d *Domain) ToolTitle() string { return d.Title }
 
 // Find returns the dispatch surface of the operation registered under the
 // given action name.
@@ -79,7 +105,7 @@ func (d *Domain) Find(action string) (gateway.Operation, bool) {
 // FilterReadOnly returns a copy of the domain containing only read-only
 // operations, reporting false when none remain.
 func (d *Domain) FilterReadOnly() (gateway.Domain, bool) {
-	filtered := &Domain{Key: d.Key, Tool: d.Tool, Blurb: d.Blurb}
+	filtered := &Domain{Key: d.Key, Tool: d.Tool, Title: d.Title, Blurb: d.Blurb}
 	for _, op := range d.Operations {
 		if op.ReadOnly {
 			filtered.Operations = append(filtered.Operations, op)
@@ -111,6 +137,29 @@ func (d *Domain) AllReadOnly() bool {
 	return true
 }
 
+// AllIdempotent reports whether repeating any call is safe: every write
+// operation is idempotent. Read operations count as idempotent regardless,
+// so an all-read domain is vacuously idempotent.
+func (d *Domain) AllIdempotent() bool {
+	for _, op := range d.Operations {
+		if !op.ReadOnly && !op.Idempotent {
+			return false
+		}
+	}
+	return true
+}
+
+// AnyDestructive reports whether any operation deletes or irreversibly
+// alters data.
+func (d *Domain) AnyDestructive() bool {
+	for _, op := range d.Operations {
+		if op.Destructive {
+			return true
+		}
+	}
+	return false
+}
+
 // Description renders the tool description: the domain blurb, the gateway
 // calling convention, and a one-line summary per action. Matches the
 // toolkit catalog's generated rendering.
@@ -124,6 +173,9 @@ func (d *Domain) Description() string {
 		var notes []string
 		if op.ReadOnly {
 			notes = append(notes, "RO")
+		}
+		if op.Destructive {
+			notes = append(notes, "destructive")
 		}
 		if op.Paginated {
 			notes = append(notes, "paginated")
@@ -170,9 +222,10 @@ func (d *Domain) Describe(action string) (any, error) {
 		summaries := make([]map[string]any, 0, len(d.Operations))
 		for _, op := range d.Operations {
 			summaries = append(summaries, map[string]any{
-				"action":   op.Action,
-				"summary":  op.Summary,
-				"readonly": op.ReadOnly,
+				"action":      op.Action,
+				"summary":     op.Summary,
+				"readonly":    op.ReadOnly,
+				"destructive": op.Destructive,
 			})
 		}
 		return map[string]any{"domain": d.Key, "actions": summaries}, nil
@@ -222,6 +275,9 @@ func GatewayDomains(domains []*Domain) []gateway.Domain {
 }
 
 func validate(d *Domain) error {
+	if strings.TrimSpace(d.Title) == "" {
+		return fmt.Errorf("no title (connector directories require a title on every tool)")
+	}
 	seen := map[string]bool{gateway.DescribeAction: true}
 	sorted := sort.SliceIsSorted(d.Operations, func(i, j int) bool {
 		return d.Operations[i].Action < d.Operations[j].Action
@@ -236,6 +292,14 @@ func validate(d *Domain) error {
 		seen[op.Action] = true
 		if op.ReadOnly != (op.Method == "GET") {
 			return fmt.Errorf("action %q: readonly must mirror the method (GET and only GET reads)", op.Action)
+		}
+		if op.ReadOnly && !op.Idempotent {
+			return fmt.Errorf("action %q: read-only actions are idempotent by nature", op.Action)
+		}
+		if op.ReadOnly && op.Destructive {
+			// Contradictory annotations resolve differently across MCP
+			// clients; refuse the shape rather than emit it.
+			return fmt.Errorf("action %q: declared both readonly and destructive", op.Action)
 		}
 		if err := validateParams(op); err != nil {
 			return fmt.Errorf("action %q: %w", op.Action, err)
