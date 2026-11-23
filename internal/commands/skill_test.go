@@ -87,6 +87,31 @@ func TestExpandSkillPath(t *testing.T) {
 	}
 }
 
+func TestAgentGlobalSkillPath(t *testing.T) {
+	tests := []struct {
+		name   string
+		env    string
+		envVal string
+		path   func() string
+		want   string
+	}{
+		{"codex default", "CODEX_HOME", "", codexGlobalSkillPath, "~/.codex/skills/fizzy/SKILL.md"},
+		{"codex override", "CODEX_HOME", "/opt/codex", codexGlobalSkillPath, filepath.Join("/opt/codex", "skills", "fizzy", "SKILL.md")},
+		{"codex blank override", "CODEX_HOME", "  ", codexGlobalSkillPath, "~/.codex/skills/fizzy/SKILL.md"},
+		{"grok default", "GROK_HOME", "", grokGlobalSkillPath, "~/.grok/skills/fizzy/SKILL.md"},
+		{"grok override", "GROK_HOME", "/opt/grok", grokGlobalSkillPath, filepath.Join("/opt/grok", "skills", "fizzy", "SKILL.md")},
+		{"grok blank override", "GROK_HOME", "  ", grokGlobalSkillPath, "~/.grok/skills/fizzy/SKILL.md"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(tt.env, tt.envVal)
+			if got := tt.path(); got != tt.want {
+				t.Errorf("%s = %q, want %q", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestInstallSkillFiles(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
